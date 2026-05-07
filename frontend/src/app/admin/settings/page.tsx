@@ -1,0 +1,116 @@
+"use client"
+
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Building2, CreditCard, Bell, Shield, Save } from "lucide-react"
+
+export default function AdminSettings() {
+  return (
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h1 className="text-4xl font-bold font-heading tracking-tight text-foreground">Settings</h1>
+          <p className="text-muted-foreground mt-2 font-medium">Configure your agency's portal and payment settings.</p>
+        </div>
+        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl shadow-xl shadow-primary/20 transition-all premium-button font-heading group">
+          <Save className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform text-accent" />
+          Save All Changes
+        </Button>
+      </div>
+
+      <Tabs defaultValue="general" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 max-w-3xl h-16 bg-secondary/50 rounded-2xl p-1 border border-border">
+          <TabsTrigger value="general" className="rounded-xl font-bold font-heading text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all gap-2">
+            <Building2 className="w-4 h-4" /> Agency
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="rounded-xl font-bold font-heading text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all gap-2">
+            <CreditCard className="w-4 h-4" /> Payments
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="rounded-xl font-bold font-heading text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all gap-2">
+            <Bell className="w-4 h-4" /> Alerts
+          </TabsTrigger>
+          <TabsTrigger value="security" className="rounded-xl font-bold font-heading text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all gap-2">
+            <Shield className="w-4 h-4" /> Security
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="general" className="mt-8 space-y-6">
+          <Card className="border-border bg-card shadow-sm rounded-3xl overflow-hidden">
+            <CardHeader className="bg-secondary/30 border-b border-border py-6 px-8">
+              <CardTitle className="text-xl font-bold font-heading tracking-tight">Agency Profile</CardTitle>
+              <CardDescription className="text-muted-foreground font-medium mt-1">Public information for your agency.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 p-8">
+              <div className="grid grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading">Agency Name</Label>
+                  <Input defaultValue="Coach Johnson Realty" className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-all font-medium" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading">Contact Email</Label>
+                  <Input defaultValue="contact@coachjohnsonrealty.com" className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-all font-medium" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading">Business Address</Label>
+                <Input defaultValue="456 Realty Dr, Kansas City, MO 64101" className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-all font-medium" />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="payments" className="mt-8 space-y-6">
+          <Card className="border-border bg-card shadow-sm rounded-3xl overflow-hidden">
+            <CardHeader className="bg-secondary/30 border-b border-border py-6 px-8">
+              <CardTitle className="text-xl font-bold font-heading tracking-tight">Stripe Configuration</CardTitle>
+              <CardDescription className="text-muted-foreground font-medium mt-1">Manage how you receive payments and handle fees.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 p-8">
+              <div className="p-6 bg-green-500/10 border border-green-500/20 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/20">
+                    <Shield className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-green-600 font-heading">Stripe Account Connected</p>
+                    <p className="text-[10px] uppercase tracking-widest font-bold text-green-600/70 mt-1 font-heading">ID: acct_123456789</p>
+                  </div>
+                </div>
+                <Button variant="outline" className="rounded-xl border-green-500/30 text-green-600 hover:bg-green-500/20 text-[10px] font-bold uppercase tracking-widest font-heading transition-all px-6 w-full sm:w-auto">
+                  Manage on Stripe
+                </Button>
+              </div>
+              
+              <div className="space-y-6 mt-8 p-6 border border-border rounded-2xl bg-secondary/20">
+                <div className="flex items-center justify-between pb-6 border-b border-border">
+                  <div>
+                    <Label className="font-bold text-foreground font-heading text-base">Pass processing fees to tenant</Label>
+                    <p className="text-xs text-muted-foreground mt-1 font-medium">If disabled, your agency absorbs all transaction costs.</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <div className="w-14 h-7 bg-secondary peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-8 pt-2">
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading">ACH Flat Fee ($)</Label>
+                    <Input defaultValue="5.00" className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-all font-medium tabular-nums" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading">Credit Card Fee (%)</Label>
+                    <Input defaultValue="2.9" className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-all font-medium tabular-nums" />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}

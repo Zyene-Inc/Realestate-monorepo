@@ -1,0 +1,50 @@
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { PaymentsService } from './payments.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { Role } from '@prisma/client';
+import { RecordPaymentDto, UpdatePaymentStatusDto } from './dto/payment.dto';
+
+@Controller('payments')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class PaymentsController {
+  constructor(private readonly paymentsService: PaymentsService) {}
+
+  @Get()
+  @Roles(Role.SUPER_ADMIN, Role.LEASING_ADMIN)
+  async findAll() {
+    return this.paymentsService.findAll();
+  }
+
+  @Post('record')
+  @Roles(Role.SUPER_ADMIN, Role.LEASING_ADMIN)
+  async recordPayment(@Body() data: RecordPaymentDto, @Request() req: any) {
+    return this.paymentsService.recordPayment({
+      ...data,
+      dueDate: new Date(data.dueDate),
+    }, req.user.sub);
+  }
+
+  @Patch(':id/status')
+  @Roles(Role.SUPER_ADMIN, Role.LEASING_ADMIN)
+  async updateStatus(@Param('id') id: string, @Body() data: UpdatePaymentStatusDto, @Request() req: any) {
+    return this.paymentsService.updatePaymentStatus(id, data, req.user.sub);
+  }
+
+  @Get('overdue')
+  @Roles(Role.SUPER_ADMIN, Role.LEASING_ADMIN)
+  async getOverdue() {
+    return this.paymentsService.findOverdue();
+  }
+
+  @Get('my')
+  async getMyPayments(@Request() req: any) {
+    const userId = req.user.sub;
+    return this.paymentsService.findByUser(userId);
+  }
+
+  // Future Stripe Integration Placeholders
+  // TODO: Add POST /create-intent for tenants
+  // TODO: Add POST /webhook for Stripe events
+}

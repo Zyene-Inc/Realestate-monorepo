@@ -1,0 +1,122 @@
+import { PropertiesService } from './properties.service';
+export declare class PropertiesController {
+    private readonly propertiesService;
+    constructor(propertiesService: PropertiesService);
+    create(createPropertyDto: any): Promise<{
+        id: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        address: string;
+        city: string;
+        state: string;
+        zip: string;
+        propertyType: string;
+        description: string | null;
+        amenities: string[];
+        utilityInfo: string | null;
+        photos: string[];
+        documents: string[];
+    }>;
+    findAll(): Promise<({
+        units: {
+            id: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
+            unitNumber: string;
+            floor: string | null;
+            bedrooms: number;
+            bathrooms: number;
+            squareFeet: number;
+            rentAmount: number;
+            depositAmount: number;
+            availableDate: Date | null;
+            propertyId: string;
+        }[];
+    } & {
+        id: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        address: string;
+        city: string;
+        state: string;
+        zip: string;
+        propertyType: string;
+        description: string | null;
+        amenities: string[];
+        utilityInfo: string | null;
+        photos: string[];
+        documents: string[];
+    })[]>;
+    findOne(id: string): Promise<({
+        units: {
+            id: string;
+            status: string;
+            createdAt: Date;
+            updatedAt: Date;
+            unitNumber: string;
+            floor: string | null;
+            bedrooms: number;
+            bathrooms: number;
+            squareFeet: number;
+            rentAmount: number;
+            depositAmount: number;
+            availableDate: Date | null;
+            propertyId: string;
+        }[];
+    } & {
+        id: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        address: string;
+        city: string;
+        state: string;
+        zip: string;
+        propertyType: string;
+        description: string | null;
+        amenities: string[];
+        utilityInfo: string | null;
+        photos: string[];
+        documents: string[];
+    }) | null>;
+    update(id: string, updatePropertyDto: any): Promise<{
+        id: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        address: string;
+        city: string;
+        state: string;
+        zip: string;
+        propertyType: string;
+        description: string | null;
+        amenities: string[];
+        utilityInfo: string | null;
+        photos: string[];
+        documents: string[];
+    }>;
+    remove(id: string): Promise<{
+        id: string;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+        name: string;
+        address: string;
+        city: string;
+        state: string;
+        zip: string;
+        propertyType: string;
+        description: string | null;
+        amenities: string[];
+        utilityInfo: string | null;
+        photos: string[];
+        documents: string[];
+    }>;
+}
