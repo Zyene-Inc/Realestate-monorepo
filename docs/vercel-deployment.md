@@ -14,9 +14,10 @@ Deploy the API first so its production URL can be supplied to the web project. A
 Current production deployments:
 
 - API: `https://coach-johnson-realty-api-nu.vercel.app`
-- Web: `https://coach-johnson-realty-web-sigma.vercel.app`
+- Canonical web: `https://coachjohnsonrealty.com`
+- Web support fallback: `https://coach-johnson-realty-web-sigma.vercel.app`
 
-The web alias is the active canonical origin until `coachjohnsonrealty.com` is owned or DNS-verified in the Vercel team. Production Supabase callbacks and portal URL variables currently use that working alias. After domain verification, change them to the target hostname map below and redeploy both projects.
+The apex domain and all five explicit portal subdomains are assigned to the web project's Production environment. Cloudflare uses DNS-only CNAME records to the project-specific Vercel target; Vercel reports valid configuration and issued TLS for all six hosts. Production portal variables and Supabase callbacks use the custom-domain map below.
 
 The web project serves one public site and five role-specific portals from the same production deployment:
 
@@ -101,16 +102,8 @@ Do not copy a CNAME target from another project. Vercel can provide a project-sp
 
 Current Supabase Auth URL Configuration:
 
-- **Site URL**: `https://coach-johnson-realty-web-sigma.vercel.app`
-- Allowed redirects:
-  - `https://coach-johnson-realty-web-sigma.vercel.app/agent/status`
-  - `https://coach-johnson-realty-web-sigma.vercel.app/auth/reset-password`
-  - `http://localhost:3000/auth/reset-password`
-
-After the custom-domain cutover:
-
-- Set **Site URL** to `https://coachjohnsonrealty.com`.
-- Add these exact production redirect URLs:
+- **Site URL**: `https://coachjohnsonrealty.com`.
+- Exact production redirect URLs:
   - `https://agents.coachjohnsonrealty.com/agent/status`
   - `https://coachjohnsonrealty.com/auth/reset-password`
   - `https://agents.coachjohnsonrealty.com/auth/reset-password`
@@ -118,6 +111,7 @@ After the custom-domain cutover:
   - `https://rental-admin.coachjohnsonrealty.com/auth/reset-password`
   - `https://tenant.coachjohnsonrealty.com/auth/reset-password`
   - `https://admin.coachjohnsonrealty.com/auth/reset-password`
+- Local development retains `http://localhost:3000/auth/reset-password`; the Vercel-alias callbacks remain temporarily available for support fallback access.
 - Add preview callback patterns only if preview deployments must support authentication.
 
 The browser client stores the Supabase session in chunked secure cookies scoped to `.coachjohnsonrealty.com`. This permits a role redirect between these controlled subdomains without exposing the secret/service-role key. Keep every subdomain on Johnson Realty-controlled deployments; a compromised subdomain would share the parent-domain session boundary.
@@ -135,6 +129,8 @@ The Resend sender domain `coachjohnsonrealty.com` is verified and must remain ve
 ## Deployment verification
 
 Phase 2 production verification completed on August 20, 2026 and was rerun after the fresh Git-connected Vercel deployment: API health returned `database: connected`; the web `/api` rewrite passed; session retrieval and sign-out passed; password reset passed; and the pending → decline → edit → resubmit → approve workflow passed against the production API with the exact expected audit sequence. Verification, decline, resubmission, reviewer, approval, and password-reset messages all reached Resend's deterministic `delivered` state. Test identities and database audit rows were removed afterward.
+
+The custom-domain cutover completed on August 20, 2026. Vercel reports valid configuration for the apex and five portal hosts; Cloudflare retains explicit DNS-only CNAME records for each host without modifying the existing Zoho or Resend records; TLS and HTTP checks pass on every hostname; and Supabase Auth uses the custom apex Site URL with exact agent-verification and per-portal password-reset callbacks.
 
 1. Open `/api/health` and confirm `database: connected`.
 2. Test sign-up, email verification, sign-in, sign-out, and session persistence across the six domains.

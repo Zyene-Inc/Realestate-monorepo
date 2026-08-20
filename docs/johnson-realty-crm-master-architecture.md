@@ -373,7 +373,6 @@ The next work should follow dependency order:
 3. Implement the manual buy/sell commission ledger after adding a listing-close state; do not add Stripe to buy/sell.
 4. Complete remaining email triggers alongside each workflow and add delivery/bounce handling in Phase 7.
 5. Select and integrate the e-signature provider in Phase 9 after document workflows stabilize.
-6. Attach the six custom Johnson Realty hostnames after `coachjohnsonrealty.com` is owned or DNS-verified in the Vercel team, then replace the working Vercel-alias auth callbacks with the custom-domain callback set.
 
 ## Code evidence reviewed
 

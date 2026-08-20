@@ -56,7 +56,7 @@ Refer to `backend/.env.example` and `frontend/.env.example` for all required con
 
 ## Vercel deployment
 
-The frontend and API are deployed as two Vercel projects from this repository. The live fallback URLs are `coach-johnson-realty-web-sigma.vercel.app` and `coach-johnson-realty-api-nu.vercel.app`; the six Johnson Realty custom hostnames will replace the web fallback after the domain is owned or DNS-verified in Vercel. Vercel runs the NestJS API as a serverless function, while Supabase provides Auth and PostgreSQL. See [docs/vercel-deployment.md](docs/vercel-deployment.md) for the target domains, environment variables, Supabase redirect allowlist, and verification checklist.
+The frontend and API are deployed as two Vercel projects from this repository. `coachjohnsonrealty.com` and its five role-specific subdomains are the canonical web origins; `coach-johnson-realty-web-sigma.vercel.app` remains a support fallback, and `coach-johnson-realty-api-nu.vercel.app` serves the API. Vercel runs the NestJS API as a serverless function, while Supabase provides Auth and PostgreSQL. See [docs/vercel-deployment.md](docs/vercel-deployment.md) for the domain map, environment variables, Supabase redirect allowlist, and verification checklist.
 
 ## License
 MIT
