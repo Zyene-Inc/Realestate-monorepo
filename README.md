@@ -14,25 +14,22 @@ A production-ready full-stack application for modern property management.
 - **Framework**: NestJS
 - **Database**: PostgreSQL with Prisma 7
 - **Auth**: JWT (Access/Refresh Tokens), bcrypt hashing
-- **Email**: SendGrid Integration
+- **Email**: Resend Integration
 - **Storage**: AWS S3 / Cloudflare R2
 - **Infrastructure**: Docker Compose
 
 ## Getting Started
 
-### 1. Database Setup
-Ensure Docker is installed and run:
-```bash
-docker compose up -d db
-```
+### 1. Supabase setup
+This application uses the connected `coachjohnsonrealty Project` for PostgreSQL and authentication. Copy `backend/.env.example` to `backend/.env` and add the database password and server-only Supabase secret key from **Settings > API Keys**. Copy `frontend/.env.example` to `frontend/.env.local`.
+
+The database migrations have been applied to the connected project. Future schema changes should be applied through the Supabase integration and committed alongside the matching Prisma schema change.
 
 ### 2. Backend Setup
 ```bash
 cd backend
 npm install
-# Configure your .env file using .env.example
-npx prisma migrate dev
-npm run seed
+# Configure backend/.env using .env.example
 npm run start:dev
 ```
 
@@ -45,7 +42,7 @@ npm run dev
 
 ## Modules Implemented
 
-- **Authentication**: JWT-based login with Refresh Token rotation. Role-based access control (RBAC).
+- **Authentication**: Supabase Auth with role-based access control (RBAC).
 - **Manual Payment Ledger**: Record rent payments, track overdue balances, and manage payment history without external processors.
 - **Tenant Onboarding**: Secure invite flow with email-based activation links.
 - **Maintenance Management**: Real-time request tracking and status updates.
@@ -55,11 +52,11 @@ npm run dev
 
 ## Environment Variables
 
-Refer to `backend/.env.example` for all required configuration including:
-- `DATABASE_URL` (PostgreSQL)
-- `SENDGRID_API_KEY`
-- `S3_BUCKET_NAME`
-- `JWT_SECRET`
+Refer to `backend/.env.example` and `frontend/.env.example` for all required configuration. Supabase is the sole database and authentication provider; no local PostgreSQL container or JWT secrets are required.
+
+## Vercel deployment
+
+The frontend and API are deployed as two Vercel projects from this repository. Vercel runs the NestJS API as a serverless function, while Supabase provides Auth and PostgreSQL. See [docs/vercel-deployment.md](docs/vercel-deployment.md) for the project settings, environment variables, and verification checklist.
 
 ## License
 MIT

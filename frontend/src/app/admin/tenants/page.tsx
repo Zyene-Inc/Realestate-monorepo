@@ -87,11 +87,13 @@ export default function AdminTenants() {
         </div>
         
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl shadow-xl shadow-primary/20 transition-all premium-button font-heading group">
-              <UserPlus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform text-accent" />
-              Invite Tenant
-            </Button>
+          <DialogTrigger
+            render={
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl shadow-xl shadow-primary/20 transition-all premium-button font-heading group" />
+            }
+          >
+            <UserPlus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform text-accent" />
+            Invite Tenant
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px] rounded-[2rem] border-border bg-card p-8">
             <form onSubmit={handleInvite}>

@@ -7,10 +7,11 @@ import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react"
 import { Logo } from "@/components/logo"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { api } from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
 import { toast } from "sonner"
 import Link from "next/link"
+import { routeForUser } from "@/lib/auth-routing"
+import { getErrorMessage } from "@/lib/errors"
 
 export default function TenantLogin() {
   const router = useRouter()
@@ -23,12 +24,11 @@ export default function TenantLogin() {
     e.preventDefault()
     setIsLoading(true)
     try {
-      const data = await api.post("/auth/login", { email, password })
-      login(data.accessToken, data.user)
+      const user = await login(email, password)
       toast.success("Login successful")
-      router.push("/tenant/dashboard")
-    } catch (error: any) {
-      toast.error(error.message || "Invalid credentials")
+      router.push(routeForUser(user))
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Invalid credentials"))
     } finally {
       setIsLoading(false)
     }
@@ -126,5 +126,3 @@ export default function TenantLogin() {
     </div>
   )
 }
-
-

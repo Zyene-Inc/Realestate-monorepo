@@ -26,32 +26,42 @@ export class StorageService {
       });
       this.isConfigured = true;
     } else {
-      this.logger.warn('File storage is not configured. Add storage environment variables.');
+      this.logger.warn(
+        'File storage is not configured. Add storage environment variables.',
+      );
     }
   }
 
   private validateFile(file: Express.Multer.File) {
     const allowedMimeTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-    const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+    // Vercel Functions cap request and response bodies at 4.5 MB. Keep
+    // proxied uploads below that limit, including multipart overhead.
+    const maxSizeBytes = 4 * 1024 * 1024;
 
     if (!allowedMimeTypes.includes(file.mimetype)) {
-      throw new Error(`Invalid file type: ${file.mimetype}. Allowed types: PDF, JPG, PNG.`);
+      throw new Error(
+        `Invalid file type: ${file.mimetype}. Allowed types: PDF, JPG, PNG.`,
+      );
     }
 
     if (file.size > maxSizeBytes) {
-      throw new Error(`File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB. Max size: 5MB.`);
+      throw new Error(
+        `File too large: ${(file.size / 1024 / 1024).toFixed(2)}MB. Max size: 4MB.`,
+      );
     }
   }
 
   async uploadFile(file: Express.Multer.File, folder: string): Promise<string> {
     if (!this.isConfigured || !this.s3Client) {
-      throw new Error('File storage is not configured. Add storage environment variables.');
+      throw new Error(
+        'File storage is not configured. Add storage environment variables.',
+      );
     }
 
     this.validateFile(file);
 
     const key = `${folder}/${uuidv4()}-${file.originalname}`;
-    
+
     try {
       await this.s3Client.send(
         new PutObjectCommand({
@@ -63,10 +73,16 @@ export class StorageService {
       );
 
       const publicUrl = this.configService.get<string>('S3_PUBLIC_URL');
-      return publicUrl ? `${publicUrl}/${key}` : `https://${this.bucketName}.s3.amazonaws.com/${key}`;
-    } catch (error) {
-      this.logger.error('Failed to upload file to S3', error);
-      throw new Error(error.message || 'Failed to upload file to storage.');
+      return publicUrl
+        ? `${publicUrl}/${key}`
+        : `https://${this.bucketName}.s3.amazonaws.com/${key}`;
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to upload file to storage.';
+      this.logger.error('Failed to upload file to S3', message);
+      throw new Error(message);
     }
   }
 }

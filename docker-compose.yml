@@ -1,40 +1,27 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:15-alpine
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: coach_johnson_realty
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
   backend:
     build: ./backend
     ports:
       - "3001:3001"
     environment:
-      DATABASE_URL: "postgresql://postgres:postgres@db:5432/coach_johnson_realty"
-      JWT_SECRET: "secret-key-change-this-in-prod"
-      JWT_REFRESH_SECRET: "refresh-secret-key-change-this-in-prod"
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL to the Supabase connection string}
+      SUPABASE_URL: ${SUPABASE_URL:?Set SUPABASE_URL}
+      SUPABASE_PUBLISHABLE_KEY: ${SUPABASE_PUBLISHABLE_KEY:?Set SUPABASE_PUBLISHABLE_KEY}
+      SUPABASE_SECRET_KEY: ${SUPABASE_SECRET_KEY:?Set SUPABASE_SECRET_KEY}
       BACKEND_PORT: 3001
       FRONTEND_URL: "http://localhost:3000"
-      EMAIL_FROM: "noreply@coachjohnsonrealty.com"
-    depends_on:
-      - db
+      RESEND_API_KEY: "${RESEND_API_KEY:-}"
+      RESEND_FROM_EMAIL: "${RESEND_FROM_EMAIL:-Coach Johnson Realty <onboarding@resend.dev>}"
 
   frontend:
     build: ./frontend
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: "http://localhost:3001"
+      NEXT_PUBLIC_API_URL: "http://localhost:3001/api"
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:?Set NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:?Set NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
     depends_on:
       - backend
-
-volumes:
-  postgres_data:

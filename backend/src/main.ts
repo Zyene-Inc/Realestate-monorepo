@@ -9,26 +9,32 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
-  
+
   app.setGlobalPrefix('api');
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
 
   // Enable CORS
-  const frontendUrl = configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+  const frontendUrl =
+    configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
   app.enableCors({
     origin: frontendUrl,
     credentials: true,
   });
-  
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-  }));
 
-  const port = configService.get<number>('BACKEND_PORT') || 3001;
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  const port =
+    process.env.PORT || configService.get<number>('BACKEND_PORT') || 3001;
   await app.listen(port);
-  logger.log(`Application hardened and running on: http://localhost:${port}/api`);
+  logger.log(
+    `Application hardened and running on: http://localhost:${port}/api`,
+  );
 }
-bootstrap();
+void bootstrap();

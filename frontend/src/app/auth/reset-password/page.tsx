@@ -1,32 +1,21 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { Suspense, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { api } from "@/lib/api"
+import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { Lock, Loader2, CheckCircle2 } from "lucide-react"
 import { Logo } from "@/components/logo"
 import Link from "next/link"
 
-export default function ResetPassword() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const token = searchParams.get("token")
+function ResetPasswordForm() {
   
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
-
-  useEffect(() => {
-    if (!token) {
-      toast.error("Invalid or missing reset token")
-      router.push("/auth/forgot-password")
-    }
-  }, [token, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,7 +30,8 @@ export default function ResetPassword() {
 
     setLoading(true)
     try {
-      await api.post("/auth/reset-password", { token, password })
+      const { error } = await supabase.auth.updateUser({ password })
+      if (error) throw error
       setSuccess(true)
       toast.success("Password reset successful")
     } catch (error: any) {
@@ -67,7 +57,7 @@ export default function ResetPassword() {
             <p className="text-muted-foreground font-medium leading-relaxed">Your password has been updated. You can now securely log in to your portal.</p>
           </div>
           <div className="pt-6">
-            <Link href="/" className="block">
+            <Link href="/tenant/login" className="block">
               <Button className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-bold uppercase tracking-widest rounded-2xl shadow-lg shadow-primary/20 transition-all premium-button font-heading">
                 Proceed to Login
               </Button>
@@ -138,5 +128,19 @@ export default function ResetPassword() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function ResetPassword() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
   )
 }

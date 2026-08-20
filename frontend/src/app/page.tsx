@@ -9,25 +9,32 @@ import { Label } from "@/components/ui/label"
 import { Lock, Mail, ArrowRight, ShieldCheck, Globe } from "lucide-react"
 import { Logo } from "@/components/logo"
 import Link from "next/link"
+import Image from "next/image"
+import { useAuth } from "@/context/auth-context"
+import { toast } from "sonner"
+import { routeForUser } from "@/lib/auth-routing"
+import { getErrorMessage } from "@/lib/errors"
 
 export default function UnifiedLogin() {
   const router = useRouter()
+  const { login } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    
-    setTimeout(() => {
-      if (email.includes("admin")) {
-        router.push("/admin/dashboard")
-      } else {
-        router.push("/tenant/dashboard")
-      }
+
+    try {
+      const user = await login(email, password)
+      toast.success("Login successful")
+      router.push(routeForUser(user))
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Invalid credentials"))
+    } finally {
       setIsLoading(false)
-    }, 800)
+    }
   }
 
   return (
@@ -63,7 +70,7 @@ export default function UnifiedLogin() {
           </div>
           
           <div className="relative h-72 w-full max-w-3xl rounded-[2rem] overflow-hidden shadow-2xl border border-border group">
-             <img src="/hero_exterior.png" alt="Luxury Property Exterior" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000" />
+             <Image src="/hero_exterior.png" alt="Luxury Property Exterior" fill sizes="(min-width: 1024px) 58vw, 100vw" className="object-cover group-hover:scale-105 transition-transform duration-1000" />
              <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
           </div>
 
@@ -144,7 +151,7 @@ export default function UnifiedLogin() {
             </CardContent>
             <CardFooter className="flex flex-col gap-4 border-t border-border p-8 bg-secondary/30">
               <p className="text-xs text-center text-muted-foreground font-medium uppercase tracking-widest font-heading font-bold">
-                New tenant? <span className="text-primary font-bold cursor-pointer hover:underline ml-1">Activate Account</span>
+                Agent company? <Link href="/agent/signup" className="text-primary font-bold hover:underline ml-1">Apply for access</Link>
               </p>
             </CardFooter>
           </Card>

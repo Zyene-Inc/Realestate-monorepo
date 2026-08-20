@@ -19,6 +19,8 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { EmailsModule } from './emails/emails.module';
 import { StorageModule } from './storage/storage.module';
 import { HealthController } from './health/health.controller';
+import { AgentsModule } from './agents/agents.module';
+import { ListingsModule } from './listings/listings.module';
 
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -26,26 +28,30 @@ import { APP_GUARD } from '@nestjs/core';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{
-      ttl: 60000,
-      limit: 10,
-    }]),
-    PrismaModule, 
-    AuthModule, 
-    PropertiesModule, 
-    UnitsModule, 
-    TenantsModule, 
-    LeasesModule, 
-    PaymentsModule, 
-    MaintenanceModule, 
-    VendorsModule, 
-    MessagesModule, 
-    AnnouncementsModule, 
-    DocumentsModule, 
-    NotificationsModule, 
-    AuditLogsModule, 
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 10,
+      },
+    ]),
+    PrismaModule,
+    AuthModule,
+    PropertiesModule,
+    UnitsModule,
+    TenantsModule,
+    LeasesModule,
+    PaymentsModule,
+    MaintenanceModule,
+    VendorsModule,
+    MessagesModule,
+    AnnouncementsModule,
+    DocumentsModule,
+    NotificationsModule,
+    AuditLogsModule,
     EmailsModule,
-    StorageModule
+    StorageModule,
+    AgentsModule,
+    ListingsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

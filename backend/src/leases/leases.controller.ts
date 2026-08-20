@@ -7,7 +7,7 @@ import { Role } from '@prisma/client';
 
 @Controller('admin/leases')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.SUPER_ADMIN, Role.LEASING_ADMIN)
+@Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN)
 export class LeasesController {
   constructor(private readonly leasesService: LeasesService) {}
 

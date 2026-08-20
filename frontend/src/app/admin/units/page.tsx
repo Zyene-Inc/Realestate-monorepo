@@ -37,11 +37,13 @@ export default function AdminUnits() {
         </div>
         
         <Dialog>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl shadow-xl shadow-primary/20 transition-all premium-button font-heading">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Unit
-            </Button>
+          <DialogTrigger
+            render={
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl shadow-xl shadow-primary/20 transition-all premium-button font-heading" />
+            }
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Unit
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px] rounded-[2rem] border-border bg-card p-8">
             <DialogHeader className="mb-6">

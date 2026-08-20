@@ -99,11 +99,13 @@ export default function AdminLeases() {
         </div>
         
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl shadow-xl shadow-primary/20 transition-all premium-button font-heading group">
-              <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform text-accent" />
-              Create Lease
-            </Button>
+          <DialogTrigger
+            render={
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl shadow-xl shadow-primary/20 transition-all premium-button font-heading group" />
+            }
+          >
+            <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform text-accent" />
+            Create Lease
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px] rounded-[2rem] border-border bg-card p-8">
             <form onSubmit={handleCreateLease}>

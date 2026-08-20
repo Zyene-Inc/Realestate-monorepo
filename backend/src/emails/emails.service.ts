@@ -1,38 +1,191 @@
 import { Injectable, Logger } from '@nestjs/common';
-import * as sgMail from '@sendgrid/mail';
 import { ConfigService } from '@nestjs/config';
+import { Resend } from 'resend';
 
 @Injectable()
 export class EmailsService {
   private readonly logger = new Logger(EmailsService.name);
-  private readonly isConfigured: boolean;
+  private readonly resend: Resend | null;
+  private readonly from: string;
 
   constructor(private configService: ConfigService) {
-    const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
-    if (apiKey && apiKey !== 'SG.mock') {
-      sgMail.setApiKey(apiKey);
-      this.isConfigured = true;
+    const apiKey = this.configService.get<string>('RESEND_API_KEY')?.trim();
+    this.from =
+      this.configService.get<string>('RESEND_FROM_EMAIL')?.trim() ||
+      'Coach Johnson Realty <onboarding@resend.dev>';
+
+    if (apiKey && apiKey !== 're_your_api_key_here') {
+      this.resend = new Resend(apiKey);
     } else {
-      this.logger.warn('SendGrid is not configured. Emails will not be sent.');
-      this.isConfigured = false;
+      this.resend = null;
+      this.logger.warn('Resend is not configured. Emails will not be sent.');
     }
   }
 
-  private async send(msg: any) {
-    if (!this.isConfigured) {
-      this.logger.log(`SendGrid is not configured. Email to ${msg.to} was not sent. Subject: ${msg.subject}`);
+  private async send(msg: { to: string; subject: string; html: string }) {
+    if (!this.resend) {
+      this.logger.log(
+        `Resend is not configured. Email to ${msg.to} was not sent. Subject: ${msg.subject}`,
+      );
       return;
     }
 
     try {
-      await sgMail.send({
+      const { data, error } = await this.resend.emails.send({
         ...msg,
-        from: this.configService.get<string>('EMAIL_FROM') || 'noreply@coachjohnsonrealty.com',
+        from: this.from,
       });
-      this.logger.log(`Email sent to ${msg.to} with subject: ${msg.subject}`);
+
+      if (error) {
+        this.logger.error(
+          `Resend rejected email to ${msg.to}: ${error.message}`,
+        );
+        return;
+      }
+
+      this.logger.log(
+        `Email ${data?.id ?? 'accepted'} sent to ${msg.to} with subject: ${msg.subject}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send email to ${msg.to}`, error);
+      this.logger.error(
+        `Failed to send email to ${msg.to}`,
+        error instanceof Error ? error.stack : String(error),
+      );
     }
+  }
+
+  private escape(value: string) {
+    return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  async sendAgentVerification(
+    email: string,
+    contactName: string,
+    verificationLink: string,
+  ) {
+    await this.send({
+      to: email,
+      subject: 'Verify your Johnson Realty agent application',
+      html: `
+        <div style="font-family: sans-serif; padding: 24px; max-width: 600px; margin: auto;">
+          <h2>Verify your email</h2>
+          <p>Hello ${this.escape(contactName)},</p>
+          <p>Confirm your email address to submit your agent company application for Johnson Realty review.</p>
+          <p style="margin: 28px 0;"><a href="${this.escape(verificationLink)}" style="padding: 12px 20px; background: #111827; color: white; text-decoration: none; border-radius: 8px;">Verify application</a></p>
+          <p>If you did not submit this application, you can ignore this email.</p>
+        </div>
+      `,
+    });
+  }
+
+  async sendAgentApproved(email: string, contactName: string) {
+    await this.send({
+      to: email,
+      subject: 'Your Johnson Realty agent application was approved',
+      html: `<div style="font-family: sans-serif; padding: 24px;"><h2>Application approved</h2><p>Hello ${this.escape(contactName)},</p><p>Your agent company has been approved. You can now sign in and continue setting up your account.</p></div>`,
+    });
+  }
+
+  async sendAgentDeclined(email: string, contactName: string, reason: string) {
+    await this.send({
+      to: email,
+      subject: 'Update on your Johnson Realty agent application',
+      html: `<div style="font-family: sans-serif; padding: 24px;"><h2>Application update</h2><p>Hello ${this.escape(contactName)},</p><p>We could not approve your application at this time.</p><p><strong>Reason:</strong> ${this.escape(reason)}</p><p>Contact Johnson Realty if you need clarification or want to submit updated information.</p></div>`,
+    });
+  }
+
+  async sendListingSubmitted(
+    email: string,
+    listingName: string,
+    companyName: string,
+    listingId: string,
+    resubmission: boolean,
+  ) {
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const reviewUrl = `${frontendUrl}/admin/listings?id=${encodeURIComponent(listingId)}`;
+    await this.send({
+      to: email,
+      subject: `${resubmission ? 'Sale listing resubmitted' : 'New sale listing for review'}: ${listingName}`,
+      html: `<div style="font-family: sans-serif; padding: 24px;"><h2>${resubmission ? 'Sale listing resubmitted' : 'New sale listing submitted'}</h2><p><strong>${this.escape(companyName)}</strong> submitted <strong>${this.escape(listingName)}</strong> for Johnson Realty review.</p><p style="margin: 28px 0;"><a href="${this.escape(reviewUrl)}" style="padding: 12px 20px; background: #111827; color: white; text-decoration: none; border-radius: 8px;">Review listing</a></p></div>`,
+    });
+  }
+
+  async sendListingApproved(
+    email: string,
+    contactName: string,
+    listingName: string,
+  ) {
+    await this.send({
+      to: email,
+      subject: `Sale listing approved: ${listingName}`,
+      html: `<div style="font-family: sans-serif; padding: 24px;"><h2>Listing approved</h2><p>Hello ${this.escape(contactName)},</p><p><strong>${this.escape(listingName)}</strong> was approved and is now available in Johnson Realty's public sale listings.</p></div>`,
+    });
+  }
+
+  async sendListingRejected(
+    email: string,
+    contactName: string,
+    listingName: string,
+    reason: string,
+  ) {
+    await this.send({
+      to: email,
+      subject: `Changes requested: ${listingName}`,
+      html: `<div style="font-family: sans-serif; padding: 24px;"><h2>Listing changes requested</h2><p>Hello ${this.escape(contactName)},</p><p><strong>${this.escape(listingName)}</strong> was returned for changes.</p><p><strong>Reason:</strong> ${this.escape(reason)}</p><p>Edit the listing and submit it again when it is ready.</p></div>`,
+    });
+  }
+
+  async sendBuyerInquiryToAgent(
+    email: string,
+    contactName: string,
+    listingName: string,
+    buyerName: string,
+    inquiryId: string,
+  ) {
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const inboxUrl = `${frontendUrl}/agent/inquiries?id=${encodeURIComponent(inquiryId)}`;
+    await this.send({
+      to: email,
+      subject: `New buyer inquiry: ${listingName}`,
+      html: `<div style="font-family: sans-serif; padding: 24px;"><h2>New buyer inquiry</h2><p>Hello ${this.escape(contactName)},</p><p><strong>${this.escape(buyerName)}</strong> asked about <strong>${this.escape(listingName)}</strong>.</p><p style="margin: 28px 0;"><a href="${this.escape(inboxUrl)}" style="padding: 12px 20px; background: #111827; color: white; text-decoration: none; border-radius: 8px;">Open agent inbox</a></p></div>`,
+    });
+  }
+
+  async sendBuyerReplyToAgent(
+    email: string,
+    contactName: string,
+    listingName: string,
+    buyerName: string,
+    inquiryId: string,
+  ) {
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const inboxUrl = `${frontendUrl}/agent/inquiries?id=${encodeURIComponent(inquiryId)}`;
+    await this.send({
+      to: email,
+      subject: `Buyer replied: ${listingName}`,
+      html: `<div style="font-family: sans-serif; padding: 24px;"><h2>Buyer reply</h2><p>Hello ${this.escape(contactName)},</p><p><strong>${this.escape(buyerName)}</strong> added a message about <strong>${this.escape(listingName)}</strong>.</p><p style="margin: 28px 0;"><a href="${this.escape(inboxUrl)}" style="padding: 12px 20px; background: #111827; color: white; text-decoration: none; border-radius: 8px;">Open conversation</a></p></div>`,
+    });
+  }
+
+  async sendAgentReplyToBuyer(
+    email: string,
+    buyerName: string,
+    listingName: string,
+    agentName: string,
+  ) {
+    await this.send({
+      to: email,
+      subject: `Reply about ${listingName}`,
+      html: `<div style="font-family: sans-serif; padding: 24px;"><h2>Your listing inquiry has a reply</h2><p>Hello ${this.escape(buyerName)},</p><p><strong>${this.escape(agentName)}</strong> replied to your inquiry about <strong>${this.escape(listingName)}</strong>.</p><p>Return to the inquiry confirmation in the browser where you submitted it to continue the conversation. You can also reply directly to the listing agent using the contact details on the listing page.</p></div>`,
+    });
   }
 
   async sendInvite(email: string, inviteLink: string) {
@@ -104,7 +257,11 @@ export class EmailsService {
     });
   }
 
-  async sendMaintenanceUpdate(email: string, requestId: string, status: string) {
+  async sendMaintenanceUpdate(
+    email: string,
+    requestId: string,
+    status: string,
+  ) {
     await this.send({
       to: email,
       subject: `Maintenance Request Update - #${requestId}`,

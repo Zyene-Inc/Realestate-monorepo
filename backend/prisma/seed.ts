@@ -1,10 +1,38 @@
-import { PrismaClient, Role, UserStatus, PaymentStatus } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import {
+  ListingType,
+  PaymentStatus,
+  PrismaClient,
+  PropertyOwnerPayoutStatus,
+  PublishStatus,
+  Role,
+  UserStatus,
+} from '@prisma/client';
 import * as dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
 const prisma = new PrismaClient();
+
+function supabaseAdmin() {
+  const url = process.env.SUPABASE_URL;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !secretKey) {
+    throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY are required to seed Supabase Auth users.');
+  }
+  return createClient(url, secretKey, { auth: { autoRefreshToken: false, persistSession: false } });
+}
+
+async function createSeedUser(email: string) {
+  const admin = supabaseAdmin();
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password: 'password123',
+    email_confirm: true,
+  });
+  if (error || !data.user) throw new Error(error?.message || `Unable to create ${email}`);
+  return data.user;
+}
 
 async function main() {
   // Clear existing data
@@ -17,17 +45,27 @@ async function main() {
   await prisma.tenant.deleteMany({});
   await prisma.unit.deleteMany({});
   await prisma.property.deleteMany({});
+  await prisma.propertyOwner.deleteMany({});
+  await prisma.agent.deleteMany({});
   await prisma.user.deleteMany({});
 
-  const hashedPassword = await bcrypt.hash('password123', 10);
-
   // Admin User
+  const adminAuthUser = await createSeedUser('admin@coachjohnsonrealty.com');
   const admin = await prisma.user.create({
     data: {
+      authUserId: adminAuthUser.id,
       email: 'admin@coachjohnsonrealty.com',
-      password: hashedPassword,
       role: Role.SUPER_ADMIN,
       status: UserStatus.ACTIVE,
+    },
+  });
+
+  const owner = await prisma.propertyOwner.create({
+    data: {
+      companyName: 'Coach Johnson Realty Holdings',
+      contactEmail: 'admin@coachjohnsonrealty.com',
+      payoutStatus: PropertyOwnerPayoutStatus.PENDING_ONBOARDING,
+      commissionRate: 10,
     },
   });
 
@@ -35,6 +73,9 @@ async function main() {
   const neyansPlace = await prisma.property.create({
     data: {
       name: "Neyan's Place",
+      listingType: ListingType.RENT,
+      publishStatus: PublishStatus.PUBLISHED,
+      ownerId: owner.id,
       address: '2411 E 10th St',
       city: 'Kansas City',
       state: 'MO',
@@ -52,6 +93,9 @@ async function main() {
   const property = await prisma.property.create({
     data: {
       name: 'Oakwood Apartments',
+      listingType: ListingType.RENT,
+      publishStatus: PublishStatus.PUBLISHED,
+      ownerId: owner.id,
       address: '123 Main St',
       city: 'Kansas City',
       state: 'MO',
@@ -81,10 +125,11 @@ async function main() {
   });
 
   // Tenant User
+  const tenantAuthUser = await createSeedUser('tenant@example.com');
   const tenantUser = await prisma.user.create({
     data: {
+      authUserId: tenantAuthUser.id,
       email: 'tenant@example.com',
-      password: hashedPassword,
       role: Role.TENANT,
       status: UserStatus.ACTIVE,
     },

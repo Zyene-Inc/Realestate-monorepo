@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { api } from "@/lib/api"
 import { useAuth } from "@/context/auth-context"
 import { toast } from "sonner"
 import Link from "next/link"
+import { routeForUser } from "@/lib/auth-routing"
+import { getErrorMessage } from "@/lib/errors"
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("")
@@ -21,12 +22,11 @@ export default function AdminLogin() {
     e.preventDefault()
     setLoading(true)
     try {
-      const data = await api.post("/auth/login", { email, password })
-      login(data.accessToken, data.user)
+      const user = await login(email, password)
       toast.success("Login successful")
-      router.push("/admin/dashboard")
-    } catch (error: any) {
-      toast.error(error.message || "Invalid credentials")
+      router.push(routeForUser(user))
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Invalid credentials"))
     } finally {
       setLoading(false)
     }

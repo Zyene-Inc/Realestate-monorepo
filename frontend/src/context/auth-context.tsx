@@ -3,12 +3,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, setAccessToken } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 
 interface AuthContextType {
   user: any;
   token: string | null;
-  login: (token: string, user: any) => void;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<any>;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -21,19 +22,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const refreshAuth = async () => {
+    const restoreAuth = async () => {
       try {
-        // Try to refresh the token using the httpOnly cookie
-        const data = await api.post('/auth/refresh', {});
-        if (data.accessToken) {
-          setToken(data.accessToken);
-          setAccessToken(data.accessToken);
-          
-          // For now, we'll assume the refresh endpoint returns the user object 
-          // or we fetch it immediately after refresh.
-          if (data.user) {
-            setUser(data.user);
-          }
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setToken(session.access_token);
+          setAccessToken(session.access_token);
+          setUser(await api.get('/auth/me'));
         }
       } catch (error) {
         console.log('No active session found.');
@@ -42,18 +37,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    refreshAuth();
+    restoreAuth();
   }, []);
 
-  const login = (newToken: string, newUser: any) => {
-    setToken(newToken);
-    setAccessToken(newToken);
-    setUser(newUser);
+  const login = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.session) throw error || new Error('Unable to start a session');
+
+    setToken(data.session.access_token);
+    setAccessToken(data.session.access_token);
+    const appUser = await api.get('/auth/me');
+    setUser(appUser);
+    return appUser;
   };
 
   const logout = async () => {
     try {
-      await api.post('/auth/logout', {});
+      await supabase.auth.signOut();
     } catch (e) {
       console.error('Logout error', e);
     } finally {

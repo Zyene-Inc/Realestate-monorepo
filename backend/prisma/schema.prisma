@@ -12,8 +12,52 @@ datasource db {
 
 enum Role {
   SUPER_ADMIN
-  LEASING_ADMIN
+  SALES_ADMIN
+  TENANT_ADMIN
+  AGENT
   TENANT
+}
+
+enum AgentAccountStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  SUSPENDED
+}
+
+enum PropertyOwnerPayoutStatus {
+  PENDING_ONBOARDING
+  ACTIVE
+  RESTRICTED
+  DISABLED
+}
+
+enum ListingType {
+  SALE
+  RENT
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum InquiryStatus {
+  OPEN
+  CLOSED
+}
+
+enum InquirySenderType {
+  BUYER
+  AGENT
+}
+
+enum PublishStatus {
+  DRAFT
+  PUBLISHED
+  UNPUBLISHED
 }
 
 enum UserStatus {
@@ -23,26 +67,75 @@ enum UserStatus {
 }
 
 model User {
-  id                  String         @id @default(cuid())
-  email               String         @unique
-  password            String
-  role                Role           @default(TENANT)
-  status              UserStatus     @default(INVITED)
-  inviteToken         String?        @unique
-  inviteTokenExpires  DateTime?
-  resetToken          String?        @unique
-  resetTokenExpires   DateTime?
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
-  tenantProfile       Tenant?
-  sentMessages        Message[]      @relation("SentMessages")
-  receivedMessages    Message[]      @relation("ReceivedMessages")
-  auditLogs           AuditLog[]
-  notifications       Notification[]
+  id                 String         @id @default(cuid())
+  authUserId         String         @unique @db.Uuid
+  email              String         @unique
+  role               Role           @default(TENANT)
+  status             UserStatus     @default(INVITED)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  tenantProfile      Tenant?
+  agentProfile       Agent?         @relation("AgentUser")
+  approvedAgents     Agent[]        @relation("AgentApprovedBy")
+  reviewedProperties Property[]     @relation("PropertyReviewedBy")
+  sentMessages       Message[]      @relation("SentMessages")
+  receivedMessages   Message[]      @relation("ReceivedMessages")
+  auditLogs          AuditLog[]
+  notifications      Notification[]
+}
+
+model Agent {
+  id                       String             @id @default(cuid())
+  userId                   String             @unique
+  user                     User               @relation("AgentUser", fields: [userId], references: [id])
+  companyName              String
+  contactName              String
+  email                    String             @unique
+  phone                    String?
+  accountStatus            AgentAccountStatus @default(PENDING)
+  stripeConnectedAccountId String?            @unique
+  verificationDocuments    String[]
+  approvedAt               DateTime?
+  approvedByUserId         String?
+  approvedBy               User?              @relation("AgentApprovedBy", fields: [approvedByUserId], references: [id])
+  declineReason            String?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  properties               Property[]
+  listingInquiries         ListingInquiry[]
+
+  @@index([accountStatus])
+  @@index([approvedByUserId])
+}
+
+model PropertyOwner {
+  id                       String                    @id @default(cuid())
+  ownerName                String?
+  companyName              String?
+  contactEmail             String
+  contactPhone             String?
+  stripeConnectedAccountId String?                   @unique
+  payoutStatus             PropertyOwnerPayoutStatus @default(PENDING_ONBOARDING)
+  commissionRate           Decimal                   @default(10.00) @db.Decimal(5, 2)
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  onboardedAt              DateTime?
+  properties               Property[]
+
+  @@index([payoutStatus])
 }
 
 model Property {
   id                  String               @id @default(cuid())
+  listingType         ListingType          @default(RENT)
+  listingStatus       ListingStatus?
+  publishStatus       PublishStatus        @default(DRAFT)
+  ownerId             String?
+  owner               PropertyOwner?       @relation(fields: [ownerId], references: [id])
+  agentId             String?
+  agent               Agent?               @relation(fields: [agentId], references: [id])
+  reviewedByUserId    String?
+  reviewedBy          User?                @relation("PropertyReviewedBy", fields: [reviewedByUserId], references: [id])
   name                String
   address             String
   city                String
@@ -50,16 +143,65 @@ model Property {
   zip                 String
   propertyType        String // single family, duplex, apartment, commercial
   description         String?
+  price               Decimal?             @db.Decimal(12, 2)
+  rentAmount          Decimal?             @db.Decimal(12, 2)
+  bedrooms            Int?
+  bathrooms           Float?
+  squareFeet          Int?
+  availabilityDate    DateTime?
   amenities           String[]
   utilityInfo         String?
   photos              String[]
   documents           String[]
   status              String               @default("active")
+  submittedAt         DateTime?
+  reviewedAt          DateTime?
+  rejectionReason     String?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   units               Unit[]
   maintenanceRequests MaintenanceRequest[]
   announcements       Announcement[]
+  listingInquiries    ListingInquiry[]
+
+  @@index([ownerId])
+  @@index([agentId])
+  @@index([reviewedByUserId])
+  @@index([listingType, listingStatus])
+  @@index([listingType, publishStatus])
+}
+
+model ListingInquiry {
+  id                   String                  @id @default(cuid())
+  propertyId           String
+  property             Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  agentId              String
+  agent                Agent                   @relation(fields: [agentId], references: [id])
+  buyerName            String
+  buyerEmail           String
+  buyerPhone           String?
+  buyerAccessTokenHash String                  @unique
+  status               InquiryStatus           @default(OPEN)
+  agentLastReadAt      DateTime?
+  lastMessageAt        DateTime                @default(now())
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  messages             ListingInquiryMessage[]
+
+  @@index([agentId, status, lastMessageAt])
+  @@index([propertyId, lastMessageAt])
+}
+
+model ListingInquiryMessage {
+  id         String            @id @default(cuid())
+  inquiryId  String
+  inquiry    ListingInquiry    @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  senderType InquirySenderType
+  body       String
+  readAt     DateTime?
+  createdAt  DateTime          @default(now())
+
+  @@index([inquiryId, createdAt])
 }
 
 model Unit {

@@ -12,13 +12,13 @@ export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
 
   @Get()
-  @Roles(Role.SUPER_ADMIN, Role.LEASING_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN)
   async findAll() {
     return this.paymentsService.findAll();
   }
 
   @Post('record')
-  @Roles(Role.SUPER_ADMIN, Role.LEASING_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN)
   async recordPayment(@Body() data: RecordPaymentDto, @Request() req: any) {
     return this.paymentsService.recordPayment({
       ...data,
@@ -27,13 +27,13 @@ export class PaymentsController {
   }
 
   @Patch(':id/status')
-  @Roles(Role.SUPER_ADMIN, Role.LEASING_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN)
   async updateStatus(@Param('id') id: string, @Body() data: UpdatePaymentStatusDto, @Request() req: any) {
     return this.paymentsService.updatePaymentStatus(id, data, req.user.sub);
   }
 
   @Get('overdue')
-  @Roles(Role.SUPER_ADMIN, Role.LEASING_ADMIN)
+  @Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN)
   async getOverdue() {
     return this.paymentsService.findOverdue();
   }
