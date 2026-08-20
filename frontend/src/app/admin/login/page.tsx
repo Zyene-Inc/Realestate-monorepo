@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useAuth } from "@/context/auth-context"
 import { toast } from "sonner"
 import Link from "next/link"
-import { routeForUser } from "@/lib/auth-routing"
+import { navigateToUserPortal } from "@/lib/auth-routing"
 import { getErrorMessage } from "@/lib/errors"
 
 export default function AdminLogin() {
@@ -16,7 +16,11 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, user, isLoading: isAuthLoading } = useAuth()
+
+  useEffect(() => {
+    if (!isAuthLoading && user) navigateToUserPortal(router, user, "replace")
+  }, [isAuthLoading, router, user])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,7 +28,7 @@ export default function AdminLogin() {
     try {
       const user = await login(email, password)
       toast.success("Login successful")
-      router.push(routeForUser(user))
+      navigateToUserPortal(router, user)
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Invalid credentials"))
     } finally {

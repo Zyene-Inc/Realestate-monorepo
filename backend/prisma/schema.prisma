@@ -189,6 +189,8 @@ model ListingInquiry {
   messages             ListingInquiryMessage[]
 
   @@index([agentId, status, lastMessageAt])
+  @@index([agentId, lastMessageAt(sort: Desc)])
+  @@index([lastMessageAt(sort: Desc)])
   @@index([propertyId, lastMessageAt])
 }
 

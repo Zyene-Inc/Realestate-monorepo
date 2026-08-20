@@ -29,6 +29,12 @@ export type ListingInquiry = {
     phone?: string | null;
   };
   messages: InquiryMessage[];
+  nextMessageCursor?: string | null;
+};
+
+export type CursorPage<T> = {
+  items: T[];
+  nextCursor: string | null;
 };
 
 export function inquiryTime(value: string) {

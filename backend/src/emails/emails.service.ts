@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { getPortalUrls } from '../common/config/portal-urls';
 import { Resend } from 'resend';
 
 @Injectable()
@@ -99,6 +100,28 @@ export class EmailsService {
     });
   }
 
+  async sendAgentResubmissionReceived(email: string, contactName: string) {
+    await this.send({
+      to: email,
+      subject: 'Your Johnson Realty agent application was resubmitted',
+      html: `<div style="font-family: sans-serif; padding: 24px;"><h2>Application resubmitted</h2><p>Hello ${this.escape(contactName)},</p><p>We received your updated agent company application. Johnson Realty will email you after the new review is complete.</p></div>`,
+    });
+  }
+
+  async sendAgentResubmittedForReview(
+    email: string,
+    companyName: string,
+    contactName: string,
+    agentId: string,
+  ) {
+    const reviewUrl = `${getPortalUrls(this.configService).propertiesAdmin}/admin/agents?id=${encodeURIComponent(agentId)}&status=PENDING`;
+    await this.send({
+      to: email,
+      subject: `Agent application resubmitted: ${companyName}`,
+      html: `<div style="font-family: sans-serif; padding: 24px;"><h2>Agent application resubmitted</h2><p><strong>${this.escape(companyName)}</strong> (${this.escape(contactName)}) submitted updated information for Johnson Realty review.</p><p style="margin: 28px 0;"><a href="${this.escape(reviewUrl)}" style="padding: 12px 20px; background: #111827; color: white; text-decoration: none; border-radius: 8px;">Review application</a></p></div>`,
+    });
+  }
+
   async sendListingSubmitted(
     email: string,
     listingName: string,
@@ -106,9 +129,7 @@ export class EmailsService {
     listingId: string,
     resubmission: boolean,
   ) {
-    const frontendUrl =
-      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const reviewUrl = `${frontendUrl}/admin/listings?id=${encodeURIComponent(listingId)}`;
+    const reviewUrl = `${getPortalUrls(this.configService).propertiesAdmin}/admin/listings?id=${encodeURIComponent(listingId)}`;
     await this.send({
       to: email,
       subject: `${resubmission ? 'Sale listing resubmitted' : 'New sale listing for review'}: ${listingName}`,
@@ -148,9 +169,7 @@ export class EmailsService {
     buyerName: string,
     inquiryId: string,
   ) {
-    const frontendUrl =
-      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const inboxUrl = `${frontendUrl}/agent/inquiries?id=${encodeURIComponent(inquiryId)}`;
+    const inboxUrl = `${getPortalUrls(this.configService).agent}/agent/inquiries?id=${encodeURIComponent(inquiryId)}`;
     await this.send({
       to: email,
       subject: `New buyer inquiry: ${listingName}`,
@@ -165,9 +184,7 @@ export class EmailsService {
     buyerName: string,
     inquiryId: string,
   ) {
-    const frontendUrl =
-      this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
-    const inboxUrl = `${frontendUrl}/agent/inquiries?id=${encodeURIComponent(inquiryId)}`;
+    const inboxUrl = `${getPortalUrls(this.configService).agent}/agent/inquiries?id=${encodeURIComponent(inquiryId)}`;
     await this.send({
       to: email,
       subject: `Buyer replied: ${listingName}`,

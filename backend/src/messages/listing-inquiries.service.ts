@@ -17,7 +17,12 @@ import { EmailsService } from '../emails/emails.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateListingInquiryDto } from './dto/listing-inquiry.dto';
 
-const inquiryInclude = {
+const DEFAULT_INQUIRY_PAGE_SIZE = 25;
+const DEFAULT_MESSAGE_PAGE_SIZE = 50;
+
+type CursorPage = { cursor?: string; limit?: number };
+
+const inquiryBaseInclude = {
   property: {
     select: { id: true, name: true, address: true, city: true, state: true },
   },
@@ -30,14 +35,19 @@ const inquiryInclude = {
       phone: true,
     },
   },
-  messages: { orderBy: { createdAt: 'asc' as const } },
 } satisfies Prisma.ListingInquiryInclude;
 
 const inquiryListInclude = {
-  property: inquiryInclude.property,
-  agent: inquiryInclude.agent,
-  messages: { orderBy: { createdAt: 'desc' as const }, take: 1 },
+  ...inquiryBaseInclude,
+  messages: {
+    orderBy: [{ createdAt: 'desc' as const }, { id: 'desc' as const }],
+    take: 1,
+  },
 } satisfies Prisma.ListingInquiryInclude;
+
+type InquiryWithBase = Prisma.ListingInquiryGetPayload<{
+  include: typeof inquiryBaseInclude;
+}>;
 
 @Injectable()
 export class ListingInquiriesService {
@@ -54,6 +64,32 @@ export class ListingInquiriesService {
     const { buyerAccessTokenHash: _secret, ...safe } = value;
     void _secret;
     return safe;
+  }
+
+  private pageSize(requested: number | undefined, fallback: number) {
+    return Math.min(Math.max(requested ?? fallback, 1), 100);
+  }
+
+  private async withMessagePage<T extends InquiryWithBase>(
+    inquiry: T,
+    page: CursorPage = {},
+  ) {
+    const limit = this.pageSize(page.limit, DEFAULT_MESSAGE_PAGE_SIZE);
+    const rows = await this.prisma.listingInquiryMessage.findMany({
+      where: { inquiryId: inquiry.id },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      ...(page.cursor ? { cursor: { id: page.cursor }, skip: 1 } : {}),
+    });
+    const hasMore = rows.length > limit;
+    const currentPage = hasMore ? rows.slice(0, limit) : rows;
+    return {
+      ...this.withoutToken(inquiry),
+      messages: currentPage.reverse(),
+      nextMessageCursor: hasMore
+        ? (currentPage[currentPage.length - 1]?.id ?? null)
+        : null,
+    };
   }
 
   private async approvedAgent(userId: string) {
@@ -92,14 +128,15 @@ export class ListingInquiriesService {
           buyerPhone: data.buyerPhone?.trim() || null,
           buyerAccessTokenHash: this.hashToken(accessToken),
           lastMessageAt: now,
-          messages: {
-            create: {
-              senderType: InquirySenderType.BUYER,
-              body: data.message.trim(),
-            },
-          },
         },
-        include: inquiryInclude,
+        include: inquiryBaseInclude,
+      });
+      const message = await tx.listingInquiryMessage.create({
+        data: {
+          inquiryId: created.id,
+          senderType: InquirySenderType.BUYER,
+          body: data.message.trim(),
+        },
       });
       await tx.auditLog.create({
         data: {
@@ -118,7 +155,7 @@ export class ListingInquiriesService {
           action: 'INQUIRY_BUYER_MESSAGE_SENT',
           resource: 'listing_inquiry',
           resourceId: created.id,
-          newValue: JSON.stringify({ messageId: created.messages[0].id }),
+          newValue: JSON.stringify({ messageId: message.id }),
         },
       });
       return created;
@@ -131,7 +168,10 @@ export class ListingInquiriesService {
       inquiry.buyerName,
       inquiry.id,
     );
-    return { inquiry: this.withoutToken(inquiry), accessToken };
+    return {
+      inquiry: await this.withMessagePage(inquiry),
+      accessToken,
+    };
   }
 
   private async buyerInquiry(inquiryId: string, accessToken: string) {
@@ -140,41 +180,39 @@ export class ListingInquiriesService {
         id: inquiryId,
         buyerAccessTokenHash: this.hashToken(accessToken),
       },
-      include: inquiryInclude,
+      include: inquiryBaseInclude,
     });
     if (!inquiry) throw new NotFoundException('Inquiry not found');
     return inquiry;
   }
 
-  async getForBuyer(inquiryId: string, accessToken: string) {
+  async getForBuyer(
+    inquiryId: string,
+    accessToken: string,
+    page: CursorPage = {},
+  ) {
     const inquiry = await this.buyerInquiry(inquiryId, accessToken);
-    const unreadAgentMessages = inquiry.messages.filter(
-      (message) =>
-        message.senderType === InquirySenderType.AGENT && !message.readAt,
-    );
-    if (unreadAgentMessages.length === 0) return this.withoutToken(inquiry);
-    return this.prisma.$transaction(async (tx) => {
-      await tx.listingInquiryMessage.updateMany({
+    await this.prisma.$transaction(async (tx) => {
+      const marked = await tx.listingInquiryMessage.updateMany({
         where: {
-          id: { in: unreadAgentMessages.map((message) => message.id) },
+          inquiryId,
+          senderType: InquirySenderType.AGENT,
           readAt: null,
         },
         data: { readAt: new Date() },
       });
-      const updated = await tx.listingInquiry.findUniqueOrThrow({
-        where: { id: inquiry.id },
-        include: inquiryInclude,
-      });
-      await tx.auditLog.create({
-        data: {
-          action: 'INQUIRY_BUYER_MESSAGES_READ',
-          resource: 'listing_inquiry',
-          resourceId: inquiry.id,
-          newValue: JSON.stringify({ count: unreadAgentMessages.length }),
-        },
-      });
-      return this.withoutToken(updated);
+      if (marked.count > 0) {
+        await tx.auditLog.create({
+          data: {
+            action: 'INQUIRY_BUYER_MESSAGES_READ',
+            resource: 'listing_inquiry',
+            resourceId: inquiry.id,
+            newValue: JSON.stringify({ count: marked.count }),
+          },
+        });
+      }
     });
+    return this.withMessagePage(inquiry, page);
   }
 
   async buyerReply(inquiryId: string, accessToken: string, body: string) {
@@ -194,38 +232,46 @@ export class ListingInquiriesService {
       updated.buyerName,
       updated.id,
     );
-    return this.withoutToken(updated);
+    return this.withMessagePage(updated);
   }
 
-  async listForAgent(userId: string) {
+  async listForAgent(userId: string, page: CursorPage = {}) {
     const agent = await this.approvedAgent(userId);
-    const inquiries = await this.prisma.listingInquiry.findMany({
+    const limit = this.pageSize(page.limit, DEFAULT_INQUIRY_PAGE_SIZE);
+    const rows = await this.prisma.listingInquiry.findMany({
       where: { agentId: agent.id },
       include: inquiryListInclude,
-      orderBy: { lastMessageAt: 'desc' },
+      orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      ...(page.cursor ? { cursor: { id: page.cursor }, skip: 1 } : {}),
     });
-    return inquiries.map((item) => this.withoutToken(item));
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    return {
+      items: items.map((item) => this.withoutToken(item)),
+      nextCursor: hasMore ? (items[items.length - 1]?.id ?? null) : null,
+    };
   }
 
-  async getForAgent(userId: string, inquiryId: string) {
+  async getForAgent(userId: string, inquiryId: string, page: CursorPage = {}) {
     const agent = await this.approvedAgent(userId);
     const inquiry = await this.prisma.listingInquiry.findFirst({
       where: { id: inquiryId, agentId: agent.id },
-      include: inquiryInclude,
+      include: inquiryBaseInclude,
     });
     if (!inquiry) throw new NotFoundException('Inquiry not found');
-    return this.withoutToken(inquiry);
+    return this.withMessagePage(inquiry, page);
   }
 
-  async markRead(userId: string, inquiryId: string) {
+  async markRead(userId: string, inquiryId: string, page: CursorPage = {}) {
     const agent = await this.approvedAgent(userId);
     const current = await this.prisma.listingInquiry.findFirst({
       where: { id: inquiryId, agentId: agent.id },
     });
     if (!current) throw new NotFoundException('Inquiry not found');
     const now = new Date();
-    return this.prisma.$transaction(async (tx) => {
-      await tx.listingInquiryMessage.updateMany({
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const marked = await tx.listingInquiryMessage.updateMany({
         where: {
           inquiryId,
           senderType: InquirySenderType.BUYER,
@@ -233,28 +279,32 @@ export class ListingInquiriesService {
         },
         data: { readAt: now },
       });
-      const updated = await tx.listingInquiry.update({
+      const saved = await tx.listingInquiry.update({
         where: { id: inquiryId },
         data: { agentLastReadAt: now },
-        include: inquiryInclude,
+        include: inquiryBaseInclude,
       });
-      await tx.auditLog.create({
-        data: {
-          userId,
-          action: 'INQUIRY_MESSAGES_READ',
-          resource: 'listing_inquiry',
-          resourceId: inquiryId,
-        },
-      });
-      return this.withoutToken(updated);
+      if (marked.count > 0) {
+        await tx.auditLog.create({
+          data: {
+            userId,
+            action: 'INQUIRY_MESSAGES_READ',
+            resource: 'listing_inquiry',
+            resourceId: inquiryId,
+            newValue: JSON.stringify({ count: marked.count }),
+          },
+        });
+      }
+      return saved;
     });
+    return this.withMessagePage(updated, page);
   }
 
   async agentReply(userId: string, inquiryId: string, body: string) {
     const agent = await this.approvedAgent(userId);
     const current = await this.prisma.listingInquiry.findFirst({
       where: { id: inquiryId, agentId: agent.id },
-      include: inquiryInclude,
+      include: inquiryBaseInclude,
     });
     if (!current) throw new NotFoundException('Inquiry not found');
     if (current.status !== InquiryStatus.OPEN) {
@@ -272,11 +322,11 @@ export class ListingInquiriesService {
       updated.property.name,
       updated.agent.contactName,
     );
-    return this.withoutToken(updated);
+    return this.withMessagePage(updated);
   }
 
   private async addMessage(
-    current: Awaited<ReturnType<ListingInquiriesService['buyerInquiry']>>,
+    current: InquiryWithBase,
     senderType: InquirySenderType,
     rawBody: string,
     userId?: string,
@@ -290,7 +340,7 @@ export class ListingInquiriesService {
       const updated = await tx.listingInquiry.update({
         where: { id: current.id },
         data: { lastMessageAt: now },
-        include: inquiryInclude,
+        include: inquiryBaseInclude,
       });
       await tx.auditLog.create({
         data: {
@@ -315,11 +365,11 @@ export class ListingInquiriesService {
     });
     if (!current) throw new NotFoundException('Inquiry not found');
     if (current.status === status) return this.getForAgent(userId, inquiryId);
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.listingInquiry.update({
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const saved = await tx.listingInquiry.update({
         where: { id: inquiryId },
         data: { status },
-        include: inquiryInclude,
+        include: inquiryBaseInclude,
       });
       await tx.auditLog.create({
         data: {
@@ -331,24 +381,33 @@ export class ListingInquiriesService {
           newValue: JSON.stringify({ status }),
         },
       });
-      return this.withoutToken(updated);
+      return saved;
     });
+    return this.withMessagePage(updated);
   }
 
-  async listForOversight() {
-    const inquiries = await this.prisma.listingInquiry.findMany({
+  async listForOversight(page: CursorPage = {}) {
+    const limit = this.pageSize(page.limit, DEFAULT_INQUIRY_PAGE_SIZE);
+    const rows = await this.prisma.listingInquiry.findMany({
       include: inquiryListInclude,
-      orderBy: { lastMessageAt: 'desc' },
+      orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      ...(page.cursor ? { cursor: { id: page.cursor }, skip: 1 } : {}),
     });
-    return inquiries.map((item) => this.withoutToken(item));
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    return {
+      items: items.map((item) => this.withoutToken(item)),
+      nextCursor: hasMore ? (items[items.length - 1]?.id ?? null) : null,
+    };
   }
 
-  async getForOversight(inquiryId: string) {
+  async getForOversight(inquiryId: string, page: CursorPage = {}) {
     const inquiry = await this.prisma.listingInquiry.findUnique({
       where: { id: inquiryId },
-      include: inquiryInclude,
+      include: inquiryBaseInclude,
     });
     if (!inquiry) throw new NotFoundException('Inquiry not found');
-    return this.withoutToken(inquiry);
+    return this.withMessagePage(inquiry, page);
   }
 }

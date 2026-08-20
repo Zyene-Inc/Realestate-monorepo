@@ -111,6 +111,11 @@ export class AdminSaleListingsController {
     return this.listings.getForReview(id);
   }
 
+  @Get(':id/audit-history')
+  auditHistory(@Param('id') id: string) {
+    return this.listings.getAuditHistory(id);
+  }
+
   @Get(':id/documents/:index/url')
   documentUrl(
     @Param('id') id: string,

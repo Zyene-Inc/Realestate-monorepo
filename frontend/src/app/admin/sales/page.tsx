@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/errors";
+import type { CursorPage, ListingInquiry } from "@/lib/inquiries";
 
 type Metrics = {
   pendingAgents: number;
@@ -15,6 +16,22 @@ type Metrics = {
   approvedListings: number;
   openInquiries: number;
 };
+
+async function loadAllInquiries() {
+  const inquiries: ListingInquiry[] = [];
+  let cursor: string | null = null;
+  do {
+    const query = cursor
+      ? `?limit=100&cursor=${encodeURIComponent(cursor)}`
+      : "?limit=100";
+    const page = (await api.get(
+      `/admin/inquiries${query}`,
+    )) as CursorPage<ListingInquiry>;
+    inquiries.push(...page.items);
+    cursor = page.nextCursor;
+  } while (cursor);
+  return inquiries;
+}
 
 export default function SalesDashboardPage() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
@@ -25,7 +42,7 @@ export default function SalesDashboardPage() {
       api.get("/agents?status=APPROVED"),
       api.get("/admin/sale-listings?status=PENDING_REVIEW"),
       api.get("/admin/sale-listings?status=APPROVED"),
-      api.get("/admin/inquiries"),
+      loadAllInquiries(),
     ])
       .then(
         ([

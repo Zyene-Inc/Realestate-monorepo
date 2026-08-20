@@ -506,6 +506,22 @@ async function main() {
     inquiryCreated.body.inquiry.messages[0]?.senderType === 'BUYER',
     'Initial buyer message was not created',
   );
+  const secondInquiry = await request<{
+    inquiry: { id: string };
+  }>(`/public/sale-listings/${created.body.id}/inquiries`, {
+    method: 'POST',
+    body: JSON.stringify({
+      buyerName: 'Pagination Buyer',
+      buyerEmail: `pagination-buyer-${suffix}@example.com`,
+      message: 'I am interested in learning more about this property.',
+      website: '',
+    }),
+  });
+  assert(
+    secondInquiry.response.status === 201,
+    'Second inquiry creation failed',
+  );
+  inquiryIds.push(secondInquiry.body.inquiry.id);
   const badBuyerAccess = await request(
     `/public/inquiries/${inquiryCreated.body.inquiry.id}/access`,
     {
@@ -520,14 +536,29 @@ async function main() {
     'Invalid buyer token was accepted',
   );
 
-  const agentInbox = await request<Array<{ id: string }>>(
-    '/agent/inquiries',
+  const agentInbox = await request<{
+    items: Array<{ id: string }>;
+    nextCursor: string | null;
+  }>('/agent/inquiries?limit=1', {}, agentToken);
+  assert(
+    agentInbox.body.items.length === 1 && agentInbox.body.nextCursor,
+    'Agent inquiry cursor page was not bounded',
+  );
+  const agentInboxPageTwo = await request<{
+    items: Array<{ id: string }>;
+    nextCursor: string | null;
+  }>(
+    `/agent/inquiries?limit=1&cursor=${agentInbox.body.nextCursor}`,
     {},
     agentToken,
   );
   assert(
-    agentInbox.body.some((item) => item.id === inquiryCreated.body.inquiry.id),
-    'Inquiry was not routed to the listing agent',
+    new Set(
+      [...agentInbox.body.items, ...agentInboxPageTwo.body.items].map(
+        (item) => item.id,
+      ),
+    ).has(inquiryCreated.body.inquiry.id),
+    'Inquiry was not routed to the listing agent across cursor pages',
   );
   const otherAgentAccess = await request(
     `/agent/inquiries/${inquiryCreated.body.inquiry.id}`,
@@ -551,6 +582,11 @@ async function main() {
     ),
     'Agent read receipt was not recorded',
   );
+  await request(
+    `/agent/inquiries/${inquiryCreated.body.inquiry.id}/read`,
+    { method: 'POST', body: '{}' },
+    agentToken,
+  );
   const agentReply = await request<{
     messages: Array<{ senderType: string }>;
   }>(
@@ -569,15 +605,24 @@ async function main() {
   );
   const buyerAccess = await request<{
     messages: Array<{ senderType: string; readAt?: string | null }>;
+    nextMessageCursor: string | null;
   }>(`/public/inquiries/${inquiryCreated.body.inquiry.id}/access`, {
     method: 'POST',
-    body: JSON.stringify({ accessToken: inquiryCreated.body.accessToken }),
+    body: JSON.stringify({
+      accessToken: inquiryCreated.body.accessToken,
+      limit: 1,
+    }),
   });
   assert(
     buyerAccess.body.messages.some(
       (message) => message.senderType === 'AGENT' && message.readAt,
     ),
     'Buyer read receipt was not recorded',
+  );
+  assert(
+    buyerAccess.body.messages.length === 1 &&
+      Boolean(buyerAccess.body.nextMessageCursor),
+    'Buyer message thread was not cursor paginated',
   );
   const buyerReply = await request<{
     messages: Array<{ senderType: string }>;
@@ -592,14 +637,37 @@ async function main() {
     buyerReply.body.messages.at(-1)?.senderType === 'BUYER',
     'Buyer reply was not recorded',
   );
-  const oversight = await request<Array<{ id: string }>>(
-    '/admin/inquiries',
+  const messagePage = await request<{
+    messages: Array<{ id: string; senderType: string }>;
+    nextMessageCursor: string | null;
+  }>(
+    `/agent/inquiries/${inquiryCreated.body.inquiry.id}?limit=1`,
     {},
-    reviewerToken,
+    agentToken,
   );
   assert(
-    oversight.body.some((item) => item.id === inquiryCreated.body.inquiry.id),
-    'Johnson Realty oversight could not see the inquiry',
+    messagePage.body.messages.length === 1 &&
+      messagePage.body.nextMessageCursor,
+    'Agent message thread was not cursor paginated',
+  );
+  const olderMessagePage = await request<{
+    messages: Array<{ id: string }>;
+  }>(
+    `/agent/inquiries/${inquiryCreated.body.inquiry.id}?limit=1&cursor=${messagePage.body.nextMessageCursor}`,
+    {},
+    agentToken,
+  );
+  assert(
+    olderMessagePage.body.messages[0]?.id !== messagePage.body.messages[0]?.id,
+    'Agent message cursor returned a duplicate page',
+  );
+  const oversight = await request<{
+    items: Array<{ id: string }>;
+    nextCursor: string | null;
+  }>('/admin/inquiries?limit=1', {}, reviewerToken);
+  assert(
+    oversight.body.items.length === 1 && oversight.body.nextCursor,
+    'Johnson Realty oversight cursor page was not bounded',
   );
   const tenantOversight = await request(
     '/admin/inquiries',
@@ -639,12 +707,37 @@ async function main() {
     closedReply.response.status === 400,
     'Closed inquiry accepted a reply',
   );
-  const inquiryAuditCount = await prisma.auditLog.count({
+  const inquiryAuditRows = await prisma.auditLog.findMany({
     where: { resourceId: inquiryCreated.body.inquiry.id },
+    select: { action: true },
   });
+  const inquiryAuditCounts = inquiryAuditRows.reduce<Record<string, number>>(
+    (counts, row) => ({
+      ...counts,
+      [row.action]: (counts[row.action] ?? 0) + 1,
+    }),
+    {},
+  );
+  const expectedInquiryAuditCounts = {
+    LISTING_INQUIRY_CREATED: 1,
+    INQUIRY_BUYER_MESSAGE_SENT: 2,
+    INQUIRY_MESSAGES_READ: 1,
+    INQUIRY_AGENT_MESSAGE_SENT: 1,
+    INQUIRY_BUYER_MESSAGES_READ: 1,
+    INQUIRY_STATUS_CHANGED: 1,
+  };
   assert(
-    inquiryAuditCount >= 7,
-    'Inquiry message lifecycle was not fully audited',
+    JSON.stringify(
+      Object.entries(inquiryAuditCounts).sort(([left], [right]) =>
+        left.localeCompare(right),
+      ),
+    ) ===
+      JSON.stringify(
+        Object.entries(expectedInquiryAuditCounts).sort(([left], [right]) =>
+          left.localeCompare(right),
+        ),
+      ),
+    'Inquiry audit action names or exact counts were incorrect',
   );
 
   const rereview = await request<{ listingStatus: string }>(
@@ -662,6 +755,26 @@ async function main() {
   assert(
     !hiddenAgain.body.some((item) => item.id === created.body.id),
     'Re-review listing remained public',
+  );
+  const listingAuditHistory = await request<Array<{ action: string }>>(
+    `/admin/sale-listings/${created.body.id}/audit-history`,
+    {},
+    reviewerToken,
+  );
+  assert(
+    JSON.stringify(listingAuditHistory.body.map((event) => event.action)) ===
+      JSON.stringify([
+        'SALE_LISTING_CREATED',
+        'SALE_LISTING_PHOTO_ATTACHED',
+        'SALE_LISTING_DOCUMENT_ATTACHED',
+        'SALE_LISTING_SUBMITTED',
+        'SALE_LISTING_REJECTED',
+        'SALE_LISTING_UPDATED',
+        'SALE_LISTING_RESUBMITTED',
+        'SALE_LISTING_APPROVED',
+        'SALE_LISTING_EDITED_AND_RESUBMITTED',
+      ]),
+    'Listing audit-history endpoint did not return the complete timeline',
   );
 
   const removedAccountDocument = await request<{

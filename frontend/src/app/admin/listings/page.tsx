@@ -7,6 +7,7 @@ import {
   Building2,
   Check,
   Download,
+  History,
   Loader2,
   MapPin,
   RefreshCw,
@@ -19,13 +20,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
-import { formatCurrency, type SaleListing } from "@/lib/sale-listings";
+import {
+  formatCurrency,
+  type SaleListing,
+  type SaleListingAuditEvent,
+} from "@/lib/sale-listings";
 
 export default function SaleListingReviewPage() {
   const [listings, setListings] = useState<SaleListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState<string | null>(null);
   const [reasons, setReasons] = useState<Record<string, string>>({});
+  const [historyId, setHistoryId] = useState<string | null>(null);
+  const [historyLoadingId, setHistoryLoadingId] = useState<string | null>(null);
+  const [history, setHistory] = useState<
+    Record<string, SaleListingAuditEvent[]>
+  >({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -87,6 +97,28 @@ export default function SaleListingReviewPage() {
       window.open(result.url, "_blank", "noopener,noreferrer");
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Unable to open document"));
+    }
+  };
+
+  const toggleHistory = async (listingId: string) => {
+    if (historyId === listingId) {
+      setHistoryId(null);
+      return;
+    }
+    setHistoryId(listingId);
+    if (history[listingId]) return;
+
+    setHistoryLoadingId(listingId);
+    try {
+      const events = (await api.get(
+        `/admin/sale-listings/${listingId}/audit-history`,
+      )) as SaleListingAuditEvent[];
+      setHistory((current) => ({ ...current, [listingId]: events }));
+    } catch (error: unknown) {
+      setHistoryId(null);
+      toast.error(getErrorMessage(error, "Unable to load listing history"));
+    } finally {
+      setHistoryLoadingId(null);
     }
   };
 
@@ -193,6 +225,26 @@ export default function SaleListingReviewPage() {
                       Submitted by <strong>{listing.agent?.companyName}</strong>{" "}
                       · {listing.agent?.contactName} · {listing.agent?.email}
                     </div>
+                    <div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void toggleHistory(listing.id)}
+                        disabled={historyLoadingId === listing.id}
+                      >
+                        {historyLoadingId === listing.id ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <History className="mr-2 h-4 w-4" />
+                        )}
+                        {historyId === listing.id
+                          ? "Hide audit history"
+                          : "View audit history"}
+                      </Button>
+                      {historyId === listing.id && history[listing.id] && (
+                        <ListingAuditTimeline events={history[listing.id]} />
+                      )}
+                    </div>
                     <Textarea
                       placeholder="Required reason when requesting changes"
                       value={reasons[listing.id] ?? ""}
@@ -232,4 +284,56 @@ export default function SaleListingReviewPage() {
       )}
     </div>
   );
+}
+
+function ListingAuditTimeline({ events }: { events: SaleListingAuditEvent[] }) {
+  if (events.length === 0) {
+    return (
+      <p className="mt-3 rounded-xl border p-4 text-sm text-muted-foreground">
+        No listing audit events were found.
+      </p>
+    );
+  }
+
+  return (
+    <ol className="mt-4 space-y-0 border-l-2 border-border pl-5">
+      {events.map((event) => {
+        const details =
+          typeof event.newValue === "object" && event.newValue
+            ? event.newValue
+            : null;
+        const status = details?.listingStatus;
+        const reason = details?.reason;
+        return (
+          <li key={event.id} className="relative pb-5 last:pb-0">
+            <span className="absolute -left-[1.65rem] top-1 h-3 w-3 rounded-full border-2 border-background bg-primary" />
+            <p className="text-sm font-semibold">
+              {auditActionLabel(event.action)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {new Date(event.createdAt).toLocaleString()} ·{" "}
+              {event.actor?.email ?? "System"}
+            </p>
+            {typeof status === "string" && (
+              <p className="mt-1 text-xs">
+                Status: {status.replaceAll("_", " ")}
+              </p>
+            )}
+            {typeof reason === "string" && (
+              <p className="mt-1 text-xs text-red-700">Reason: {reason}</p>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function auditActionLabel(action: string) {
+  return action
+    .replace(/^SALE_LISTING_/, "")
+    .toLowerCase()
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }

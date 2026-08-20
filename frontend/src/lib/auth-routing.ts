@@ -1,18 +1,41 @@
-type RoutableUser =
-  | {
-      role?: string;
-      agentProfile?: { accountStatus?: string } | null;
-    }
-  | null
-  | undefined;
+import {
+  canonicalUrlForUser,
+  isLocalOrPreviewHostname,
+  pathForUser,
+  type PortalUser,
+} from "@/lib/portal-domains";
 
-export function routeForUser(user: RoutableUser) {
-  if (user?.role === "TENANT") return "/tenant/dashboard";
-  if (user?.role === "AGENT") {
-    return user.agentProfile?.accountStatus === "APPROVED"
-      ? "/agent/listings"
-      : "/agent/status";
+type Router = {
+  push: (href: string) => void;
+  replace: (href: string) => void;
+};
+
+export function routeForUser(user: PortalUser) {
+  if (
+    typeof window === "undefined" ||
+    isLocalOrPreviewHostname(window.location.hostname)
+  ) {
+    return pathForUser(user);
   }
-  if (user?.role === "SALES_ADMIN") return "/admin/sales";
-  return "/admin/dashboard";
+
+  return canonicalUrlForUser(user);
+}
+
+export function navigateToUserPortal(
+  router: Router,
+  user: PortalUser,
+  mode: "push" | "replace" = "push",
+) {
+  const destination = routeForUser(user);
+  if (typeof window !== "undefined" && destination.startsWith("http")) {
+    const target = new URL(destination);
+    if (target.origin !== window.location.origin) {
+      if (mode === "replace") window.location.replace(destination);
+      else window.location.assign(destination);
+      return;
+    }
+    router[mode](`${target.pathname}${target.search}${target.hash}`);
+    return;
+  }
+  router[mode](destination);
 }

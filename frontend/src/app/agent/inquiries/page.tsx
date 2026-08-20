@@ -1,7 +1,14 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Building2, Loader2, Mail, Phone, Send } from "lucide-react";
+import {
+  Building2,
+  CheckCheck,
+  Loader2,
+  Mail,
+  Phone,
+  Send,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +16,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
-import { inquiryTime, type ListingInquiry } from "@/lib/inquiries";
+import {
+  inquiryTime,
+  type CursorPage,
+  type ListingInquiry,
+} from "@/lib/inquiries";
 
 export default function AgentInquiriesPage() {
   const [items, setItems] = useState<ListingInquiry[]>([]);
@@ -17,6 +28,9 @@ export default function AgentInquiriesPage() {
   const [reply, setReply] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
 
   const open = useCallback(async (id: string) => {
     try {
@@ -36,12 +50,13 @@ export default function AgentInquiriesPage() {
   useEffect(() => {
     api
       .get("/agent/inquiries")
-      .then((inquiries: ListingInquiry[]) => {
-        setItems(inquiries);
+      .then((page: CursorPage<ListingInquiry>) => {
+        setItems(page.items);
+        setNextCursor(page.nextCursor);
         const requested = new URLSearchParams(window.location.search).get("id");
         const firstId =
-          inquiries.find((item) => item.id === requested)?.id ??
-          inquiries[0]?.id;
+          page.items.find((item) => item.id === requested)?.id ??
+          page.items[0]?.id;
         if (firstId) void open(firstId);
       })
       .catch((error: unknown) =>
@@ -49,6 +64,45 @@ export default function AgentInquiriesPage() {
       )
       .finally(() => setLoading(false));
   }, [open]);
+
+  const loadMoreInquiries = async () => {
+    if (!nextCursor) return;
+    setLoadingMore(true);
+    try {
+      const page = (await api.get(
+        `/agent/inquiries?cursor=${encodeURIComponent(nextCursor)}`,
+      )) as CursorPage<ListingInquiry>;
+      setItems((current) => [...current, ...page.items]);
+      setNextCursor(page.nextCursor);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to load more inquiries"));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const loadOlderMessages = async () => {
+    if (!selected?.nextMessageCursor) return;
+    setLoadingOlder(true);
+    try {
+      const older = (await api.get(
+        `/agent/inquiries/${selected.id}?cursor=${encodeURIComponent(selected.nextMessageCursor)}`,
+      )) as ListingInquiry;
+      setSelected((current) =>
+        current
+          ? {
+              ...current,
+              messages: [...older.messages, ...current.messages],
+              nextMessageCursor: older.nextMessageCursor,
+            }
+          : current,
+      );
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to load older messages"));
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
 
   const send = async (event: FormEvent) => {
     event.preventDefault();
@@ -138,6 +192,21 @@ export default function AgentInquiriesPage() {
                 );
               })
             )}
+            {nextCursor && (
+              <div className="p-4">
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => void loadMoreInquiries()}
+                  disabled={loadingMore}
+                >
+                  {loadingMore && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Load more inquiries
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -177,6 +246,21 @@ export default function AgentInquiriesPage() {
                 </Button>
               </div>
               <div className="flex-1 space-y-4 overflow-y-auto bg-secondary/20 p-6">
+                {selected.nextMessageCursor && (
+                  <div className="text-center">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void loadOlderMessages()}
+                      disabled={loadingOlder}
+                    >
+                      {loadingOlder && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Load earlier messages
+                    </Button>
+                  </div>
+                )}
                 {selected.messages.map((message) => (
                   <div
                     key={message.id}
@@ -191,6 +275,15 @@ export default function AgentInquiriesPage() {
                           ? "You"
                           : selected.buyerName}{" "}
                         · {inquiryTime(message.createdAt)}
+                        {message.senderType === "AGENT" && (
+                          <span>
+                            {" "}
+                            · <CheckCheck className="inline h-3 w-3" />{" "}
+                            {message.readAt
+                              ? `Seen ${inquiryTime(message.readAt)}`
+                              : "Sent"}
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>

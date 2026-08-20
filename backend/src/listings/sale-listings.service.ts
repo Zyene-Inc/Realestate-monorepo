@@ -305,6 +305,39 @@ export class SaleListingsService {
     return listing;
   }
 
+  async getAuditHistory(listingId: string) {
+    await this.getForReview(listingId);
+    const events = await this.prisma.auditLog.findMany({
+      where: {
+        resource: 'property',
+        resourceId: listingId,
+        action: { startsWith: 'SALE_LISTING_' },
+      },
+      include: {
+        user: { select: { email: true, role: true } },
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    });
+
+    return events.map((event) => ({
+      id: event.id,
+      action: event.action,
+      oldValue: this.parseAuditValue(event.oldValue),
+      newValue: this.parseAuditValue(event.newValue),
+      createdAt: event.createdAt,
+      actor: event.user,
+    }));
+  }
+
+  private parseAuditValue(value: string | null) {
+    if (!value) return null;
+    try {
+      return JSON.parse(value) as unknown;
+    } catch {
+      return value;
+    }
+  }
+
   async approve(reviewerId: string, listingId: string) {
     const current = await this.getForReview(listingId);
     if (current.listingStatus !== ListingStatus.PENDING_REVIEW) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Loader2, MessageSquare, Send } from "lucide-react";
+import { CheckCheck, Loader2, MessageSquare, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
   const [buyerPhone, setBuyerPhone] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem(storageKey);
@@ -41,6 +42,30 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
       localStorage.removeItem(storageKey);
     }
   }, [storageKey]);
+
+  const loadOlderMessages = async () => {
+    if (!inquiry?.nextMessageCursor || !access) return;
+    setLoadingOlder(true);
+    try {
+      const older = (await api.post(`/public/inquiries/${inquiry.id}/access`, {
+        accessToken: access.accessToken,
+        cursor: inquiry.nextMessageCursor,
+      })) as ListingInquiry;
+      setInquiry((current) =>
+        current
+          ? {
+              ...current,
+              messages: [...older.messages, ...current.messages],
+              nextMessageCursor: older.nextMessageCursor,
+            }
+          : current,
+      );
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to load older messages"));
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -83,6 +108,21 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
       </div>
       {inquiry && (
         <div className="max-h-72 space-y-3 overflow-y-auto rounded-xl bg-secondary/50 p-3">
+          {inquiry.nextMessageCursor && (
+            <div className="text-center">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void loadOlderMessages()}
+                disabled={loadingOlder}
+              >
+                {loadingOlder && (
+                  <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                )}
+                Load earlier messages
+              </Button>
+            </div>
+          )}
           {inquiry.messages.map((item) => (
             <div
               key={item.id}
@@ -98,6 +138,13 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
                   ? "You"
                   : inquiry.agent.contactName}{" "}
                 · {inquiryTime(item.createdAt)}
+                {item.senderType === "BUYER" && (
+                  <span>
+                    {" "}
+                    · <CheckCheck className="inline h-3 w-3" />{" "}
+                    {item.readAt ? `Seen ${inquiryTime(item.readAt)}` : "Sent"}
+                  </span>
+                )}
               </p>
             </div>
           ))}

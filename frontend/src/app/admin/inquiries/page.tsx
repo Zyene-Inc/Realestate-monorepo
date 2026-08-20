@@ -1,18 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, Loader2, Mail, Phone } from "lucide-react";
+import { CheckCheck, Eye, Loader2, Mail, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
-import { inquiryTime, type ListingInquiry } from "@/lib/inquiries";
+import {
+  inquiryTime,
+  type CursorPage,
+  type ListingInquiry,
+} from "@/lib/inquiries";
 
 export default function InquiryOversightPage() {
   const [items, setItems] = useState<ListingInquiry[]>([]);
   const [selected, setSelected] = useState<ListingInquiry | null>(null);
   const [loading, setLoading] = useState(true);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
 
   const open = async (id: string) => {
     try {
@@ -25,15 +33,55 @@ export default function InquiryOversightPage() {
   useEffect(() => {
     api
       .get("/admin/inquiries")
-      .then((inquiries: ListingInquiry[]) => {
-        setItems(inquiries);
-        if (inquiries[0]) void open(inquiries[0].id);
+      .then((page: CursorPage<ListingInquiry>) => {
+        setItems(page.items);
+        setNextCursor(page.nextCursor);
+        if (page.items[0]) void open(page.items[0].id);
       })
       .catch((error: unknown) =>
         toast.error(getErrorMessage(error, "Unable to load inquiry oversight")),
       )
       .finally(() => setLoading(false));
   }, []);
+
+  const loadMoreInquiries = async () => {
+    if (!nextCursor) return;
+    setLoadingMore(true);
+    try {
+      const page = (await api.get(
+        `/admin/inquiries?cursor=${encodeURIComponent(nextCursor)}`,
+      )) as CursorPage<ListingInquiry>;
+      setItems((current) => [...current, ...page.items]);
+      setNextCursor(page.nextCursor);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to load more inquiries"));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const loadOlderMessages = async () => {
+    if (!selected?.nextMessageCursor) return;
+    setLoadingOlder(true);
+    try {
+      const older = (await api.get(
+        `/admin/inquiries/${selected.id}?cursor=${encodeURIComponent(selected.nextMessageCursor)}`,
+      )) as ListingInquiry;
+      setSelected((current) =>
+        current
+          ? {
+              ...current,
+              messages: [...older.messages, ...current.messages],
+              nextMessageCursor: older.nextMessageCursor,
+            }
+          : current,
+      );
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to load older messages"));
+    } finally {
+      setLoadingOlder(false);
+    }
+  };
 
   if (loading)
     return <Loader2 className="mx-auto mt-24 h-8 w-8 animate-spin" />;
@@ -76,6 +124,21 @@ export default function InquiryOversightPage() {
                 </button>
               ))
             )}
+            {nextCursor && (
+              <div className="p-4">
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => void loadMoreInquiries()}
+                  disabled={loadingMore}
+                >
+                  {loadingMore && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Load more inquiries
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card className="overflow-hidden rounded-2xl">
@@ -107,6 +170,21 @@ export default function InquiryOversightPage() {
                 </p>
               </div>
               <div className="space-y-4 bg-secondary/20 p-6">
+                {selected.nextMessageCursor && (
+                  <div className="text-center">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void loadOlderMessages()}
+                      disabled={loadingOlder}
+                    >
+                      {loadingOlder && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Load earlier messages
+                    </Button>
+                  </div>
+                )}
                 {selected.messages.map((message) => (
                   <div
                     key={message.id}
@@ -121,6 +199,13 @@ export default function InquiryOversightPage() {
                           ? selected.agent.contactName
                           : selected.buyerName}{" "}
                         · {inquiryTime(message.createdAt)}
+                        <span>
+                          {" "}
+                          · <CheckCheck className="inline h-3 w-3" />{" "}
+                          {message.readAt
+                            ? `Seen ${inquiryTime(message.readAt)}`
+                            : "Sent"}
+                        </span>
                       </p>
                     </div>
                   </div>

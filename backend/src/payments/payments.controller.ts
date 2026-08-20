@@ -43,8 +43,4 @@ export class PaymentsController {
     const userId = req.user.sub;
     return this.paymentsService.findByUser(userId);
   }
-
-  // Future Stripe Integration Placeholders
-  // TODO: Add POST /create-intent for tenants
-  // TODO: Add POST /webhook for Stripe events
 }

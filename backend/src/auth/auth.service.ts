@@ -11,6 +11,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { EmailsService } from '../emails/emails.service';
 import { AgentSignupDto } from './dto/agent-signup.dto';
+import {
+  getPortalUrlForRole,
+  getPortalUrls,
+} from '../common/config/portal-urls';
 
 @Injectable()
 export class AuthService {
@@ -40,7 +44,7 @@ export class AuthService {
     if (existing)
       throw new ConflictException('An account with this email already exists');
 
-    const redirectTo = `${this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000'}/agent/status`;
+    const redirectTo = `${getPortalUrls(this.configService).agent}/agent/status`;
     const { data: generated, error } =
       await this.adminClient().auth.admin.generateLink({
         type: 'signup',
@@ -148,7 +152,11 @@ export class AuthService {
 
   async requestPasswordReset(rawEmail: string) {
     const email = rawEmail.trim().toLowerCase();
-    const redirectTo = `${this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000'}/auth/reset-password`;
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { role: true },
+    });
+    const redirectTo = `${getPortalUrlForRole(this.configService, user?.role)}/auth/reset-password`;
     const { data, error } = await this.adminClient().auth.admin.generateLink({
       type: 'recovery',
       email,
@@ -180,7 +188,7 @@ export class AuthService {
     if (existingUser)
       throw new BadRequestException('User with this email already exists');
 
-    const redirectTo = `${this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000'}/auth/reset-password`;
+    const redirectTo = `${getPortalUrls(this.configService).tenant}/auth/reset-password`;
     const { data: invited, error } =
       await this.adminClient().auth.admin.generateLink({
         type: 'invite',

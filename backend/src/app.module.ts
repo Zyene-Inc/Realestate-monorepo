@@ -17,17 +17,17 @@ import { DocumentsModule } from './documents/documents.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { EmailsModule } from './emails/emails.module';
-import { StorageModule } from './storage/storage.module';
 import { HealthController } from './health/health.controller';
 import { AgentsModule } from './agents/agents.module';
 import { ListingsModule } from './listings/listings.module';
+import { validateEnvironment } from './common/config/environment';
 
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }),
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
@@ -49,7 +49,6 @@ import { APP_GUARD } from '@nestjs/core';
     NotificationsModule,
     AuditLogsModule,
     EmailsModule,
-    StorageModule,
     AgentsModule,
     ListingsModule,
   ],

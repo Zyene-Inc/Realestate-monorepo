@@ -33,6 +33,15 @@ export type SaleListing = {
   agent?: ListingAgent | null;
 };
 
+export type SaleListingAuditEvent = {
+  id: string;
+  action: string;
+  oldValue?: Record<string, unknown> | string | null;
+  newValue?: Record<string, unknown> | string | null;
+  createdAt: string;
+  actor?: { email: string; role: string } | null;
+};
+
 export function formatCurrency(value: string | number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",

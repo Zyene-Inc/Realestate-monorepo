@@ -2,7 +2,6 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 
-// Temporary enum definition until Prisma is regenerated
 export enum PaymentStatus {
   PENDING = 'PENDING',
   PAID = 'PAID',

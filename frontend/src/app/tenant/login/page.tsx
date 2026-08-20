@@ -6,19 +6,23 @@ import { Button } from "@/components/ui/button"
 import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react"
 import { Logo } from "@/components/logo"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/context/auth-context"
 import { toast } from "sonner"
 import Link from "next/link"
-import { routeForUser } from "@/lib/auth-routing"
+import { navigateToUserPortal } from "@/lib/auth-routing"
 import { getErrorMessage } from "@/lib/errors"
 
 export default function TenantLogin() {
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, user, isLoading: isAuthLoading } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    if (!isAuthLoading && user) navigateToUserPortal(router, user, "replace")
+  }, [isAuthLoading, router, user])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,7 +30,7 @@ export default function TenantLogin() {
     try {
       const user = await login(email, password)
       toast.success("Login successful")
-      router.push(routeForUser(user))
+      navigateToUserPortal(router, user)
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Invalid credentials"))
     } finally {
@@ -113,9 +117,10 @@ export default function TenantLogin() {
               </div>
             </div>
 
-            <div className="text-center text-sm text-gray-500 mt-6">
-              Received an invite? <button className="text-black hover:underline font-bold ml-1 transition-all">Accept Invite</button>
-            </div>
+            <p className="mt-6 text-center text-sm text-gray-500">
+              Tenant accounts are created by Johnson Realty. Use the secure
+              link in your invitation email to finish setting up your account.
+            </p>
           </CardContent>
         </Card>
         

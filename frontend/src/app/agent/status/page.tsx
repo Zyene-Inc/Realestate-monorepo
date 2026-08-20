@@ -1,17 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { Clock3, LogOut, ShieldCheck, XCircle } from "lucide-react";
+import {
+  Clock3,
+  Loader2,
+  LogOut,
+  RefreshCw,
+  ShieldCheck,
+  XCircle,
+} from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Logo } from "@/components/logo";
 import { AgentSettings } from "@/components/agent/agent-settings";
+import { api } from "@/lib/api";
+import { getErrorMessage } from "@/lib/errors";
 
 export default function AgentStatusPage() {
   const { user, logout, isLoading } = useAuth();
+  const [resubmitted, setResubmitted] = useState(false);
+  const [resubmitting, setResubmitting] = useState(false);
   const profile = user?.agentProfile;
-  const status = profile?.accountStatus;
+  const status = resubmitted ? "PENDING" : profile?.accountStatus;
 
   if (isLoading)
     return (
@@ -36,6 +49,19 @@ export default function AgentStatusPage() {
   const declined = status === "DECLINED";
   const approved = status === "APPROVED";
   const Icon = declined ? XCircle : approved ? ShieldCheck : Clock3;
+
+  const resubmit = async () => {
+    setResubmitting(true);
+    try {
+      await api.post("/agents/me/resubmit", {});
+      setResubmitted(true);
+      toast.success("Application resubmitted for Johnson Realty review");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to resubmit application"));
+    } finally {
+      setResubmitting(false);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-background px-4 py-12">
@@ -84,7 +110,35 @@ export default function AgentStatusPage() {
         </Card>
         {!approved && (
           <div className="mt-8">
-            <AgentSettings documentsOnly />
+            <AgentSettings documentsOnly={!declined} />
+            {declined && (
+              <Card className="mt-6 rounded-2xl border-primary/20">
+                <CardContent className="space-y-4 p-6">
+                  <div>
+                    <h2 className="font-heading text-xl font-semibold">
+                      Ready for another review?
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Update the company details and verification documents
+                      above, then return the application to the Sales Admin
+                      queue.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => void resubmit()}
+                    disabled={resubmitting}
+                    className="rounded-xl"
+                  >
+                    {resubmitting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    )}
+                    Resubmit application
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
         )}
       </div>

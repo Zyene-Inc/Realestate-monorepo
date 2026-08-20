@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
+import { navigateToUserPortal } from "@/lib/auth-routing";
 
 export function SalesRouteGuard({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -10,7 +11,9 @@ export function SalesRouteGuard({ children }: { children: React.ReactNode }) {
   const canAccess = ["SUPER_ADMIN", "SALES_ADMIN"].includes(user?.role);
 
   useEffect(() => {
-    if (!isLoading && user && !canAccess) router.replace("/admin/dashboard");
+    if (!isLoading && user && !canAccess) {
+      navigateToUserPortal(router, user, "replace");
+    }
   }, [canAccess, isLoading, router, user]);
 
   if (isLoading || !canAccess) {

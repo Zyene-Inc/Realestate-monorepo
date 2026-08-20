@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { useAuth } from "@/context/auth-context";
-import { routeForUser } from "@/lib/auth-routing";
+import { navigateToUserPortal } from "@/lib/auth-routing";
 
 export function AgentPortalShell({ children }: { children: React.ReactNode }) {
   const { user, isLoading, logout } = useAuth();
@@ -24,7 +24,7 @@ export function AgentPortalShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
     if (!user) router.replace("/");
-    else if (!approved) router.replace(routeForUser(user));
+    else if (!approved) navigateToUserPortal(router, user, "replace");
   }, [approved, isLoading, router, user]);
 
   if (isLoading || !approved) {

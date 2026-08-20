@@ -30,8 +30,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setAccessToken(session.access_token);
           setUser(await api.get('/auth/me'));
         }
-      } catch (error) {
-        console.log('No active session found.');
+      } catch {
+        setToken(null);
+        setAccessToken(null);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }

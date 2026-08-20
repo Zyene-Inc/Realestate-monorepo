@@ -2,7 +2,7 @@
 
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { useAuth } from "@/context/auth-context";
-import { routeForUser } from "@/lib/auth-routing";
+import { navigateToUserPortal } from "@/lib/auth-routing";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -40,11 +40,11 @@ export default function AdminLayout({
     if (isLoading) return;
     if (isLogin) return;
     if (!user) router.replace("/admin/login");
-    else if (!isAdmin) router.replace(routeForUser(user));
+    else if (!isAdmin) navigateToUserPortal(router, user, "replace");
     else if (user.role === "SALES_ADMIN" && rentalRoute)
-      router.replace("/admin/sales");
+      navigateToUserPortal(router, user, "replace");
     else if (user.role === "TENANT_ADMIN" && salesRoute)
-      router.replace("/admin/dashboard");
+      navigateToUserPortal(router, user, "replace");
   }, [isAdmin, isLoading, isLogin, rentalRoute, router, salesRoute, user]);
 
   if (isLogin) return children;

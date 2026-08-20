@@ -2,10 +2,11 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AgentAccountStatus, UserStatus } from '@prisma/client';
+import { AgentAccountStatus, Role, UserStatus } from '@prisma/client';
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'node:crypto';
 import { EmailsService } from '../emails/emails.service';
@@ -17,13 +18,15 @@ const AGENT_DOCUMENT_BUCKET = 'agent-documents';
 
 @Injectable()
 export class AgentsService {
+  private readonly logger = new Logger(AgentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly emails: EmailsService,
     private readonly config: ConfigService,
   ) {}
 
-  private storageClient() {
+  private supabaseAdminClient() {
     const url = this.config.get<string>('SUPABASE_URL');
     const secretKey = this.config.get<string>('SUPABASE_SECRET_KEY');
     if (!url || !secretKey) {
@@ -108,7 +111,7 @@ export class AgentsService {
       .replace(/-+/g, '-')
       .slice(-120);
     const path = `${agent.id}/verification/${randomUUID()}-${safeName}`;
-    const { data: signed, error } = await this.storageClient()
+    const { data: signed, error } = await this.supabaseAdminClient()
       .storage.from(AGENT_DOCUMENT_BUCKET)
       .createSignedUploadUrl(path, { upsert: false });
     if (error || !signed) {
@@ -135,7 +138,7 @@ export class AgentsService {
     }
     const fileName = path.slice(path.lastIndexOf('/') + 1);
     const directory = path.slice(0, path.lastIndexOf('/'));
-    const { data: objects, error } = await this.storageClient()
+    const { data: objects, error } = await this.supabaseAdminClient()
       .storage.from(AGENT_DOCUMENT_BUCKET)
       .list(directory, { search: fileName, limit: 2 });
     if (error || !objects?.some((object) => object.name === fileName)) {
@@ -178,7 +181,7 @@ export class AgentsService {
   private async createDocumentUrl(documents: string[], index: number) {
     const path = documents[index];
     if (!path) throw new NotFoundException('Agent document not found');
-    const { data, error } = await this.storageClient()
+    const { data, error } = await this.supabaseAdminClient()
       .storage.from(AGENT_DOCUMENT_BUCKET)
       .createSignedUrl(path, 300, { download: true });
     if (error || !data?.signedUrl) {
@@ -193,14 +196,10 @@ export class AgentsService {
     const agent = await this.getForUser(userId);
     const path = agent.verificationDocuments[index];
     if (!path) throw new NotFoundException('Agent document not found');
-    const { error } = await this.storageClient()
-      .storage.from(AGENT_DOCUMENT_BUCKET)
-      .remove([path]);
-    if (error) throw new BadRequestException(error.message);
     const remaining = agent.verificationDocuments.filter(
       (_, documentIndex) => documentIndex !== index,
     );
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.agent.update({
         where: { id: agent.id },
         data: { verificationDocuments: remaining },
@@ -217,19 +216,42 @@ export class AgentsService {
       });
       return updated;
     });
+
+    const { error } = await this.supabaseAdminClient()
+      .storage.from(AGENT_DOCUMENT_BUCKET)
+      .remove([path]);
+    if (error) {
+      this.logger.error(
+        `Agent document database reference was removed, but Storage cleanup failed for ${path}: ${error.message}`,
+      );
+      throw new BadRequestException(error.message);
+    }
+    return updated;
   }
 
   async approve(agentId: string, reviewerId: string) {
     const current = await this.prisma.agent.findUnique({
       where: { id: agentId },
+      include: { user: { select: { authUserId: true } } },
     });
     if (!current) throw new NotFoundException('Agent application not found');
-    if (current.accountStatus === AgentAccountStatus.APPROVED) {
-      throw new BadRequestException('Agent application is already approved');
-    }
-    if (current.accountStatus === AgentAccountStatus.SUSPENDED) {
+    if (current.accountStatus !== AgentAccountStatus.PENDING) {
       throw new BadRequestException(
-        'Suspended accounts cannot be approved from this queue',
+        'Only pending agent applications can be approved',
+      );
+    }
+    const { data: authUser, error: authError } =
+      await this.supabaseAdminClient().auth.admin.getUserById(
+        current.user.authUserId,
+      );
+    if (authError) {
+      throw new InternalServerErrorException(
+        'Unable to verify the agent email status',
+      );
+    }
+    if (!authUser.user?.email_confirmed_at) {
+      throw new BadRequestException(
+        'The agent must verify their email before approval',
       );
     }
 
@@ -300,6 +322,74 @@ export class AgentsService {
       return updated;
     });
     await this.emails.sendAgentDeclined(agent.email, agent.contactName, reason);
+    return agent;
+  }
+
+  async resubmit(userId: string) {
+    const current = await this.getForUser(userId);
+    if (current.accountStatus !== AgentAccountStatus.DECLINED) {
+      throw new BadRequestException(
+        'Only declined agent applications can be resubmitted',
+      );
+    }
+
+    const agent = await this.prisma.$transaction(async (tx) => {
+      const transition = await tx.agent.updateMany({
+        where: {
+          id: current.id,
+          accountStatus: AgentAccountStatus.DECLINED,
+        },
+        data: {
+          accountStatus: AgentAccountStatus.PENDING,
+          approvedAt: null,
+          approvedByUserId: null,
+          declineReason: null,
+        },
+      });
+      if (transition.count !== 1) {
+        throw new BadRequestException(
+          'The agent application status changed; refresh and try again',
+        );
+      }
+      const updated = await tx.agent.findUniqueOrThrow({
+        where: { id: current.id },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'AGENT_RESUBMITTED',
+          resource: 'agent',
+          resourceId: updated.id,
+          oldValue: JSON.stringify({
+            accountStatus: current.accountStatus,
+            declineReason: current.declineReason,
+          }),
+          newValue: JSON.stringify({
+            accountStatus: updated.accountStatus,
+          }),
+        },
+      });
+      return updated;
+    });
+
+    const reviewers = await this.prisma.user.findMany({
+      where: {
+        role: { in: [Role.SALES_ADMIN, Role.SUPER_ADMIN] },
+        status: UserStatus.ACTIVE,
+      },
+      select: { email: true },
+    });
+    await Promise.all([
+      this.emails.sendAgentResubmissionReceived(agent.email, agent.contactName),
+      ...reviewers.map(({ email }) =>
+        this.emails.sendAgentResubmittedForReview(
+          email,
+          agent.companyName,
+          agent.contactName,
+          agent.id,
+        ),
+      ),
+    ]);
     return agent;
   }
 }

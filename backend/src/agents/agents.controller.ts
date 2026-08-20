@@ -46,6 +46,12 @@ export class AgentsController {
     return this.agentsService.updateProfile(request.user.sub, body);
   }
 
+  @Post('me/resubmit')
+  @Roles(Role.AGENT)
+  resubmit(@Request() request: AuthenticatedRequest) {
+    return this.agentsService.resubmit(request.user.sub);
+  }
+
   @Post('me/document-upload-url')
   @Roles(Role.AGENT)
   createDocumentUploadUrl(

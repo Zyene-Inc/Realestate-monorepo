@@ -22,14 +22,14 @@ The phased plan in Part 12 contains 40 separately auditable work items.
 
 | Status | Items | Share |
 |---|---:|---:|
-| **DONE** | 20 | 50% |
-| **PARTIAL** | 8 | 20% |
+| **DONE** | 21 | 52.5% |
+| **PARTIAL** | 7 | 17.5% |
 | **PENDING** | 12 | 30% |
 | **BLOCKED** | 0 | 0% |
 
-Using `DONE = 1`, `PARTIAL = 0.5`, and `PENDING/BLOCKED = 0`, the plan is **60% complete**.
+Using `DONE = 1`, `PARTIAL = 0.5`, and `PENDING/BLOCKED = 0`, the plan is **61.25% complete**.
 
-Phases 1, 3, 4, and 5 are complete. Phase 2 is functionally implemented except for a production Vercel email smoke test and the future account-resubmission email. The approved-agent listing workflow, role-separated portals, private documents, buyer inquiry routing, audited agent replies/read receipts, Johnson Realty oversight, lifecycle emails, and approved-only public sale feed are implemented and integration-tested. Home-sale funds remain outside the platform; Johnson Realty will record received commissions manually.
+Phases 1 through 5 are complete. Agent signup, delivered email verification, pending review, decline, profile correction, audited resubmission, and approval are production-verified through the Vercel web/API deployments and connected Supabase project. The approved-agent listing workflow, role-separated portals, private documents, buyer inquiry routing, audited agent replies/read receipts, Johnson Realty oversight, lifecycle emails, and approved-only public sale feed are implemented and integration-tested. Home-sale funds remain outside the platform; Johnson Realty will record received commissions manually.
 
 ### Existing platform foundation
 
@@ -61,20 +61,20 @@ The original plan correctly identified the major missing architecture, but sever
 
 ## Part 1 — Business Model Overview
 
-Johnson Realty operates one public brand and website with two separate business verticals:
+Johnson Realty operates one public apex website, five role-specific portal subdomains, and two separate business verticals:
 
 1. **Buy/Sell** — approved independent agent companies submit sale listings for Johnson Realty approval; buyers contact the listing agent while Johnson Realty retains oversight.
 2. **Rent/Tenant** — Johnson Realty staff directly manage rentals for multiple property owners, serve tenants, collect rent, and route owner proceeds through Stripe Connect after retaining a management commission.
 
-The vertical split is now **PARTIAL**: buy/sell classification, workflow routing, approved-only publishing, and role gates are live, while direct rental publishing and complete portal separation remain pending.
+The vertical split is now **PARTIAL**: buy/sell classification, workflow routing, approved-only publishing, hostname isolation, and role gates are live, while direct rental publishing and production portal-domain assignment remain pending.
 
 ### Actors required by the target architecture
 
 | Actor | Current implementation status |
 |---|---|
-| Johnson Realty main admin / `SUPER_ADMIN` | **PARTIAL** — role and generic admin access exist; cross-vertical and agent-chat oversight do not. |
-| Sub-agent company / `AGENT` | **PARTIAL** — role, signup, approval, protected listing workspace, company settings, private documents, and listing workflow exist; buyer messaging remains pending. |
-| Buyer/prospect | **PENDING** — contact page exists, but no listing-scoped lead or thread model. |
+| Johnson Realty main admin / `SUPER_ADMIN` | **PARTIAL** — cross-vertical portal access and agent-chat oversight exist; remaining rental operations and reporting are incomplete. |
+| Sub-agent company / `AGENT` | **DONE for the current company model** — role, signup, approval, protected listing workspace, company settings, private documents, listing workflow, and buyer messaging are live. Multi-user company membership is not yet modeled. |
+| Buyer/prospect | **PARTIAL** — sale listing inquiries and replies are live; rental prospect/application workflows remain pending. |
 | Property owner | **PARTIAL** — owner model and rental-property relationship exist; management UI and payout onboarding do not. |
 | Tenant admin staff / `TENANT_ADMIN` | **PARTIAL** — target role and generic admin surface exist; the dedicated portal and frontend role gating do not. |
 | Tenant | **DONE as a foundation** — role, profile, auth, lease/payment views, and tenant portal routes exist; several portal screens are still static or incomplete. |
@@ -83,14 +83,26 @@ The vertical split is now **PARTIAL**: buy/sell classification, workflow routing
 
 | Requirement | Status | Evidence / pending work |
 |---|---|---|
-| Single domain with separate approved sale and published rental feeds | **PARTIAL** | The approved-only sale API/feed is live; the published rental feed remains pending. |
+| Public apex domain with separate approved sale and published rental feeds | **PARTIAL** | `coachjohnsonrealty.com/properties` uses the approved-only sale API/feed; `/rentals` and its detail/application routes remain pending. |
+| Role-specific portal subdomains | **PARTIAL** | Hostname routing, canonical role redirects, shared Supabase session cookies, and environment configuration cover `agents`, `properties-admin`, `rental-admin`, `tenant`, and `admin`. Vercel domain assignment, DNS, and a production cross-domain auth test remain. Backend RBAC remains authoritative. |
 | Buy/sell listing page with agent profile and listing-scoped contact action | **DONE** | Approved listings have public detail pages with agent identity, email, and phone actions; CRM chat is a later phase. |
 | Rent listing page with availability/specs and Johnson Realty contact action | **PENDING** | Public properties page is hard-coded and has no detail/contact workflow. |
 | Decide whether sale money moves through the platform | **DONE** | Home purchase funds, loans, escrow, and closing payments remain outside the CRM. Johnson Realty only records commission revenue manually after it is received. |
 
+Production hostname map:
+
+| Hostname | Surface | Role |
+|---|---|---|
+| `coachjohnsonrealty.com` | Corporate site, `/properties`, and future `/rentals` | Public |
+| `agents.coachjohnsonrealty.com` | Agent/sub-company portal | `AGENT` |
+| `properties-admin.coachjohnsonrealty.com` | Buy/Sell administration | `SALES_ADMIN` |
+| `rental-admin.coachjohnsonrealty.com` | Rental and lease administration | `TENANT_ADMIN` |
+| `tenant.coachjohnsonrealty.com` | Tenant portal | `TENANT` |
+| `admin.coachjohnsonrealty.com` | Cross-vertical administration | `SUPER_ADMIN` |
+
 ## Part 3 — Buy/Sell Vertical
 
-The buy/sell listing workflow is implemented end to end; buyer messaging and commission recording remain pending:
+The buy/sell listing and buyer-messaging workflows are implemented end to end; manual commission recording remains pending:
 
 - **DONE as a foundation:** `Agent` entity, `AGENT` role, account-status enum, approval metadata, and verification-document references.
 - **DONE as a foundation:** sale property classification, agent linkage, listing-status enum, review metadata, price, specs, photos, and document references.
@@ -103,16 +115,16 @@ The buy/sell listing workflow is implemented end to end; buyer messaging and com
 - **DONE:** `SUPER_ADMIN` and `SALES_ADMIN` standing read-only access across agent threads; supervisory roles cannot reply as an agent.
 - Manual Johnson Realty commission records tied to closed sale listings; no online sale payment or agent-payout processing
 - **DONE:** Sale listing submitted, resubmitted, approved, and rejected emails are wired through Resend.
-- **PARTIAL:** Agent verification, approval, and decline emails are wired through Resend. The production Vercel delivery smoke test and future account-resubmission flow remain pending.
+- **DONE:** Agent verification, approval, decline, resubmission-received, and reviewer-resubmission emails are wired through Resend. The sender domain and deterministic production delivery are verified.
 
-Generic auth, storage, email, message, and audit services are reusable foundations, but they do not implement these requirements yet.
+Generic auth, storage, email, message, and audit services support the completed sale workflows and remain reusable for future rental workflows.
 
 ## Part 4 — Rent/Tenant Vertical
 
 | Requirement | Status | Evidence / pending work |
 |---|---|---|
 | Generic `Property`, `Unit`, `Lease`, and `Tenant` data models | **DONE as a foundation** | Prisma relations and basic CRUD/tenant queries exist. |
-| Tenant authentication and invitation | **DONE as a foundation** | Supabase Auth, tenant invitation, password reset, and RBAC infrastructure exist. |
+| Tenant authentication and invitation | **DONE as a foundation** | There is no public tenant signup. Protected Rental/Super Admin invitation creates the Supabase identity, application user, and tenant profile; password reset and RBAC infrastructure are wired. |
 | Tenant dashboard and active lease retrieval | **DONE as a foundation** | Backend routes and frontend API calls exist. |
 | Tenant maintenance submission/list | **PARTIAL** | Tenant endpoints exist; photos are not persisted by create flow, admin endpoints are missing, and vendor workflow is not wired. |
 | Manual payment ledger/history | **DONE as a foundation** | Payment records, status updates, overdue lookup, audit events, and tenant history exist. This is not online rent collection. |
@@ -150,9 +162,9 @@ The `stripe` dependency, `stripePaymentIntentId` placeholder, Stripe-branded UI,
 - **DONE as a foundation:** tenant invitation and password-reset email calls are wired to auth flows.
 - **PARTIAL:** templates exist for rent reminder, late notice, payment recorded, and maintenance update, but their full event-trigger wiring was not found.
 
-### Pending lifecycle coverage
+### Remaining lifecycle coverage
 
-- Agent resubmission notification (signup verification, approval, and decline are already wired)
+- **DONE:** Agent signup verification, approval, decline, resubmission confirmation, and reviewer notification
 - **DONE:** Sale listing submitted, approved, rejected, edited, and resubmitted notifications
 - **DONE:** Buyer inquiry, buyer reply, and agent reply notifications
 - Rental prospect/application status notifications
@@ -184,14 +196,14 @@ Provider selection, envelope creation, webhooks, signing UI, audit trail, and im
 
 ## Part 9 — Two Admin Portals
 
-The frontend currently has a generic `/admin` shell and a separate tenant-facing `/tenant` shell. This is useful routing and design-system groundwork, but it is not the required split between a Buy/Sell Admin Portal and a Tenant Admin Portal.
+The frontend uses one Vercel deployment with hostname isolation: `properties-admin.coachjohnsonrealty.com` for Buy/Sell staff, `rental-admin.coachjohnsonrealty.com` for rental staff, `admin.coachjohnsonrealty.com` for Super Admin, `agents.coachjohnsonrealty.com` for approved agent companies, and `tenant.coachjohnsonrealty.com` for tenants. Existing path prefixes remain internal route organization within those hostnames.
 
 | Requirement | Status |
 |---|---|
 | Buy/Sell Admin portal shell | **DONE** — Sales Admin receives a dedicated live dashboard, sales-only navigation, agent directory, and listing review workspace. |
 | Tenant Admin portal shell | **DONE** — Tenant Admin receives rental-management navigation and is denied sales routes; Sales Admin is denied rental routes. |
 | Tenant-facing portal | **PARTIAL** — several real API-backed views exist; messages/documents/announcements/pay-rent remain static or incomplete. |
-| Route-level frontend role gating | **PARTIAL** — the approved-agent workspace and sales review route are gated; the tenant shell and complete admin-shell separation still need equivalent enforcement. |
+| Route-level frontend role gating | **DONE** — hostname isolation, canonical role redirects, and explicit Agent, Tenant, Sales Admin, Rental Admin, and Super Admin shell guards are implemented. Backend APIs enforce roles independently. |
 | Target roles `AGENT`, `SALES_ADMIN`, `TENANT_ADMIN`, `TENANT`, `SUPER_ADMIN` | **DONE as a foundation** — all target enum values exist and rental admin controllers now use `TENANT_ADMIN`. |
 
 ## Part 10 — Evidence-Based Gap Analysis
@@ -227,12 +239,16 @@ The frontend currently has a generic `/admin` shell and a separate tenant-facing
 1. **Buy/sell money flow** — the CRM does not process home purchase funds, loans, escrow, or closing payments online.
 2. **Buy/sell revenue model** — Johnson Realty earns commission and an authorized admin records the amount and receipt method manually after closing. There is no Stripe sale-payment or agent-payout workflow.
 3. **Rejected listing resubmission policy** — the agent edits a rejected listing, then explicitly resubmits it; it stays non-public until Johnson Realty approves it.
+4. **Production domain model** — the public sale and rental experience remains on `coachjohnsonrealty.com`; agent, Buy/Sell Admin, Rental Admin, Tenant, and Super Admin experiences use dedicated subdomains on one Vercel frontend deployment.
+5. **Tenant access model** — tenants use the dedicated `tenant.coachjohnsonrealty.com` portal.
+6. **Agent account approval** — agent companies self-register at `agents.coachjohnsonrealty.com`, verify their email, and remain `PENDING` until a `SALES_ADMIN` (or `SUPER_ADMIN`) approves them. Pending, declined, and suspended agents cannot create or manage sale listings.
+7. **Sale listing approval** — approved agents create drafts and explicitly submit them. Every submitted listing remains non-public until a `SALES_ADMIN` (or `SUPER_ADMIN`) approves it; rejected listings require agent changes and resubmission.
+8. **Tenant account provisioning** — there is no public tenant registration. A `TENANT_ADMIN` (or `SUPER_ADMIN`) selects the unit and sends the invitation; that protected operation creates the Supabase Auth identity, application user, and tenant profile together.
 
 ### Still open
 
 1. **Agent verification requirements** — exact documents and checks.
 2. **Rent-side commission model** — global or owner-specific.
-3. **Tenant access model** — separate app versus role-scoped area.
 
 These remaining choices should be finalized before their related implementation to avoid rework. None blocks the completed Phase 3 listing workflow.
 
@@ -250,37 +266,39 @@ These remaining choices should be finalized before their related implementation 
 
 Phase score: **5 / 5**.
 
-### Phase 2 — Agent Onboarding and Account Approval — **PARTIAL**
+### Phase 2 — Agent Onboarding and Account Approval — **DONE**
 
-- **DONE** — Agent signup flow with email verification and `PENDING` account state.
+- **DONE** — Agent signup flow with delivered email verification and `PENDING` account state; Sales Admin approval is rejected until Supabase reports the email as confirmed.
 - **DONE** — Johnson Realty approval queue with approve/decline, required decline reason, role protection, and audit events.
-- **PARTIAL** — Verification, approval, and decline lifecycle emails are wired through Resend. The key is valid and the sender domain is verified locally; production Vercel configuration, one delivery smoke test, and resubmission email coverage remain.
+- **DONE** — Declined agents can update company details/documents and atomically resubmit to `PENDING`; duplicate or invalid transitions are rejected and `AGENT_RESUBMITTED` is audited.
+- **DONE** — Verification, approval, decline, resubmission confirmation, and reviewer-resubmission emails are wired through Resend. The API and web Vercel production projects are configured, the sender domain is verified, and a deterministic production message reached `delivered` state.
 
-Phase score: **2.5 / 3**.
+Phase score: **3 / 3**. Verified by backend unit tests, `backend/scripts/verify-agent-onboarding.ts` locally and against the production Vercel API, plus a production signup → Resend delivery → Supabase verification link → sign-in → pending-account smoke test. All verification users and audit rows were removed afterward.
 
 ### Phase 3 — Listing Creation and Approval Workflow — **DONE**
 
 - **DONE** — Approved-agent draft creation, direct signed photo upload, private document upload/download, and submission.
-- **DONE** — Johnson Realty sales review queue with role protection, approve/reject, required reason, and audit history.
+- **DONE** — Johnson Realty sales review queue with role protection, approve/reject, required reason, and an API-backed audit timeline visible in the Sales Admin interface.
 - **DONE** — Edits or new assets on approved listings trigger optimistic re-review and remove public visibility until re-approved.
 - **DONE** — Submitted, resubmitted, approved, and rejected lifecycle emails are wired through Resend.
 - **DONE** — Public Buy/Sell list and detail APIs/UI expose only approved listings and exclude private documents.
 
-Phase score: **5 / 5**. Verified with `backend/scripts/verify-listing-workflow.ts`, backend build/lint, frontend lint/build, and the connected Supabase project.
+Phase score: **5 / 5**. Verified with `backend/scripts/verify-listing-workflow.ts`, Prisma validation, backend and frontend production builds, scoped lint for the Phase 1/3 files, and the connected Supabase project. Repository-wide lint is not clean: the existing baseline contains 111 backend errors and 51 frontend errors in older rental/tenant modules outside the Phase 1/3 scope.
 
 ### Phase 4 — Buy/Sell Admin Portal — **DONE**
 
 - **DONE** — Split Buy/Sell and Tenant Admin experiences with role-specific dashboards, navigation, frontend redirects, and backend role denial; `SUPER_ADMIN` retains cross-vertical access.
 - **DONE** — Approved-agent company/profile settings are live for company name, primary contact, and phone. Bank and payout collection is intentionally excluded from buy/sell.
-- **DONE** — Agent account and per-listing document upload, private signed access, agent removal, and sales-reviewer inspection are live through Supabase Storage.
+- **DONE** — Agent account and per-listing document upload, private signed access, agent removal, and sales-reviewer inspection are live through Supabase Storage. Document removal commits the database/audit change before Storage cleanup so a failed database write cannot leave a reference to a deleted object.
 
-Phase score: **3 / 3**. Verified through live Supabase uploads/downloads, cross-role denial tests, audit records, backend tests/build, and the 41-route frontend production build.
+Phase score: **3 / 3**. Verified through live Supabase uploads/downloads, cross-role denial tests, audit records, backend tests/build, and the 43-route frontend production build.
 
 ### Phase 5 — Buyer Chat Routing and Oversight — **DONE**
 
 - **DONE** — Public inquiries are accepted only for approved sale listings and routed to the listing's owning approved agent; another agent cannot access the thread.
 - **DONE** — Johnson Realty Sales/Super Admin receives cross-agent read-only oversight while Tenant Admin is denied and supervisors cannot reply as agents.
-- **DONE** — Inquiry creation, buyer/agent messages, both-side read receipts, and close/reopen transitions are audit-logged and lifecycle emails are wired through Resend.
+- **DONE** — Inquiry creation, buyer/agent messages, visible both-side read receipts, and close/reopen transitions are audit-logged and lifecycle emails are wired through Resend. Read audit events are emitted only when unread rows change.
+- **DONE** — Agent and Sales Admin inquiry lists and all message threads use bounded cursor pagination, backed by agent/timestamp and global timestamp indexes.
 
 Phase score: **3 / 3**. Verified through the live buyer-to-agent-to-oversight lifecycle, invalid-token and cross-agent denial tests, audit-count assertions, backend tests/build, and the 43-route frontend production build.
 
@@ -333,7 +351,7 @@ Phase score: **0.5 / 2**.
 
 ### Phase 11 — Hardening and Launch Readiness — **PENDING**
 
-- **PARTIAL** — Security review of role-based access across both portals. Backend RBAC, rate limiting, admin-shell role gating, and sales-only navigation filtering exist; tenant/agent shell guards, full portal separation, and chat oversight remain.
+- **PARTIAL** — Security review of role-based access across all portals. Backend RBAC, rate limiting, hostname isolation, canonical role redirects, portal shell guards, and chat oversight exist; production-domain verification and broader endpoint review remain.
 - **PENDING** — Load and reliability testing of rent-side payment flows and the manual sale-commission recording workflow.
 - **PENDING** — Full lifecycle email-delivery audit.
 - **PARTIAL** — Vercel deployment documentation exists; broader operations documentation and staff training remain pending.
@@ -342,7 +360,7 @@ Phase score: **1 / 4**.
 
 ### Total phased score
 
-`24 weighted points / 40 items = 60% complete`.
+`24.5 weighted points / 40 items = 61.25% complete`.
 
 ---
 
@@ -355,7 +373,7 @@ The next work should follow dependency order:
 3. Implement the manual buy/sell commission ledger after adding a listing-close state; do not add Stripe to buy/sell.
 4. Complete remaining email triggers alongside each workflow and add delivery/bounce handling in Phase 7.
 5. Select and integrate the e-signature provider in Phase 9 after document workflows stabilize.
-6. Run the production Resend smoke test after the API and environment variables are deployed in Vercel.
+6. Attach the six custom Johnson Realty hostnames after `coachjohnsonrealty.com` is owned or DNS-verified in the Vercel team, then replace the working Vercel-alias auth callbacks with the custom-domain callback set.
 
 ## Code evidence reviewed
 
@@ -386,5 +404,9 @@ The next work should follow dependency order:
 - `frontend/src/app/admin/inquiries/*`
 - `frontend/src/app/agent/inquiries/*`
 - `frontend/src/context/auth-context.tsx`
+- `frontend/src/proxy.ts`
+- `frontend/src/lib/portal-domains.ts`
+- `frontend/src/lib/auth-routing.ts`
+- `backend/src/common/config/portal-urls.ts`
 
 This file should be updated whenever a checklist item becomes fully wired and verified. A status should move to **DONE** only after the required data model, backend behavior, authorization, frontend/API integration, and relevant tests are all present.

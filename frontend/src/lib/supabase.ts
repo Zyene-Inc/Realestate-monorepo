@@ -1,4 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
+import { sharedAuthCookieDomain } from '@/lib/portal-domains'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
@@ -6,7 +7,20 @@ const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 // Placeholder values keep static builds possible before deployment variables are
 // injected. All real requests will fail until the documented environment values
 // are configured.
-export const supabase = createClient(
+const cookieDomain =
+  typeof window === 'undefined'
+    ? undefined
+    : sharedAuthCookieDomain(window.location.hostname)
+
+export const supabase = createBrowserClient(
   supabaseUrl ?? 'https://not-configured.supabase.co',
   supabasePublishableKey ?? 'not-configured',
+  {
+    cookieOptions: {
+      domain: cookieDomain,
+      path: '/',
+      sameSite: 'lax',
+      secure: Boolean(cookieDomain),
+    },
+  },
 )

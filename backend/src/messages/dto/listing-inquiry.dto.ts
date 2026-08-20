@@ -1,12 +1,30 @@
 import {
   IsEmail,
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
   Length,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
 import { InquiryStatus } from '@prisma/client';
+import { Type } from 'class-transformer';
+
+export class CursorPageDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  cursor?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+}
 
 export class CreateListingInquiryDto {
   @IsString()
@@ -32,7 +50,7 @@ export class CreateListingInquiryDto {
   website?: string;
 }
 
-export class BuyerInquiryAccessDto {
+export class BuyerInquiryAccessDto extends CursorPageDto {
   @IsString()
   @Length(32, 200)
   accessToken!: string;

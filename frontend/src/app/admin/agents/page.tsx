@@ -29,6 +29,7 @@ type Agent = {
   declineReason?: string | null;
   verificationDocuments: string[];
   createdAt: string;
+  updatedAt: string;
 };
 type AgentStatus = Agent["accountStatus"];
 
@@ -164,6 +165,12 @@ export default function AgentApprovalsPage() {
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       Submitted {new Date(agent.createdAt).toLocaleDateString()}
+                      {agent.updatedAt !== agent.createdAt && (
+                        <>
+                          {" · "}Updated{" "}
+                          {new Date(agent.updatedAt).toLocaleDateString()}
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -204,6 +211,11 @@ export default function AgentApprovalsPage() {
                   <p className="text-sm text-amber-700">
                     No verification documents uploaded.
                   </p>
+                )}
+                {agent.accountStatus === "DECLINED" && agent.declineReason && (
+                  <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+                    <strong>Decline reason:</strong> {agent.declineReason}
+                  </div>
                 )}
                 {agent.accountStatus === "PENDING" && (
                   <>

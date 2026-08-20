@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -12,15 +12,19 @@ import Link from "next/link"
 import Image from "next/image"
 import { useAuth } from "@/context/auth-context"
 import { toast } from "sonner"
-import { routeForUser } from "@/lib/auth-routing"
+import { navigateToUserPortal } from "@/lib/auth-routing"
 import { getErrorMessage } from "@/lib/errors"
 
 export default function UnifiedLogin() {
   const router = useRouter()
-  const { login } = useAuth()
+  const { login, user, isLoading: isAuthLoading } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    if (!isAuthLoading && user) navigateToUserPortal(router, user, "replace")
+  }, [isAuthLoading, router, user])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,7 +33,7 @@ export default function UnifiedLogin() {
     try {
       const user = await login(email, password)
       toast.success("Login successful")
-      router.push(routeForUser(user))
+      navigateToUserPortal(router, user)
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Invalid credentials"))
     } finally {
@@ -151,7 +155,7 @@ export default function UnifiedLogin() {
             </CardContent>
             <CardFooter className="flex flex-col gap-4 border-t border-border p-8 bg-secondary/30">
               <p className="text-xs text-center text-muted-foreground font-medium uppercase tracking-widest font-heading font-bold">
-                Agent company? <Link href="/agent/signup" className="text-primary font-bold hover:underline ml-1">Apply for access</Link>
+                New agent company? <Link href="/agent/signup" className="text-primary font-bold hover:underline ml-1">Register for approval</Link>
               </p>
             </CardFooter>
           </Card>
