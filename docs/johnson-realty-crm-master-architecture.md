@@ -273,7 +273,7 @@ Phase score: **5 / 5**.
 - **DONE** — Declined agents can update company details/documents and atomically resubmit to `PENDING`; duplicate or invalid transitions are rejected and `AGENT_RESUBMITTED` is audited.
 - **DONE** — Verification, approval, decline, resubmission confirmation, and reviewer-resubmission emails are wired through Resend. The API and web Vercel production projects are configured, the sender domain is verified, and a deterministic production message reached `delivered` state.
 
-Phase score: **3 / 3**. Verified by backend unit tests, `backend/scripts/verify-agent-onboarding.ts` locally and against the production Vercel API, plus a production signup → Resend delivery → Supabase verification link → sign-in → pending-account smoke test. All verification users and audit rows were removed afterward.
+Phase score: **3 / 3**. Verified by backend unit tests and `backend/scripts/verify-agent-onboarding.ts` against the production Vercel API, including pending-account enforcement, verified sign-in, session retrieval, sign-out, password reset, decline, edit, resubmission, approval, and exact audit ordering. All six Phase 2 email types reached Resend's deterministic `delivered` state, and all verification users and audit rows were removed afterward.
 
 ### Phase 3 — Listing Creation and Approval Workflow — **DONE**
 

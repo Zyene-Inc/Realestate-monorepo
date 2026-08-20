@@ -15,8 +15,9 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const isLogin = pathname === "/admin/login";
-  const isAdmin = ["SUPER_ADMIN", "SALES_ADMIN", "TENANT_ADMIN"].includes(
-    user?.role,
+  const isAdmin = Boolean(
+    user &&
+      ["SUPER_ADMIN", "SALES_ADMIN", "TENANT_ADMIN"].includes(user.role),
   );
   const salesRoute =
     pathname.startsWith("/admin/sales") ||

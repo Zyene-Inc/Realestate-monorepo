@@ -13,8 +13,8 @@ Deploy the API first so its production URL can be supplied to the web project. A
 
 Current production deployments:
 
-- API: `https://coach-johnson-realty-api.vercel.app`
-- Web: `https://coach-johnson-realty-web.vercel.app`
+- API: `https://coach-johnson-realty-api-nu.vercel.app`
+- Web: `https://coach-johnson-realty-web-sigma.vercel.app`
 
 The web alias is the active canonical origin until `coachjohnsonrealty.com` is owned or DNS-verified in the Vercel team. Production Supabase callbacks and portal URL variables currently use that working alias. After domain verification, change them to the target hostname map below and redeploy both projects.
 
@@ -101,10 +101,10 @@ Do not copy a CNAME target from another project. Vercel can provide a project-sp
 
 Current Supabase Auth URL Configuration:
 
-- **Site URL**: `https://coach-johnson-realty-web.vercel.app`
+- **Site URL**: `https://coach-johnson-realty-web-sigma.vercel.app`
 - Allowed redirects:
-  - `https://coach-johnson-realty-web.vercel.app/agent/status`
-  - `https://coach-johnson-realty-web.vercel.app/auth/reset-password`
+  - `https://coach-johnson-realty-web-sigma.vercel.app/agent/status`
+  - `https://coach-johnson-realty-web-sigma.vercel.app/auth/reset-password`
   - `http://localhost:3000/auth/reset-password`
 
 After the custom-domain cutover:
@@ -134,7 +134,7 @@ The Resend sender domain `coachjohnsonrealty.com` is verified and must remain ve
 
 ## Deployment verification
 
-Phase 2 production verification completed on August 20, 2026: API health returned `database: connected`; the web `/api` rewrite passed; signup delivered its verification message; the Supabase action link returned to `/agent/status`; sign-in succeeded; the application remained `PENDING`; and the decline → edit → resubmit → approve workflow passed against the production API. Test identities and database audit rows were removed after verification.
+Phase 2 production verification completed on August 20, 2026 and was rerun after the fresh Git-connected Vercel deployment: API health returned `database: connected`; the web `/api` rewrite passed; session retrieval and sign-out passed; password reset passed; and the pending → decline → edit → resubmit → approve workflow passed against the production API with the exact expected audit sequence. Verification, decline, resubmission, reviewer, approval, and password-reset messages all reached Resend's deterministic `delivered` state. Test identities and database audit rows were removed afterward.
 
 1. Open `/api/health` and confirm `database: connected`.
 2. Test sign-up, email verification, sign-in, sign-out, and session persistence across the six domains.

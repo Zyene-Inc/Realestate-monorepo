@@ -8,7 +8,9 @@ import { navigateToUserPortal } from "@/lib/auth-routing";
 export function SalesRouteGuard({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
-  const canAccess = ["SUPER_ADMIN", "SALES_ADMIN"].includes(user?.role);
+  const canAccess = Boolean(
+    user && ["SUPER_ADMIN", "SALES_ADMIN"].includes(user.role),
+  );
 
   useEffect(() => {
     if (!isLoading && user && !canAccess) {

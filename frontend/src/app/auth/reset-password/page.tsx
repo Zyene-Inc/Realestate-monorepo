@@ -34,8 +34,10 @@ function ResetPasswordForm() {
       if (error) throw error
       setSuccess(true)
       toast.success("Password reset successful")
-    } catch (error: any) {
-      toast.error(error.message || "Failed to reset password")
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to reset password",
+      )
     } finally {
       setLoading(false)
     }

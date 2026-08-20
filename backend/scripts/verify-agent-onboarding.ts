@@ -23,8 +23,8 @@ const admin = createClient(supabaseUrl, secretKey, {
 });
 const suffix = randomUUID().slice(0, 8);
 const password = `Verify-${randomUUID()}!`;
-const agentEmail = `phase2-agent-${suffix}@example.com`;
-const reviewerEmail = `phase2-reviewer-${suffix}@example.com`;
+const agentEmail = `delivered+phase2-agent-${suffix}@resend.dev`;
+const reviewerEmail = `delivered+phase2-reviewer-${suffix}@resend.dev`;
 const authUserIds: string[] = [];
 const appUserIds: string[] = [];
 let agentId: string | undefined;
@@ -54,7 +54,10 @@ async function signIn(email: string) {
   const client = createClient(supabaseUrl!, publishableKey!, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  return client.auth.signInWithPassword({ email, password });
+  return {
+    client,
+    ...(await client.auth.signInWithPassword({ email, password })),
+  };
 }
 
 async function main() {
@@ -217,6 +220,37 @@ async function main() {
       ]),
     'Agent onboarding audit actions were incomplete or out of order',
   );
+
+  const persistedSession = await agentSignIn.client.auth.getSession();
+  assert(
+    !persistedSession.error &&
+      persistedSession.data.session?.access_token === agentToken,
+    'Verified agent session was not retrievable after sign-in',
+  );
+
+  const passwordReset = await request<{ success: boolean }>(
+    '/auth/password-reset-request',
+    {
+      method: 'POST',
+      body: JSON.stringify({ email: agentEmail }),
+    },
+  );
+  assert(
+    passwordReset.response.status === 201 && passwordReset.body.success,
+    'Password reset request failed',
+  );
+
+  const { error: agentSignOutError } = await agentSignIn.client.auth.signOut();
+  if (agentSignOutError) throw agentSignOutError;
+  const sessionAfterSignOut = await agentSignIn.client.auth.getSession();
+  assert(
+    !sessionAfterSignOut.error && !sessionAfterSignOut.data.session,
+    'Agent session remained available after sign-out',
+  );
+
+  const { error: reviewerSignOutError } =
+    await reviewerSignIn.client.auth.signOut();
+  if (reviewerSignOutError) throw reviewerSignOutError;
 
   console.log('PHASE_2_AGENT_ONBOARDING_VERIFIED');
 }
