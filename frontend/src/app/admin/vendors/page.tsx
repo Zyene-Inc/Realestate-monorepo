@@ -22,7 +22,7 @@ export default function AdminVendors() {
           <p className="text-muted-foreground mt-2 font-medium">Manage your network of external service providers.</p>
         </div>
         <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl  transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group">
-          <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform text-accent" />
+          <Plus className="mr-2 h-4 w-4 text-current transition-transform group-hover:rotate-90" />
           Add Vendor
         </Button>
       </div>
@@ -66,7 +66,7 @@ export default function AdminVendors() {
                 </TableCell>
                 <TableCell className="py-4">
                   <div className="flex items-center gap-1.5 bg-secondary/50 w-fit px-2 py-1 rounded-md">
-                    <Star className="w-3.5 h-3.5 fill-accent text-accent" />
+                    <Star className="h-3.5 w-3.5 fill-premium text-premium-text" />
                     <span className="font-bold text-foreground font-heading text-xs">{vendor.rating}</span>
                   </div>
                 </TableCell>

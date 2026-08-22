@@ -51,8 +51,8 @@ export default function TenantLease() {
           <p className="text-muted-foreground mt-2 font-medium">Review your current property contract terms and documentation.</p>
         </div>
         <div className="flex items-center gap-3 px-4 py-2 bg-secondary border border-border rounded-2xl shadow-sm">
-          <div className="h-8 w-8 rounded-full bg-green-500/10 flex items-center justify-center">
-            <ShieldCheck className="h-4 w-4 text-green-600" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-premium/15">
+            <ShieldCheck className="h-4 w-4 text-premium-text" />
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground font-heading leading-none">Status</p>
@@ -72,7 +72,7 @@ export default function TenantLease() {
                     {lease.unit.property.name} / Lease ID: #{lease.id.slice(-6).toUpperCase()}
                   </CardDescription>
                 </div>
-                <div className="px-3 py-1.5 bg-green-500/10 text-green-600 rounded-md text-[10px] font-bold uppercase tracking-widest">
+                <div className="rounded-md border border-premium/25 bg-premium/12 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-premium-text">
                   Signed & Active
                 </div>
               </div>
@@ -100,7 +100,7 @@ export default function TenantLease() {
               <div className="p-8 border border-border rounded-[1.25rem] bg-secondary/30 flex flex-col md:flex-row items-center justify-between gap-6 group hover:border-primary/30 transition-[background-color,color,border-color,box-shadow,transform,opacity]">
                 <div className="flex items-center gap-6">
                   <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-                    <FileText className="w-7 h-7 text-accent" />
+                    <FileText className="h-7 w-7 text-primary-foreground" />
                   </div>
                   <div>
                     <p className="font-bold text-foreground font-heading tracking-tight">Lease_Agreement_{lease.id.slice(-4)}.pdf</p>
@@ -136,10 +136,10 @@ export default function TenantLease() {
             </CardHeader>
             <CardContent className="pt-10 pb-10 text-center relative z-10">
               <div className="text-7xl font-bold font-heading mb-2 tabular-nums">{daysRemaining > 0 ? daysRemaining : 0}</div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-accent font-heading">Days Left in Term</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-primary-foreground/75 font-heading">Days Left in Term</p>
               
               <div className="mt-12 w-full h-2 bg-secondary/20 rounded-full overflow-hidden">
-                <div className="h-full bg-accent" style={{ width: `${progress}%` }} />
+                <div className="h-full bg-primary-foreground" style={{ width: `${progress}%` }} />
               </div>
               <div className="mt-4 flex justify-between text-[10px] font-bold uppercase tracking-widest text-primary-foreground/60 font-heading">
                 <span>{format(new Date(lease.startDate), 'MMM yyyy')}</span>

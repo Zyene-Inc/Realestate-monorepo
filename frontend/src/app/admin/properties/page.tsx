@@ -255,7 +255,7 @@ export default function AdminProperties() {
                   {property.units}
                 </TableCell>
                 <TableCell className="py-4">
-                  <Badge className="bg-green-500/10 text-green-600 hover:bg-green-500/20 border-transparent font-bold text-[10px] uppercase tracking-widest">
+                  <Badge className="border-transparent bg-success/10 text-[10px] font-bold uppercase tracking-widest text-success hover:bg-success/20">
                     {property.status}
                   </Badge>
                 </TableCell>

@@ -42,7 +42,7 @@ export default function TenantPayments() {
           <p className="text-muted-foreground mt-2 font-medium">Review your past transactions and download receipts.</p>
         </div>
         <Button nativeButton={false} render={<Link href="/tenant/pay-rent" />}>
-          Make a Payment <ArrowUpRight className="h-4 w-4 text-accent" />
+          Make a Payment <ArrowUpRight className="h-4 w-4 text-current" />
         </Button>
       </div>
 
@@ -53,7 +53,7 @@ export default function TenantPayments() {
           </div>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-70 font-heading">Total Paid (YTD)</CardTitle>
-            <CreditCard className="h-4 w-4 text-accent" />
+            <CreditCard className="h-4 w-4 text-primary-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl tabular-nums">${totalPaid.toLocaleString()}</div>
@@ -101,7 +101,7 @@ export default function TenantPayments() {
                   <TableCell className="py-5">
                     <div className={cn(
                       "inline-flex items-center px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-[0.15em]",
-                      p.status === 'PAID' ? "bg-green-500/10 text-green-600" : "bg-orange-500/10 text-orange-600"
+                      p.status === 'PAID' ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
                     )}>
                       {p.status}
                     </div>

@@ -18,7 +18,7 @@ export default function AdminAnnouncements() {
           <p className="text-muted-foreground mt-2 font-medium">Broadcast important updates to your tenants.</p>
         </div>
         <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl  transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group">
-          <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform text-accent" />
+          <Plus className="mr-2 h-4 w-4 text-current transition-transform group-hover:rotate-90" />
           Create Broadcast
         </Button>
       </div>

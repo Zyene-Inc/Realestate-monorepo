@@ -13,7 +13,7 @@ function fact(value: number | null | undefined, fallback: string) {
 export function PropertyCard({ property, featured = false }: { property: SaleListing; featured?: boolean }) {
   return (
     <Link href={`/properties/${property.id}`} transitionTypes={["nav-forward"]} className={cn("group block", featured && "md:col-span-2 xl:col-span-2")} aria-label={`View ${property.name} in ${property.city}`}>
-      <Card className={cn("grid h-full overflow-hidden border-border/90 bg-card transition-[border-color,box-shadow,transform] duration-300 ease-out group-hover:-translate-y-1 group-hover:border-primary/35 group-hover:shadow-[0_20px_50px_-28px_oklch(0.25_0.035_150/0.45)]", featured && "lg:grid-cols-[1.35fr_.65fr]")}>
+      <Card className={cn("grid h-full overflow-hidden border-border/90 bg-card transition-[border-color,box-shadow,transform] duration-300 ease-out group-hover:-translate-y-1 group-hover:border-primary/35 group-hover:shadow-[0_20px_50px_-28px_rgba(13,18,17,0.32)]", featured && "lg:grid-cols-[1.35fr_.65fr]")}>
         <ViewTransition name={`property-${property.id}`} share="morph" default="none">
           <div className={cn("relative min-h-64 overflow-hidden bg-secondary", featured && "lg:min-h-[27rem]")}>
             {property.photos[0] ? (
@@ -21,8 +21,7 @@ export function PropertyCard({ property, featured = false }: { property: SaleLis
             ) : (
               <div className="flex h-full min-h-64 items-center justify-center" aria-hidden="true"><Building2 className="size-14 text-muted-foreground/35" strokeWidth={1.4} /></div>
             )}
-            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/45 to-transparent" aria-hidden="true" />
-            <p className="absolute bottom-4 left-4 rounded-full bg-background/92 px-3 py-1.5 text-sm font-semibold text-foreground shadow-sm backdrop-blur-md">{formatCurrency(property.price)}</p>
+            <p className="absolute bottom-4 left-4 rounded-full bg-card px-3 py-1.5 text-sm font-semibold text-foreground shadow-sm ring-1 ring-border">{formatCurrency(property.price)}</p>
           </div>
         </ViewTransition>
         <CardContent className={cn("flex flex-col justify-between p-6 sm:p-7", featured && "lg:p-9")}>

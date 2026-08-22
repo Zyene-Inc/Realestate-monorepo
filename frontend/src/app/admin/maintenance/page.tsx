@@ -66,7 +66,7 @@ export default function AdminMaintenance() {
             Filter
           </Button>
           <Button className="bg-primary hover:bg-primary/90 text-primary-foreground h-14 px-8 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group">
-            <FileDown className="w-4 h-4 mr-2 group-hover:-translate-y-1 transition-transform text-accent" />
+            <FileDown className="mr-2 h-4 w-4 text-current transition-transform group-hover:-translate-y-1" />
             Export PDF
           </Button>
         </div>
@@ -102,7 +102,7 @@ export default function AdminMaintenance() {
                   <Badge 
                     className={cn(
                       "font-bold uppercase tracking-widest text-[9px] px-3 py-1 rounded-md border-transparent",
-                      req.status === 'completed' ? 'bg-green-500/10 text-green-600' :
+                      req.status === 'completed' ? 'bg-success/10 text-success' :
                       req.status === 'in_progress' ? 'bg-accent/10 text-accent' :
                       'bg-primary text-primary-foreground'
                     )}
@@ -127,13 +127,13 @@ export default function AdminMaintenance() {
                     {req.priority === 'emergency' ? (
                       <AlertTriangle className="w-4 h-4 text-destructive" />
                     ) : req.priority === 'high' ? (
-                      <Clock className="w-4 h-4 text-accent" />
+                      <Clock className="h-4 w-4 text-warning" />
                     ) : (
                       <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
                     )}
                     <span className={cn(
                       "text-[10px] font-bold uppercase tracking-widest font-heading",
-                      req.priority === 'emergency' ? 'text-destructive' : req.priority === 'high' ? 'text-accent' : 'text-muted-foreground'
+                      req.priority === 'emergency' ? 'text-destructive' : req.priority === 'high' ? 'text-warning' : 'text-muted-foreground'
                     )}>
                       {req.priority}
                     </span>

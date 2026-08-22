@@ -17,7 +17,7 @@ export default function AdminSettings() {
           <p className="text-muted-foreground mt-2 font-medium">Configure the agency portal and payment settings.</p>
         </div>
         <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl  transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group">
-          <Save className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform text-accent" />
+          <Save className="mr-2 h-4 w-4 text-current transition-transform group-hover:scale-110" />
           Save All Changes
         </Button>
       </div>
@@ -70,17 +70,17 @@ export default function AdminSettings() {
               <CardDescription className="text-muted-foreground font-medium mt-1">Manage how you receive payments and handle fees.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 p-8">
-              <div className="p-6 bg-green-500/10 border border-green-500/20 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex flex-col items-center justify-between gap-4 rounded-2xl border border-success/20 bg-success/10 p-6 sm:flex-row">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-500/20">
-                    <Shield className="w-5 h-5 text-white" />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-success">
+                    <Shield className="h-5 w-5 text-success-foreground" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-green-600 font-heading">Stripe Account Connected</p>
-                    <p className="text-[10px] uppercase tracking-widest font-bold text-green-600/70 mt-1 font-heading">ID: acct_123456789</p>
+                    <p className="text-sm font-bold text-success font-heading">Payment account connected</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-success/75 font-heading">Connection active</p>
                   </div>
                 </div>
-                <Button variant="outline" className="rounded-xl border-green-500/30 text-green-600 hover:bg-green-500/20 text-[10px] font-bold uppercase tracking-widest font-heading transition-[background-color,color,border-color,box-shadow,transform,opacity] px-6 w-full sm:w-auto">
+                <Button variant="outline" className="w-full rounded-xl border-success/30 px-6 text-[10px] font-bold uppercase tracking-widest text-success hover:bg-success/10 sm:w-auto font-heading">
                   Manage on Stripe
                 </Button>
               </div>

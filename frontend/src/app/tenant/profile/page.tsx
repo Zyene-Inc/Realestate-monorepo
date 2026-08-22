@@ -91,7 +91,7 @@ export default function TenantProfile() {
           <CardContent className="p-8 space-y-8">
             <div className="p-6 bg-secondary/50 rounded-2xl border border-border flex items-start gap-4 group-hover:border-primary/20 transition-[background-color,color,border-color,box-shadow,transform,opacity]">
               <div className="mt-1">
-                <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
+                <div className="h-2 w-2 rounded-full bg-success" />
               </div>
               <div>
                 <p className="font-bold text-foreground font-heading">{profile?.unitId ? `Unit ID: ${profile.unitId}` : "No Active Unit"}</p>

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Coach Johnson Design System"
+  short_description: "Apply the approved forest property-product visual system."
+  default_prompt: "Use the approved Coach Johnson Realty design system for this interface."

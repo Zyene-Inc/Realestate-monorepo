@@ -45,25 +45,26 @@ export default function HomePage() {
       <SiteHeader />
       <main id="main-content">
         <section className="public-container grid min-h-[calc(100dvh-4.5rem)] gap-5 py-5 lg:grid-cols-[minmax(0,1.28fr)_minmax(24rem,.72fr)]">
-          <div className="relative min-h-[28rem] overflow-hidden rounded-[1.75rem] lg:min-h-0">
-            <Image
-              src="/hero-community.png"
-              alt="Restored brick apartment building in a tree-lined Kansas City neighborhood"
-              fill
-              priority
-              sizes="(min-width: 1024px) 62vw, 100vw"
-              className="object-cover"
-            />
-            <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_35%,oklch(0.16_0.025_159/0.88)_100%)]" />
-            <div className="absolute inset-x-0 bottom-0 p-6 text-[oklch(0.985_0.009_78)] sm:p-10 lg:p-12">
+          <div className="grid min-h-[36rem] overflow-hidden rounded-[1.75rem] bg-brand text-white lg:min-h-0 lg:grid-rows-[minmax(24rem,1fr)_auto]">
+            <div className="relative min-h-[24rem]">
+              <Image
+                src="/hero-community.png"
+                alt="Restored brick apartment building in a tree-lined Kansas City neighborhood"
+                fill
+                priority
+                sizes="(min-width: 1024px) 62vw, 100vw"
+                className="object-cover"
+              />
+            </div>
+            <div className="p-6 sm:p-8 lg:p-10">
               <p className="max-w-3xl text-[clamp(2.5rem,5.6vw,5.6rem)] font-semibold leading-[.98] tracking-[-0.05em]">
                 Homes are personal. Management should be too.
               </p>
-              <div className="mt-6 flex flex-col gap-5 border-t border-[oklch(0.985_0.009_78/0.28)] pt-5 sm:flex-row sm:items-center sm:justify-between">
-                <p className="max-w-md text-sm leading-6 text-[oklch(0.94_0.012_78/0.82)] sm:text-base">
+              <div className="mt-6 flex flex-col gap-5 border-t border-white/20 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                <p className="max-w-md text-sm leading-6 text-white/72 sm:text-base">
                   Local stewardship, responsive service, and clear tools for every step of the rental experience.
                 </p>
-                <Button nativeButton={false} variant="outline" className="border-[oklch(0.985_0.009_78/0.48)] bg-[oklch(0.985_0.009_78/0.1)] text-[oklch(0.985_0.009_78)] hover:bg-[oklch(0.985_0.009_78)] hover:text-[oklch(0.23_0.024_159)]" render={<Link href="/properties" transitionTypes={["nav-forward"]} />}>
+                <Button nativeButton={false} variant="outline" className="border-white/45 bg-transparent text-white hover:border-white hover:bg-white hover:text-brand" render={<Link href="/properties" transitionTypes={["nav-forward"]} />}>
                   View properties <ArrowRight aria-hidden="true" />
                 </Button>
               </div>

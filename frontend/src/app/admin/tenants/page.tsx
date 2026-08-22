@@ -130,7 +130,7 @@ export default function AdminTenants() {
               <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl  transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group" />
             }
           >
-            <UserPlus className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform text-accent" />
+            <UserPlus className="mr-2 h-4 w-4 text-current transition-transform group-hover:scale-110" />
             Invite Tenant
           </DialogTrigger>
           <DialogContent className="sm:max-w-[500px] rounded-[2rem] border-border bg-card p-5 sm:p-8">

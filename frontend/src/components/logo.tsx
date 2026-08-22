@@ -16,14 +16,14 @@ export const Logo = ({ className = "h-12 w-auto", ...props }) => {
         {/* Shaft */}
         <path d="M52 50 H90" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
         
-        {/* Skyline as Teeth - Multi-tone for premium feel */}
+        {/* Skyline as teeth */}
         <path d="M65 50 V35 H72 V50" fill="currentColor" opacity="0.8" />
-        <path d="M75 50 V42 H82 V50" fill="var(--accent)" />
+        <path d="M75 50 V42 H82 V50" fill="currentColor" opacity="0.72" />
         <path d="M85 50 V30 H92 V50" fill="currentColor" />
       </svg>
       <div className="flex flex-col leading-none">
         <span className="text-xl font-bold tracking-tight text-current uppercase font-heading">Coach Johnson</span>
-        <span className="text-[10px] font-bold tracking-[0.3em] text-accent uppercase font-heading">Realty Group</span>
+        <span className="text-[10px] font-bold tracking-[0.3em] text-current opacity-70 uppercase font-heading">Realty Group</span>
       </div>
     </div>
   )

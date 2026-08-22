@@ -349,7 +349,7 @@ export function SaleListingForm({ listing }: { listing?: SaleListing }) {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex flex-wrap gap-3">
-              <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full bg-accent px-5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/88 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+              <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-border bg-card px-5 text-sm font-semibold text-foreground transition-colors hover:border-primary/35 hover:bg-secondary has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
                 {uploading === "photo" ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (

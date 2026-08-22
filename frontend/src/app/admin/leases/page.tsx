@@ -145,7 +145,7 @@ export default function AdminLeases() {
               <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl  transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group" />
             }
           >
-            <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform text-accent" />
+            <Plus className="mr-2 h-4 w-4 text-current transition-transform group-hover:rotate-90" />
             Create Lease
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px] rounded-[2rem] border-border bg-card p-5 sm:p-8">

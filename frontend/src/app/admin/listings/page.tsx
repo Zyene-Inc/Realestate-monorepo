@@ -330,7 +330,7 @@ function ListingAuditTimeline({ events }: { events: SaleListingAuditEvent[] }) {
               </p>
             )}
             {typeof reason === "string" && (
-              <p className="mt-1 text-xs text-red-700">Reason: {reason}</p>
+              <p className="mt-1 text-xs text-destructive">Reason: {reason}</p>
             )}
           </li>
         );

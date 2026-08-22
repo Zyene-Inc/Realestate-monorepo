@@ -23,7 +23,7 @@ export default function AdminPayments() {
           <p className="text-muted-foreground mt-2 font-medium">Track rent collection and processing fees.</p>
         </div>
         <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl  transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group">
-          <Download className="w-4 h-4 mr-2 group-hover:-translate-y-1 transition-transform text-accent" />
+          <Download className="mr-2 h-4 w-4 text-current transition-transform group-hover:-translate-y-1" />
           Export Report
         </Button>
       </div>
@@ -35,10 +35,10 @@ export default function AdminPayments() {
           </CardHeader>
           <CardContent className="relative z-10">
             <div className="text-4xl font-bold text-foreground font-heading tabular-nums">$142,500.00</div>
-            <div className="flex items-center text-[10px] font-bold uppercase tracking-widest text-green-600 mt-3 font-heading">
+            <div className="mt-3 flex items-center text-[10px] font-bold uppercase tracking-widest text-success font-heading">
               <TrendingUp className="w-3 h-3 mr-1" /> +4% from last month
             </div>
-            <div className="absolute right-0 top-0 w-24 h-24 bg-green-500/10 rounded-full -mr-12 -mt-12 transition-[background-color,color,border-color,box-shadow,transform,opacity] group-hover:scale-110" />
+            <div className="absolute right-0 top-0 -mr-12 -mt-12 h-24 w-24 rounded-full bg-success/10 transition-transform group-hover:scale-110" />
           </CardContent>
         </Card>
         
@@ -100,7 +100,7 @@ export default function AdminPayments() {
                   <Badge 
                     className={cn(
                       "font-bold uppercase tracking-widest text-[9px] px-3 py-1 rounded-md border-transparent",
-                      p.status === 'Paid' ? 'bg-green-500/10 text-green-600 hover:bg-green-500/20' : 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+                      p.status === 'Paid' ? 'bg-success/10 text-success hover:bg-success/20' : 'bg-destructive/10 text-destructive hover:bg-destructive/20'
                     )}
                   >
                     {p.status}

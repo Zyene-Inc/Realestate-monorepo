@@ -136,9 +136,9 @@ export default function AdminUnits() {
                   <Badge 
                     className={cn(
                       "font-bold text-[10px] uppercase tracking-widest border-transparent",
-                      unit.status === "Occupied" ? "bg-green-500/10 text-green-600 hover:bg-green-500/20" :
+                      unit.status === "Occupied" ? "bg-success/10 text-success hover:bg-success/20" :
                       unit.status === "Vacant" ? "bg-accent/10 text-accent hover:bg-accent/20" :
-                      "bg-orange-500/10 text-orange-600 hover:bg-orange-500/20"
+                      "bg-warning/10 text-warning hover:bg-warning/20"
                     )}
                   >
                     {unit.status}

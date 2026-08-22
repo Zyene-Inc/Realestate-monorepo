@@ -33,7 +33,7 @@ export default function TenantPayRent() {
             Secure, encrypted property payment portal.
           </p>
         </div>
-        <div className="flex items-center gap-2 px-5 py-2.5 bg-green-500/10 text-green-600 rounded-full text-[10px] font-bold uppercase tracking-widest border border-green-500/20">
+        <div className="flex items-center gap-2 rounded-full border border-success/20 bg-success/10 px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-success">
           <ShieldCheck className="h-4 w-4" />
           Encrypted connection
         </div>
@@ -57,7 +57,7 @@ export default function TenantPayRent() {
                 className={cn(
                   "p-4 rounded-2xl w-fit mb-6 transition-colors duration-300",
                   method === "ach"
-                    ? "bg-secondary/20 text-accent"
+                    ? "bg-secondary/20 text-primary-foreground"
                     : "bg-secondary text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground",
                 )}
               >
@@ -78,7 +78,7 @@ export default function TenantPayRent() {
               </p>
               {method === "ach" && (
                 <div className="absolute right-6 top-6 transition-transform duration-300">
-                  <CheckCircle2 className="w-6 h-6 text-accent" />
+                  <CheckCircle2 className="h-6 w-6 text-primary-foreground" />
                 </div>
               )}
             </button>
@@ -98,7 +98,7 @@ export default function TenantPayRent() {
                 className={cn(
                   "p-4 rounded-2xl w-fit mb-6 transition-colors duration-300",
                   method === "card"
-                    ? "bg-secondary/20 text-accent"
+                    ? "bg-secondary/20 text-primary-foreground"
                     : "bg-secondary text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground",
                 )}
               >
@@ -119,7 +119,7 @@ export default function TenantPayRent() {
               </p>
               {method === "card" && (
                 <div className="absolute right-6 top-6 transition-transform duration-300">
-                  <CheckCircle2 className="w-6 h-6 text-accent" />
+                  <CheckCircle2 className="h-6 w-6 text-primary-foreground" />
                 </div>
               )}
             </button>
@@ -194,7 +194,7 @@ export default function TenantPayRent() {
                 </span>
               </div>
               <div className="pt-6 border-t border-white/10 flex justify-between items-center">
-                <span className="text-xs font-bold uppercase tracking-widest text-accent font-heading">
+                <span className="text-xs font-bold uppercase tracking-widest text-primary-foreground/75 font-heading">
                   Total Amount
                 </span>
                 <span className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl tabular-nums">
@@ -202,7 +202,7 @@ export default function TenantPayRent() {
                 </span>
               </div>
 
-              <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xs uppercase tracking-widest py-8 rounded-2xl transition-[background-color,color,border-color,box-shadow,transform,opacity] shadow-xl shadow-black/20 mt-4 group font-heading">
+              <Button className="mt-4 w-full rounded-2xl py-8 text-xs font-bold uppercase tracking-widest font-heading">
                 Confirm Payment
                 <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Button>

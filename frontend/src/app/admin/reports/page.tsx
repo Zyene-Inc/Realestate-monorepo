@@ -37,7 +37,7 @@ export default function AdminReports() {
             Last 30 Days
           </Button>
           <Button className="bg-primary hover:bg-primary/90 text-primary-foreground h-14 px-8 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group">
-            <Download className="w-4 h-4 mr-2 group-hover:-translate-y-1 transition-transform text-accent" />
+            <Download className="mr-2 h-4 w-4 text-current transition-transform group-hover:-translate-y-1" />
             Download All
           </Button>
         </div>
@@ -89,7 +89,7 @@ export default function AdminReports() {
                 {stat.value}
               </div>
               <p
-                className={`text-[10px] font-bold uppercase tracking-widest mt-3 font-heading ${stat.positive ? "text-green-600" : "text-destructive"}`}
+                className={`text-[10px] font-bold uppercase tracking-widest mt-3 font-heading ${stat.positive ? "text-success" : "text-destructive"}`}
               >
                 {stat.trend} from last month
               </p>

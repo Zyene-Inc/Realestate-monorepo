@@ -8,12 +8,13 @@ import { cn } from "@/lib/utils";
 export function AuthShell({ children, eyebrow, title, description, wide = false }: { children: React.ReactNode; eyebrow: string; title: string; description: string; wide?: boolean }) {
   return (
     <main id="main-content" className="grid min-h-[100dvh] bg-background lg:grid-cols-[minmax(0,1.08fr)_minmax(28rem,.92fr)]">
-      <aside className="relative hidden min-h-[100dvh] overflow-hidden lg:block">
-        <Image src="/hero-community.png" alt="Restored brick apartment building framed by mature trees" fill priority sizes="55vw" className="object-cover" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,oklch(0.18_0.02_159/0.08),oklch(0.18_0.02_159/0.78))]" />
-        <div className="absolute inset-x-0 bottom-0 p-12 text-[oklch(0.985_0.009_78)] xl:p-16">
+      <aside className="hidden min-h-[100dvh] overflow-hidden bg-brand text-white lg:flex lg:flex-col">
+        <div className="relative min-h-0 flex-1">
+          <Image src="/hero-community.png" alt="Restored brick apartment building framed by mature trees" fill priority sizes="55vw" className="object-cover" />
+        </div>
+        <div className="p-12 xl:p-16">
           <p className="max-w-xl text-3xl font-semibold leading-tight tracking-[-0.035em]">A clear path home, and a capable team behind every detail.</p>
-          <p className="mt-4 max-w-md text-sm leading-6 text-[oklch(0.94_0.012_78/0.78)]">Secure access for residents, approved agents, and Johnson Realty staff.</p>
+          <p className="mt-4 max-w-md text-sm leading-6 text-white/72">Secure access for residents, approved agents, and Johnson Realty staff.</p>
         </div>
       </aside>
       <section className="flex min-h-[100dvh] flex-col px-5 py-5 sm:px-8 lg:px-12 xl:px-16">

@@ -21,7 +21,7 @@ export default function TenantAutoPay() {
         <div className={cn(
           "flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-[background-color,color,border-color,box-shadow,transform,opacity]",
           enabled 
-            ? "bg-green-500/10 text-green-600 border-green-500/20" 
+            ? "border-success/20 bg-success/10 text-success"
             : "bg-secondary text-muted-foreground border-border"
         )}>
           <RefreshCw className={cn("h-4 w-4", enabled && "animate-spin-slow")} />
@@ -135,12 +135,12 @@ export default function TenantAutoPay() {
             </CardContent>
           </Card>
           
-          <div className="p-8 bg-accent rounded-[1.25rem] text-accent-foreground shadow-xl shadow-accent/20">
+          <div className="rounded-[1.25rem] bg-brand p-8 text-white">
             <h5 className="font-bold font-heading text-xl mb-3">Need Assistance?</h5>
             <p className="text-[11px] font-medium uppercase tracking-widest leading-relaxed mb-8 opacity-80">
               If you encounter issues with your bank connection, our support team is available 24/7.
             </p>
-            <Button className="w-full bg-background text-foreground hover:bg-foreground hover:text-background rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] py-6 shadow-lg transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading">
+            <Button variant="outline" className="w-full rounded-xl border-white/35 bg-transparent py-6 text-[10px] font-bold uppercase tracking-[0.2em] text-white hover:border-white hover:bg-white hover:text-brand font-heading">
               Contact Billing
             </Button>
           </div>

@@ -112,7 +112,7 @@ export default function TenantMaintenance() {
           <DialogTrigger
             render={
               <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs uppercase tracking-widest px-8 py-6 rounded-2xl  group transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading">
-                <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform text-accent" />
+                <Plus className="mr-2 h-4 w-4 text-current transition-transform group-hover:rotate-90" />
                 New Service Request
               </Button>
             }
@@ -237,7 +237,7 @@ export default function TenantMaintenance() {
                       className={cn(
                         "w-full md:w-2 transition-colors",
                         req.status === "completed"
-                          ? "bg-green-500"
+                          ? "bg-success"
                           : "bg-accent",
                       )}
                     />
@@ -264,7 +264,7 @@ export default function TenantMaintenance() {
                                   "text-[9px] font-bold uppercase tracking-[0.2em] px-2.5 py-1 rounded-md",
                                   req.priority === "emergency" ||
                                     req.priority === "high"
-                                    ? "bg-red-500/10 text-red-600"
+                                    ? "bg-destructive/10 text-destructive"
                                     : "bg-secondary text-muted-foreground",
                                 )}
                               >
@@ -294,7 +294,7 @@ export default function TenantMaintenance() {
                             className={cn(
                               "inline-flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest",
                               req.status === "completed"
-                                ? "bg-green-500/10 text-green-700"
+                                ? "bg-success/10 text-success"
                                 : "bg-accent/10 text-accent",
                             )}
                           >
