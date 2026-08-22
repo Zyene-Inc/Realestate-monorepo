@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  Ip,
   Post,
   Request,
   UseGuards,
@@ -14,18 +16,23 @@ import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
 import { AgentSignupDto } from './dto/agent-signup.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
+import { LoginDto } from './dto/login.dto';
+import { TenantInviteDto } from './dto/tenant-invite.dto';
 
 type AuthenticatedRequest = { user: { sub: string } };
-type TenantInviteBody = {
-  email: string;
-  firstName: string;
-  lastName: string;
-  unitId: string;
-};
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Post('login')
+  @HttpCode(200)
+  @Throttle({
+    default: { limit: 10, ttl: 60000, blockDuration: 60000 },
+  })
+  login(@Body() body: LoginDto, @Ip() clientIp: string) {
+    return this.authService.login(body, clientIp);
+  }
 
   @Post('agent-signup')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
@@ -50,7 +57,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN)
   async invite(
-    @Body() body: TenantInviteBody,
+    @Body() body: TenantInviteDto,
     @Request() request: AuthenticatedRequest,
   ) {
     return this.authService.inviteTenant(body, request.user.sub);

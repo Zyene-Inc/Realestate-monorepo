@@ -1,25 +1,23 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, ViewTransition } from "react";
 import { useParams } from "next/navigation";
-import {
-  ArrowLeft,
-  Bath,
-  BedDouble,
-  Building2,
-  Loader2,
-  Mail,
-  MapPin,
-  Phone,
-  Ruler,
-} from "lucide-react";
+import { ArrowLeft, Bath, BedDouble, Building2, Mail, MapPin, Phone, Ruler } from "lucide-react";
+import { DirectionalPage } from "@/components/page-transition";
+import { BuyerInquiryPanel } from "@/components/public/buyer-inquiry-panel";
+import { SiteFooter } from "@/components/public/site-footer";
+import { SiteHeader } from "@/components/public/site-header";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Logo } from "@/components/logo";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { formatCurrency, type SaleListing } from "@/lib/sale-listings";
-import { BuyerInquiryPanel } from "@/components/public/buyer-inquiry-panel";
+
+function display(value: number | null | undefined, fallback = "Ask agent") {
+  return value == null ? fallback : value.toLocaleString();
+}
 
 export default function PublicSaleListingPage() {
   const { id } = useParams<{ id: string }>();
@@ -27,143 +25,87 @@ export default function PublicSaleListingPage() {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    api
-      .get(`/public/sale-listings/${id}`)
-      .then(setListing)
-      .catch(() => setFailed(true));
+    api.get(`/public/sale-listings/${id}`).then(setListing).catch(() => setFailed(true));
   }, [id]);
 
-  if (!listing && !failed)
-    return (
-      <main className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </main>
-    );
-  if (failed)
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-5">
-        <Building2 className="h-14 w-14 text-muted-foreground/30" />
-        <h1 className="text-2xl font-bold">Listing unavailable</h1>
-        <Link href="/properties" className={buttonVariants()}>
-          Browse approved listings
-        </Link>
-      </main>
-    );
-  if (!listing) return null;
-
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card px-8 py-5 lg:px-16">
-        <Link href="/">
-          <Logo className="h-9" />
-        </Link>
-      </header>
-      <main className="mx-auto max-w-7xl px-6 py-10">
-        <Link
-          href="/properties"
-          className="mb-8 inline-flex items-center text-sm font-semibold text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          All homes for sale
-        </Link>
-        <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
-          <div className="space-y-8">
-            <div className="overflow-hidden rounded-3xl bg-secondary">
-              {listing.photos[0] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={listing.photos[0]}
-                  alt={listing.name}
-                  className="h-[520px] w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-[520px] items-center justify-center">
-                  <Building2 className="h-20 w-20 text-muted-foreground/30" />
-                </div>
-              )}
-            </div>
+    <div className="min-h-[100dvh] bg-background">
+      <SiteHeader />
+      <DirectionalPage>
+        {!listing && !failed ? (
+          <main id="main-content" className="public-container py-10 sm:py-16" aria-label="Loading property">
+            <Skeleton className="h-6 w-44" />
+            <Skeleton className="mt-8 aspect-[16/10] w-full rounded-[1.75rem] lg:aspect-[2/1]" />
+            <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_22rem]"><div className="space-y-4"><Skeleton className="h-10 w-48" /><Skeleton className="h-14 w-3/4" /><Skeleton className="h-24 w-full" /></div><Skeleton className="h-72 w-full rounded-[1.5rem]" /></div>
+          </main>
+        ) : failed ? (
+          <main id="main-content" className="public-container flex min-h-[70dvh] flex-col items-center justify-center py-20 text-center">
+            <Building2 className="size-14 text-primary" strokeWidth={1.3} aria-hidden="true" />
+            <h1 className="mt-6 text-3xl font-semibold tracking-[-0.04em]">This listing is no longer available</h1>
+            <p className="mt-3 max-w-md text-sm leading-6 text-muted-foreground">It may have been sold, withdrawn, or returned to review. The current collection is ready when you are.</p>
+            <Link href="/properties" transitionTypes={["nav-back"]} className={buttonVariants({ className: "mt-7" })}>Browse available homes</Link>
+          </main>
+        ) : listing ? (
+          <main id="main-content" className="public-container py-8 sm:py-12 lg:py-16">
+            <Link href="/properties" transitionTypes={["nav-back"]} className="inline-flex min-h-11 items-center gap-2 rounded-full px-1 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/25"><ArrowLeft className="size-4" aria-hidden="true" />All properties</Link>
+
+            <ViewTransition name={`property-${listing.id}`} share="morph" default="none">
+              <div className="relative mt-6 aspect-[4/3] overflow-hidden rounded-[1.5rem] bg-secondary sm:aspect-[16/10] lg:aspect-[2/1] lg:rounded-[2rem]">
+                {listing.photos[0] ? <Image src={listing.photos[0]} alt={`${listing.name} exterior`} fill priority sizes="(min-width: 1536px) 1400px, 100vw" className="object-cover" /> : <div className="flex h-full items-center justify-center"><Building2 className="size-20 text-muted-foreground/30" strokeWidth={1.2} aria-hidden="true" /></div>}
+              </div>
+            </ViewTransition>
+
             {listing.photos.length > 1 && (
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                {listing.photos.slice(1).map((photo) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={photo}
-                    src={photo}
-                    alt={listing.name}
-                    className="h-36 w-full rounded-xl object-cover"
-                  />
-                ))}
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {listing.photos.slice(1, 5).map((photo, index) => <div key={photo} className="relative aspect-[4/3] overflow-hidden rounded-xl bg-secondary"><Image src={photo} alt={`${listing.name}, view ${index + 2}`} fill sizes="(min-width: 640px) 24vw, 48vw" className="object-cover" /></div>)}
               </div>
             )}
-            <div>
-              <p className="text-4xl font-extrabold font-heading">
-                {formatCurrency(listing.price)}
-              </p>
-              <h1 className="mt-2 text-3xl font-bold">{listing.name}</h1>
-              <p className="mt-3 flex items-center text-muted-foreground">
-                <MapPin className="mr-2 h-5 w-5" />
-                {listing.address}, {listing.city}, {listing.state} {listing.zip}
-              </p>
-              <div className="mt-6 flex flex-wrap gap-6 border-y border-border py-5 font-semibold">
-                <span>
-                  <BedDouble className="mr-2 inline h-5 w-5" />
-                  {listing.bedrooms ?? "—"} beds
-                </span>
-                <span>
-                  <Bath className="mr-2 inline h-5 w-5" />
-                  {listing.bathrooms ?? "—"} baths
-                </span>
-                <span>
-                  <Ruler className="mr-2 inline h-5 w-5" />
-                  {listing.squareFeet?.toLocaleString() ?? "—"} sq ft
-                </span>
-              </div>
-              <p className="mt-7 whitespace-pre-line leading-7 text-muted-foreground">
-                {listing.description}
-              </p>
+
+            <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_23rem] lg:gap-16">
+              <article>
+                <div className="flex flex-col gap-5 border-b border-border pb-8 sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-primary">{listing.propertyType || "Residential"}</p>
+                    <h1 className="mt-2 text-[clamp(2.5rem,5vw,5rem)] font-semibold leading-[.98] tracking-[-0.05em]">{listing.name}</h1>
+                    <p className="mt-4 flex max-w-2xl items-start gap-2 text-sm leading-6 text-muted-foreground"><MapPin className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />{listing.address}, {listing.city}, {listing.state} {listing.zip}</p>
+                  </div>
+                  <p className="shrink-0 text-3xl font-semibold tracking-[-0.04em]">{formatCurrency(listing.price)}</p>
+                </div>
+
+                <dl className="grid grid-cols-3 border-b border-border py-6">
+                  <div><dt className="flex items-center gap-2 text-xs text-muted-foreground"><BedDouble className="size-4" aria-hidden="true" />Bedrooms</dt><dd className="mt-2 text-lg font-semibold">{display(listing.bedrooms)}</dd></div>
+                  <div><dt className="flex items-center gap-2 text-xs text-muted-foreground"><Bath className="size-4" aria-hidden="true" />Bathrooms</dt><dd className="mt-2 text-lg font-semibold">{display(listing.bathrooms)}</dd></div>
+                  <div><dt className="flex items-center gap-2 text-xs text-muted-foreground"><Ruler className="size-4" aria-hidden="true" />Square feet</dt><dd className="mt-2 text-lg font-semibold">{display(listing.squareFeet)}</dd></div>
+                </dl>
+
+                <section className="py-9">
+                  <h2 className="text-xl font-semibold tracking-[-0.025em]">About this home</h2>
+                  <p className="mt-4 whitespace-pre-line text-base leading-8 text-muted-foreground">{listing.description || "The listing agent can share the complete property story, disclosures, and showing details."}</p>
+                </section>
+
+                {listing.amenities.length > 0 && <section className="border-t border-border py-9"><h2 className="text-xl font-semibold tracking-[-0.025em]">Features</h2><ul className="mt-5 flex flex-wrap gap-2">{listing.amenities.map((amenity) => <li key={amenity} className="rounded-full border border-border bg-card px-4 py-2 text-sm">{amenity}</li>)}</ul></section>}
+              </article>
+
+              <aside>
+                <Card className="lg:sticky lg:top-24">
+                  <CardContent className="p-5 sm:p-6">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Listing contact</p>
+                    <h2 className="mt-3 text-xl font-semibold">{listing.agent?.contactName || "Property team"}</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">{listing.agent?.companyName || "Coach Johnson Realty"}</p>
+                    <div className="mt-5 grid gap-2">
+                      {listing.agent?.email && <a href={`mailto:${listing.agent.email}?subject=${encodeURIComponent(`Inquiry about ${listing.name}`)}`} className={buttonVariants({ className: "w-full" })}><Mail aria-hidden="true" />Email agent</a>}
+                      {listing.agent?.phone && <a href={`tel:${listing.agent.phone}`} className={buttonVariants({ variant: "outline", className: "w-full" })}><Phone aria-hidden="true" />{listing.agent.phone}</a>}
+                    </div>
+                    <p className="mt-5 text-xs leading-5 text-muted-foreground">This listing has completed our review. Financing, escrow, and purchase payments are handled outside this website.</p>
+                    <BuyerInquiryPanel listingId={listing.id} />
+                  </CardContent>
+                </Card>
+              </aside>
             </div>
-          </div>
-          <Card className="h-fit rounded-3xl lg:sticky lg:top-8">
-            <CardHeader>
-              <CardTitle>Contact the listing agent</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="rounded-xl bg-secondary p-5">
-                <strong>{listing.agent?.contactName}</strong>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {listing.agent?.companyName}
-                </p>
-              </div>
-              {listing.agent?.email && (
-                <a
-                  href={`mailto:${listing.agent.email}?subject=${encodeURIComponent(`Inquiry about ${listing.name}`)}`}
-                  className={buttonVariants({ className: "w-full" })}
-                >
-                  <Mail className="mr-2 h-4 w-4" />
-                  Email agent
-                </a>
-              )}
-              {listing.agent?.phone && (
-                <a
-                  href={`tel:${listing.agent.phone}`}
-                  className={buttonVariants({
-                    variant: "outline",
-                    className: "w-full",
-                  })}
-                >
-                  <Phone className="mr-2 h-4 w-4" />
-                  {listing.agent.phone}
-                </a>
-              )}
-              <p className="text-xs leading-5 text-muted-foreground">
-                Johnson Realty reviewed this listing. Financing, escrow, and
-                home-purchase payments are handled outside this website.
-              </p>
-              <BuyerInquiryPanel listingId={listing.id} />
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+          </main>
+        ) : null}
+      </DirectionalPage>
+      <SiteFooter />
     </div>
   );
 }

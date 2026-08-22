@@ -11,33 +11,36 @@ import { api } from "@/lib/api"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { getErrorMessage } from "@/lib/errors"
+
+type MaintenanceRequest = { id: string; status: string; category: string; description: string; priority: string; createdAt: string; tenant: { firstName: string; lastName: string }; unit: { unitNumber: string } }
 
 export default function AdminMaintenance() {
-  const [requests, setRequests] = useState([])
+  const [requests, setRequests] = useState<MaintenanceRequest[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchRequests()
-  }, [])
-
-  const fetchRequests = async () => {
+  async function fetchRequests() {
     try {
       const data = await api.get("/admin/maintenance")
-      setRequests(data)
-    } catch (error: any) {
-      toast.error("Failed to fetch maintenance requests")
+      setRequests(data as MaintenanceRequest[])
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to load service requests"))
     } finally {
       setLoading(false)
     }
   }
 
+  useEffect(() => {
+    api.get("/admin/maintenance").then((data: MaintenanceRequest[]) => setRequests(data)).catch((error: unknown) => toast.error(getErrorMessage(error, "Unable to load service requests"))).finally(() => setLoading(false))
+  }, [])
+
   const updateStatus = async (id: string, status: string) => {
     try {
       await api.patch(`/admin/maintenance/${id}`, { status })
       toast.success("Status updated")
-      fetchRequests()
-    } catch (error: any) {
-      toast.error("Failed to update status")
+      void fetchRequests()
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to update status"))
     }
   }
 
@@ -50,19 +53,19 @@ export default function AdminMaintenance() {
   }
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-8 sm:space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold font-heading tracking-tight text-foreground">Maintenance</h1>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">Maintenance</h1>
           <p className="text-muted-foreground mt-2 font-medium">Manage and track property service requests.</p>
         </div>
         
         <div className="flex gap-4">
-          <Button variant="outline" className="rounded-2xl border-border bg-card shadow-sm text-[10px] font-bold uppercase tracking-widest font-heading hover:bg-secondary transition-all gap-2 h-14 px-6">
+          <Button variant="outline" className="rounded-2xl border-border bg-card shadow-sm text-[10px] font-bold uppercase tracking-widest font-heading hover:bg-secondary transition-[background-color,color,border-color,box-shadow,transform,opacity] gap-2 h-14 px-6">
             <Filter className="w-4 h-4" />
             Filter
           </Button>
-          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground h-14 px-8 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 transition-all font-heading group">
+          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground h-14 px-8 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group">
             <FileDown className="w-4 h-4 mr-2 group-hover:-translate-y-1 transition-transform text-accent" />
             Export PDF
           </Button>
@@ -72,11 +75,11 @@ export default function AdminMaintenance() {
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-          <Input className="pl-12 h-12 rounded-2xl border-border bg-card shadow-sm focus:border-primary transition-all font-medium" placeholder="Search requests..." />
+          <Input className="pl-12 h-12 rounded-2xl border-border bg-card shadow-sm focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium" placeholder="Search requests" />
         </div>
       </div>
 
-      <Card className="border-border bg-card shadow-sm rounded-3xl overflow-hidden">
+      <Card className="border-border bg-card shadow-sm rounded-[1.25rem] overflow-hidden">
         <Table>
           <TableHeader className="bg-secondary/50">
             <TableRow className="border-border hover:bg-transparent">
@@ -93,7 +96,7 @@ export default function AdminMaintenance() {
               <TableRow>
                 <TableCell colSpan={6} className="h-32 text-center text-muted-foreground font-medium italic uppercase tracking-widest text-[10px] font-heading">No active requests found.</TableCell>
               </TableRow>
-            ) : requests.map((req: any) => (
+            ) : requests.map((req) => (
               <TableRow key={req.id} className="hover:bg-secondary/30 transition-colors border-border">
                 <TableCell className="py-4">
                   <Badge 
@@ -141,6 +144,7 @@ export default function AdminMaintenance() {
                 </TableCell>
                 <TableCell className="py-4 text-right">
                   <select 
+                    aria-label={`Update status for ${req.category} request from ${req.tenant.firstName} ${req.tenant.lastName}`}
                     className="text-[10px] font-bold uppercase tracking-widest bg-secondary text-foreground border-transparent rounded-lg px-4 py-2.5 outline-none focus:ring-1 focus:ring-primary font-heading cursor-pointer hover:bg-secondary/80 transition-colors"
                     value={req.status}
                     onChange={(e) => updateStatus(req.id, e.target.value)}

@@ -7,21 +7,21 @@ import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
-export default function AdminVendors() {
-  const vendors = [
-    { id: "1", name: "QuickFix Plumbing", company: "QuickFix LLC", specialty: "Plumbing", rating: 4.8, phone: "555-0101" },
-    { id: "2", name: "Sparky Electrical", company: "Sparky & Co", specialty: "Electrical", rating: 4.5, phone: "555-0202" },
-    { id: "3", name: "CoolAir HVAC", company: "CoolAir Systems", specialty: "HVAC", rating: 4.9, phone: "555-0303" },
-  ]
+const vendors = [
+  { id: "1", name: "Northline Plumbing", company: "Northline Mechanical LLC", specialty: "Plumbing", rating: 4.8, phone: "555-0101" },
+  { id: "2", name: "Miller Electrical Services", company: "Miller Electrical LLC", specialty: "Electrical", rating: 4.5, phone: "555-0202" },
+  { id: "3", name: "Heartland Heating and Cooling", company: "Heartland Climate Systems", specialty: "Heating and cooling", rating: 4.9, phone: "555-0303" },
+]
 
+export default function AdminVendors() {
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-8 sm:space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold font-heading tracking-tight text-foreground">Vendors</h1>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">Vendors</h1>
           <p className="text-muted-foreground mt-2 font-medium">Manage your network of external service providers.</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl shadow-xl shadow-primary/20 transition-all premium-button font-heading group">
+        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl  transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group">
           <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform text-accent" />
           Add Vendor
         </Button>
@@ -30,11 +30,11 @@ export default function AdminVendors() {
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-          <Input className="pl-12 h-12 rounded-2xl border-border bg-card shadow-sm focus:border-primary transition-all font-medium" placeholder="Search vendors by name or specialty..." />
+          <Input className="pl-12 h-12 rounded-2xl border-border bg-card shadow-sm focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium" placeholder="Search vendors by name or specialty" />
         </div>
       </div>
 
-      <Card className="border-border bg-card shadow-sm rounded-3xl overflow-hidden">
+      <Card className="border-border bg-card shadow-sm rounded-[1.25rem] overflow-hidden">
         <Table>
           <TableHeader className="bg-secondary/50">
             <TableRow className="border-border hover:bg-transparent">
@@ -73,8 +73,8 @@ export default function AdminVendors() {
                 <TableCell className="py-4 font-bold text-muted-foreground tabular-nums">{vendor.phone}</TableCell>
                 <TableCell className="py-4 text-right">
                   <div className="flex justify-end gap-2">
-                    <Button variant="outline" size="sm" className="rounded-lg border-border hover:bg-secondary text-[10px] font-bold uppercase tracking-widest font-heading transition-all">View</Button>
-                    <Button variant="outline" size="sm" className="rounded-lg border-border hover:bg-secondary text-[10px] font-bold uppercase tracking-widest font-heading transition-all">Edit</Button>
+                    <Button variant="outline" size="sm" className="rounded-lg border-border hover:bg-secondary text-[10px] font-bold uppercase tracking-widest font-heading transition-[background-color,color,border-color,box-shadow,transform,opacity]">View</Button>
+                    <Button variant="outline" size="sm" className="rounded-lg border-border hover:bg-secondary text-[10px] font-bold uppercase tracking-widest font-heading transition-[background-color,color,border-color,box-shadow,transform,opacity]">Edit</Button>
                   </div>
                 </TableCell>
               </TableRow>

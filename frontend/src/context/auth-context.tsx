@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, setAccessToken } from "@/lib/api";
 import { supabase } from "@/lib/supabase";
@@ -34,6 +34,12 @@ export interface AuthUser {
   status: "INVITED" | "ACTIVE" | "DISABLED";
   agentProfile: AgentProfile | null;
   tenantProfile: TenantProfile | null;
+}
+
+interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number | null;
 }
 
 interface AuthContextType {
@@ -75,22 +81,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     restoreAuth();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error || !data.session)
-      throw error || new Error("Unable to start a session");
+  const login = useCallback(async (email: string, password: string) => {
+    try {
+      const authentication = (await api.post("/auth/login", {
+        email,
+        password,
+      })) as LoginResponse;
+      const { data, error } = await supabase.auth.setSession({
+        access_token: authentication.accessToken,
+        refresh_token: authentication.refreshToken,
+      });
+      if (error || !data.session) throw error;
 
-    setToken(data.session.access_token);
-    setAccessToken(data.session.access_token);
-    const appUser = (await api.get("/auth/me")) as AuthUser;
-    setUser(appUser);
-    return appUser;
-  };
+      setToken(data.session.access_token);
+      setAccessToken(data.session.access_token);
+      const appUser = (await api.get("/auth/me")) as AuthUser;
+      setUser(appUser);
+      return appUser;
+    } catch {
+      await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+      setToken(null);
+      setAccessToken(null);
+      setUser(null);
+      throw new Error("Incorrect email or password");
+    }
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await supabase.auth.signOut();
     } finally {
@@ -99,10 +116,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       router.push("/");
     }
-  };
+  }, [router]);
+
+  const contextValue = useMemo(() => ({ user, token, login, logout, isLoading }), [isLoading, login, logout, token, user]);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

@@ -92,7 +92,7 @@ export default function InquiryOversightPage() {
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
           Johnson Realty supervision
         </p>
-        <h1 className="mt-2 text-4xl font-bold font-heading">
+        <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
           Buyer inquiry oversight
         </h1>
         <p className="mt-2 text-muted-foreground">
@@ -109,6 +109,7 @@ export default function InquiryOversightPage() {
             ) : (
               items.map((item) => (
                 <button
+                  type="button"
                   key={item.id}
                   onClick={() => void open(item.id)}
                   className={`w-full p-5 text-left hover:bg-secondary ${selected?.id === item.id ? "bg-secondary" : ""}`}

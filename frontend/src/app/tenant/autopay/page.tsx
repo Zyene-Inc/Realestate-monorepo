@@ -5,21 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { CreditCard, Landmark, AlertTriangle, RefreshCw, Calendar, ArrowRight } from "lucide-react"
+import { CreditCard, AlertTriangle, RefreshCw, Calendar, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function TenantAutoPay() {
   const [enabled, setEnabled] = useState(false)
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-8 sm:space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold font-heading tracking-tight text-foreground">Auto-Pay</h1>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">Auto-Pay</h1>
           <p className="text-muted-foreground mt-2 font-medium">Manage automated monthly property payments.</p>
         </div>
         <div className={cn(
-          "flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-all",
+          "flex items-center gap-2 px-5 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-[background-color,color,border-color,box-shadow,transform,opacity]",
           enabled 
             ? "bg-green-500/10 text-green-600 border-green-500/20" 
             : "bg-secondary text-muted-foreground border-border"
@@ -32,7 +32,7 @@ export default function TenantAutoPay() {
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           <Card className={cn(
-            "border-2 rounded-3xl overflow-hidden transition-all duration-300",
+            "border-2 rounded-[1.25rem] overflow-hidden transition-[background-color,color,border-color,box-shadow,transform,opacity] duration-300",
             enabled ? "border-primary bg-card shadow-xl shadow-primary/10" : "border-border bg-card"
           )}>
             <CardHeader className="p-8 border-b border-border bg-secondary/30">
@@ -59,7 +59,7 @@ export default function TenantAutoPay() {
               </div>
             </CardHeader>
             <CardContent className="p-8 space-y-8">
-              <div className="p-6 bg-secondary/50 rounded-2xl border border-border flex flex-col md:flex-row items-center justify-between gap-6 group hover:border-primary/30 transition-all cursor-pointer">
+              <div className="flex flex-col items-center justify-between gap-6 rounded-2xl border border-border bg-secondary/50 p-6 md:flex-row">
                 <div className="flex items-center gap-6">
                   <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground font-bold font-heading text-xl shadow-md shadow-primary/20">
                     CH
@@ -69,7 +69,7 @@ export default function TenantAutoPay() {
                     <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">Primary Payment Source</p>
                   </div>
                 </div>
-                <Button variant="outline" className="w-full md:w-auto rounded-xl border-border hover:bg-primary hover:text-primary-foreground text-[10px] font-bold uppercase tracking-widest h-12 px-8 font-heading transition-all">Modify</Button>
+                <Button variant="outline" className="w-full md:w-auto rounded-xl border-border hover:bg-primary hover:text-primary-foreground text-[10px] font-bold uppercase tracking-widest h-12 px-8 font-heading transition-[background-color,color,border-color,box-shadow,transform,opacity]">Modify</Button>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
@@ -91,8 +91,8 @@ export default function TenantAutoPay() {
             </CardContent>
           </Card>
 
-          <div className="p-10 bg-primary rounded-[2.5rem] text-primary-foreground shadow-2xl shadow-primary/30 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-700">
+          <div className="p-10 bg-primary rounded-[2.5rem] text-primary-foreground  relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 group-hover:-rotate-12 transition-[background-color,color,border-color,box-shadow,transform,opacity] duration-700">
               <AlertTriangle className="h-32 w-32 -mr-8 -mt-8" />
             </div>
             <h4 className="font-bold font-heading text-2xl mb-6 relative z-10">Payment Policy</h4>
@@ -111,7 +111,7 @@ export default function TenantAutoPay() {
         </div>
 
         <div className="space-y-8">
-          <Card className="border-border bg-card shadow-sm rounded-3xl overflow-hidden">
+          <Card className="border-border bg-card shadow-sm rounded-[1.25rem] overflow-hidden">
             <CardHeader className="bg-secondary/30 border-b border-border">
               <CardTitle className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground font-heading">Recent Activity</CardTitle>
             </CardHeader>
@@ -135,12 +135,12 @@ export default function TenantAutoPay() {
             </CardContent>
           </Card>
           
-          <div className="p-8 bg-accent rounded-3xl text-accent-foreground shadow-xl shadow-accent/20">
+          <div className="p-8 bg-accent rounded-[1.25rem] text-accent-foreground shadow-xl shadow-accent/20">
             <h5 className="font-bold font-heading text-xl mb-3">Need Assistance?</h5>
             <p className="text-[11px] font-medium uppercase tracking-widest leading-relaxed mb-8 opacity-80">
               If you encounter issues with your bank connection, our support team is available 24/7.
             </p>
-            <Button className="w-full bg-background text-foreground hover:bg-foreground hover:text-background rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] py-6 shadow-lg transition-all font-heading">
+            <Button className="w-full bg-background text-foreground hover:bg-foreground hover:text-background rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] py-6 shadow-lg transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading">
               Contact Billing
             </Button>
           </div>

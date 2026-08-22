@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { CheckCheck, Loader2, MessageSquare, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,13 @@ type StoredAccess = { inquiryId: string; accessToken: string };
 export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
   const storageKey = `johnson-realty-inquiry-${listingId}`;
   const [inquiry, setInquiry] = useState<ListingInquiry | null>(null);
-  const [access, setAccess] = useState<StoredAccess | null>(null);
+  const accessRef = useRef<StoredAccess | null>(null);
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
 
   useEffect(() => {
@@ -34,7 +35,7 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
           accessToken: saved.accessToken,
         })
         .then((value: ListingInquiry) => {
-          setAccess(saved);
+          accessRef.current = saved;
           setInquiry(value);
         })
         .catch(() => localStorage.removeItem(storageKey));
@@ -44,6 +45,7 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
   }, [storageKey]);
 
   const loadOlderMessages = async () => {
+    const access = accessRef.current;
     if (!inquiry?.nextMessageCursor || !access) return;
     setLoadingOlder(true);
     try {
@@ -69,8 +71,11 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    if (sendingRef.current) return;
+    sendingRef.current = true;
     setSending(true);
     try {
+      const access = accessRef.current;
       if (inquiry && access) {
         const updated = (await api.post(
           `/public/inquiries/${inquiry.id}/messages`,
@@ -89,7 +94,7 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
           accessToken: created.accessToken,
         };
         localStorage.setItem(storageKey, JSON.stringify(saved));
-        setAccess(saved);
+        accessRef.current = saved;
         setInquiry(created.inquiry);
         setMessage("");
         toast.success("Inquiry sent to the listing agent");
@@ -97,17 +102,18 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Unable to send inquiry"));
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };
 
   return (
-    <div className="space-y-4 border-t pt-5">
+    <div className="mt-6 space-y-4 border-t border-border pt-6">
       <div className="flex items-center gap-2 font-semibold">
-        <MessageSquare className="h-4 w-4" /> Ask about this home
+        <MessageSquare className="size-4 text-primary" aria-hidden="true" /> Ask about this home
       </div>
       {inquiry && (
-        <div className="max-h-72 space-y-3 overflow-y-auto rounded-xl bg-secondary/50 p-3">
+        <div className="max-h-72 space-y-3 overflow-y-auto rounded-xl bg-secondary/70 p-3" aria-label="Conversation with the listing agent" aria-live="polite">
           {inquiry.nextMessageCursor && (
             <div className="text-center">
               <Button
@@ -129,7 +135,7 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
               className={
                 item.senderType === "BUYER"
                   ? "ml-8 rounded-xl bg-primary p-3 text-sm text-primary-foreground"
-                  : "mr-8 rounded-xl border bg-card p-3 text-sm"
+                  : "mr-8 rounded-xl border border-border bg-card p-3 text-sm"
               }
             >
               <p>{item.body}</p>
@@ -137,11 +143,10 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
                 {item.senderType === "BUYER"
                   ? "You"
                   : inquiry.agent.contactName}{" "}
-                · {inquiryTime(item.createdAt)}
+                <span aria-hidden="true"> / </span>{inquiryTime(item.createdAt)}
                 {item.senderType === "BUYER" && (
                   <span>
-                    {" "}
-                    · <CheckCheck className="inline h-3 w-3" />{" "}
+                    <span aria-hidden="true"> / </span><CheckCheck className="inline size-3" aria-hidden="true" />{" "}
                     {item.readAt ? `Seen ${inquiryTime(item.readAt)}` : "Sent"}
                   </span>
                 )}
@@ -154,8 +159,11 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
         {!inquiry && (
           <>
             <div>
-              <Label>Name</Label>
+              <Label htmlFor="buyer-name">Name</Label>
               <Input
+                id="buyer-name"
+                name="name"
+                autoComplete="name"
                 value={buyerName}
                 onChange={(event) => setBuyerName(event.target.value)}
                 required
@@ -163,18 +171,24 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
               />
             </div>
             <div>
-              <Label>Email</Label>
+              <Label htmlFor="buyer-email">Email</Label>
               <Input
+                id="buyer-email"
+                name="email"
                 type="email"
+                autoComplete="email"
                 value={buyerEmail}
                 onChange={(event) => setBuyerEmail(event.target.value)}
                 required
               />
             </div>
             <div>
-              <Label>Phone (optional)</Label>
+              <Label htmlFor="buyer-phone">Phone <span className="font-normal text-muted-foreground">(optional)</span></Label>
               <Input
+                id="buyer-phone"
+                name="phone"
                 type="tel"
+                autoComplete="tel"
                 value={buyerPhone}
                 onChange={(event) => setBuyerPhone(event.target.value)}
               />
@@ -182,14 +196,17 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
           </>
         )}
         <div>
-          <Label>{inquiry ? "Reply" : "Message"}</Label>
+          <Label htmlFor="buyer-message">{inquiry ? "Reply" : "Message"}</Label>
           <Textarea
+            id="buyer-message"
+            name="message"
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             required
             minLength={inquiry ? 1 : 5}
             maxLength={4000}
             disabled={inquiry?.status === "CLOSED"}
+            placeholder={inquiry ? "Write a reply" : "Ask about availability, showings, or property details"}
           />
         </div>
         <Button

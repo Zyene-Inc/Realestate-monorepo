@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import {
   Building2,
   CheckCheck,
@@ -10,6 +10,7 @@ import {
   Send,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/portal/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +29,7 @@ export default function AgentInquiriesPage() {
   const [reply, setReply] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -106,7 +108,8 @@ export default function AgentInquiriesPage() {
 
   const send = async (event: FormEvent) => {
     event.preventDefault();
-    if (!selected) return;
+    if (sendingRef.current || !selected) return;
+    sendingRef.current = true;
     setSending(true);
     try {
       const updated = (await api.post(
@@ -122,6 +125,7 @@ export default function AgentInquiriesPage() {
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Unable to send reply"));
     } finally {
+      sendingRef.current = false;
       setSending(false);
     }
   };
@@ -149,15 +153,8 @@ export default function AgentInquiriesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-          Buyer communication
-        </p>
-        <h1 className="mt-2 text-4xl font-bold font-heading">
-          Listing inquiries
-        </h1>
-      </div>
-      <div className="grid min-h-[650px] gap-6 lg:grid-cols-[340px_1fr]">
+      <PageHeader eyebrow="Buyer communication" title="Listing inquiries" description="Keep property conversations clear, timely, and attached to the right listing." />
+      <div className="grid gap-6 lg:min-h-[650px] lg:grid-cols-[340px_1fr]">
         <Card className="overflow-hidden rounded-2xl">
           <CardContent className="divide-y p-0">
             {items.length === 0 ? (
@@ -179,7 +176,7 @@ export default function AgentInquiriesPage() {
                     <div className="flex items-center justify-between gap-3">
                       <strong>{item.buyerName}</strong>
                       {unread && (
-                        <span className="h-2 w-2 rounded-full bg-primary" />
+                        <span className="h-2 w-2 rounded-full bg-primary" aria-label="Unread" />
                       )}
                     </div>
                     <p className="mt-1 truncate text-sm text-muted-foreground">
@@ -225,7 +222,7 @@ export default function AgentInquiriesPage() {
                     <Badge variant="outline">{selected.status}</Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {selected.property.name} · {selected.property.city},{" "}
+                    {selected.property.name} / {selected.property.city},{" "}
                     {selected.property.state}
                   </p>
                   <p className="mt-2 text-xs">
@@ -267,18 +264,18 @@ export default function AgentInquiriesPage() {
                     className={`flex ${message.senderType === "AGENT" ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-[75%] rounded-2xl p-4 text-sm ${message.senderType === "AGENT" ? "bg-primary text-primary-foreground" : "border bg-card"}`}
+                      className={`max-w-[88%] rounded-2xl p-4 text-sm sm:max-w-[75%] ${message.senderType === "AGENT" ? "bg-primary text-primary-foreground" : "border bg-card"}`}
                     >
                       <p>{message.body}</p>
                       <p className="mt-2 text-[10px] opacity-70">
                         {message.senderType === "AGENT"
                           ? "You"
                           : selected.buyerName}{" "}
-                        · {inquiryTime(message.createdAt)}
+                        <span aria-hidden="true"> / </span>{inquiryTime(message.createdAt)}
                         {message.senderType === "AGENT" && (
                           <span>
                             {" "}
-                            · <CheckCheck className="inline h-3 w-3" />{" "}
+                            <span aria-hidden="true"> / </span><CheckCheck className="inline h-3 w-3" aria-hidden="true" />{" "}
                             {message.readAt
                               ? `Seen ${inquiryTime(message.readAt)}`
                               : "Sent"}
@@ -292,7 +289,8 @@ export default function AgentInquiriesPage() {
               <form onSubmit={send} className="flex gap-3 border-t p-5">
                 <Textarea
                   className="min-h-12"
-                  placeholder="Reply to the buyer…"
+                  aria-label="Reply to buyer"
+                  placeholder="Write a reply"
                   value={reply}
                   onChange={(event) => setReply(event.target.value)}
                   required
@@ -301,6 +299,8 @@ export default function AgentInquiriesPage() {
                 />
                 <Button
                   type="submit"
+                  size="icon-lg"
+                  aria-label="Send reply"
                   disabled={sending || selected.status === "CLOSED"}
                 >
                   {sending ? (

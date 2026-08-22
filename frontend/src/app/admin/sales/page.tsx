@@ -109,7 +109,7 @@ export default function SalesDashboardPage() {
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
           Buy / Sell administration
         </p>
-        <h1 className="mt-2 text-4xl font-bold font-heading">
+        <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
           Sales operations
         </h1>
         <p className="mt-2 text-muted-foreground">
@@ -126,7 +126,7 @@ export default function SalesDashboardPage() {
                 <card.icon className="h-5 w-5 text-primary" />
               </CardHeader>
               <CardContent>
-                <p className="text-4xl font-bold font-heading">{card.value}</p>
+                <p className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">{card.value}</p>
               </CardContent>
             </Card>
           </Link>

@@ -1,25 +1,23 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Building2,
-  LogOut,
-  MessageSquare,
-  Settings,
-  ShieldCheck,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/logo";
+import { Building2, MessageSquare, Settings, ShieldCheck } from "lucide-react";
+import { PortalSidebar, type PortalNavItem } from "@/components/portal/portal-sidebar";
 import { useAuth } from "@/context/auth-context";
 import { navigateToUserPortal } from "@/lib/auth-routing";
+
+const items: PortalNavItem[] = [
+  { title: "Listings", icon: Building2, href: "/agent/listings" },
+  { title: "Buyer inquiries", icon: MessageSquare, href: "/agent/inquiries" },
+  { title: "Company settings", icon: Settings, href: "/agent/settings" },
+  { title: "Approval status", icon: ShieldCheck, href: "/agent/status" },
+];
 
 export function AgentPortalShell({ children }: { children: React.ReactNode }) {
   const { user, isLoading, logout } = useAuth();
   const router = useRouter();
-  const approved =
-    user?.role === "AGENT" && user?.agentProfile?.accountStatus === "APPROVED";
+  const approved = user?.role === "AGENT" && user?.agentProfile?.accountStatus === "APPROVED";
 
   useEffect(() => {
     if (isLoading) return;
@@ -27,46 +25,12 @@ export function AgentPortalShell({ children }: { children: React.ReactNode }) {
     else if (!approved) navigateToUserPortal(router, user, "replace");
   }, [approved, isLoading, router, user]);
 
-  if (isLoading || !approved) {
-    return (
-      <main className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-        Checking agent access…
-      </main>
-    );
-  }
+  if (isLoading || !approved) return <main id="main-content" className="flex min-h-[100dvh] items-center justify-center text-sm text-muted-foreground">Checking agent access…</main>;
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-40 border-b border-border bg-card/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-8">
-            <Link href="/agent/listings">
-              <Logo className="h-9" />
-            </Link>
-            <nav className="hidden items-center gap-5 text-sm font-semibold md:flex">
-              <Link href="/agent/listings" className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" /> Listings
-              </Link>
-              <Link href="/agent/settings" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" /> Company settings
-              </Link>
-              <Link href="/agent/inquiries" className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" /> Buyer inquiries
-              </Link>
-              <Link
-                href="/agent/status"
-                className="flex items-center gap-2 text-muted-foreground"
-              >
-                <ShieldCheck className="h-4 w-4" /> Company status
-              </Link>
-            </nav>
-          </div>
-          <Button variant="outline" onClick={logout}>
-            <LogOut className="mr-2 h-4 w-4" /> Sign out
-          </Button>
-        </div>
-      </header>
-      <main className="mx-auto max-w-7xl px-6 py-10">{children}</main>
+    <div className="min-h-[100dvh] bg-background lg:flex">
+      <PortalSidebar items={items} portalName="Agent workspace" userName={user.agentProfile?.companyName || user.email.split("@")[0]} userRole="Approved agent company" initials={(user.agentProfile?.companyName || user.email).slice(0, 2).toUpperCase()} onLogout={logout} />
+      <main id="main-content" className="portal-main" data-portal-main>{children}</main>
     </div>
   );
 }

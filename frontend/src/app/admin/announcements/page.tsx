@@ -1,23 +1,23 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, Megaphone, Clock, Building2, BellRing } from "lucide-react"
+import { Plus, Megaphone, Clock, Building2 } from "lucide-react"
+
+const announcements = [
+  { id: "1", title: "Monthly HVAC Filter Change", content: "Our maintenance crew will be visiting all units next Tuesday to replace air filters.", date: "Today, 9:00 AM", target: "All Properties" },
+  { id: "2", title: "Parking Lot Maintenance", content: "The north parking lot will be closed for repaving on Saturday.", date: "Yesterday, 2:30 PM", target: "Juniper Row" },
+]
 
 export default function AdminAnnouncements() {
-  const announcements = [
-    { id: "1", title: "Monthly HVAC Filter Change", content: "Our maintenance crew will be visiting all units next Tuesday to replace air filters.", date: "Today, 9:00 AM", target: "All Properties" },
-    { id: "2", title: "Parking Lot Maintenance", content: "The north parking lot will be closed for repaving on Saturday.", date: "Yesterday, 2:30 PM", target: "Oakwood Apartments" },
-  ]
-
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-8 sm:space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold font-heading tracking-tight text-foreground">Announcements</h1>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">Announcements</h1>
           <p className="text-muted-foreground mt-2 font-medium">Broadcast important updates to your tenants.</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl shadow-xl shadow-primary/20 transition-all premium-button font-heading group">
+        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl  transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group">
           <Plus className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform text-accent" />
           Create Broadcast
         </Button>
@@ -25,7 +25,7 @@ export default function AdminAnnouncements() {
 
       <div className="grid gap-6">
         {announcements.map((ann) => (
-          <Card key={ann.id} className="border-border bg-card shadow-sm hover:shadow-md transition-all rounded-3xl overflow-hidden group">
+          <Card key={ann.id} className="border-border bg-card shadow-sm hover:shadow-md transition-[background-color,color,border-color,box-shadow,transform,opacity] rounded-[1.25rem] overflow-hidden group">
             <CardHeader className="bg-secondary/30 border-b border-border py-5 px-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -50,8 +50,8 @@ export default function AdminAnnouncements() {
                 <p className="text-muted-foreground font-medium text-base leading-relaxed max-w-4xl">{ann.content}</p>
               </div>
               <div className="mt-8 flex gap-3">
-                <Button variant="outline" className="rounded-xl border-border hover:bg-secondary text-[10px] font-bold uppercase tracking-widest font-heading transition-all px-6">Edit Broadcast</Button>
-                <Button variant="outline" className="rounded-xl border-destructive/20 text-destructive hover:bg-destructive hover:text-destructive-foreground text-[10px] font-bold uppercase tracking-widest font-heading transition-all px-6">Delete</Button>
+                <Button variant="outline" className="rounded-xl border-border hover:bg-secondary text-[10px] font-bold uppercase tracking-widest font-heading transition-[background-color,color,border-color,box-shadow,transform,opacity] px-6">Edit Broadcast</Button>
+                <Button variant="outline" className="rounded-xl border-destructive/20 text-destructive hover:bg-destructive hover:text-destructive-foreground text-[10px] font-bold uppercase tracking-widest font-heading transition-[background-color,color,border-color,box-shadow,transform,opacity] px-6">Delete</Button>
               </div>
             </CardContent>
           </Card>

@@ -42,12 +42,14 @@ export type SaleListingAuditEvent = {
   actor?: { email: string; role: string } | null;
 };
 
+const usdFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});
+
 export function formatCurrency(value: string | number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(Number(value));
+  return usdFormatter.format(Number(value));
 }
 
 export function listingStatusLabel(status?: ListingStatus | null) {

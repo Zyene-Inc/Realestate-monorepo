@@ -7,25 +7,17 @@ import { FileText, Download, Calendar, ShieldCheck, ArrowRight, Info, Loader2 } 
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 import { format, differenceInDays } from "date-fns"
+import { getErrorMessage } from "@/lib/errors"
+
+type ActiveLease = { id: string; startDate: string; endDate: string; createdAt: string; monthlyRent: number; securityDeposit: number; unit: { unitNumber: string; property: { name: string } } }
 
 export default function TenantLease() {
-  const [lease, setLease] = useState<any>(null)
+  const [lease, setLease] = useState<ActiveLease | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchLease()
+    api.get("/tenant/portal/lease").then((data: ActiveLease | null) => setLease(data)).catch((error: unknown) => toast.error(getErrorMessage(error, "Unable to load lease documentation"))).finally(() => setLoading(false))
   }, [])
-
-  const fetchLease = async () => {
-    try {
-      const data = await api.get("/tenant/portal/lease")
-      setLease(data)
-    } catch (error: any) {
-      toast.error("Failed to load lease documentation")
-    } finally {
-      setLoading(false)
-    }
-  }
 
   if (loading) {
     return (
@@ -37,7 +29,7 @@ export default function TenantLease() {
 
   if (!lease) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-200px)] text-center">
         <div className="h-24 w-24 bg-secondary rounded-full flex items-center justify-center mb-6">
           <FileText className="w-10 h-10 text-muted-foreground" />
         </div>
@@ -49,13 +41,13 @@ export default function TenantLease() {
 
   const daysRemaining = differenceInDays(new Date(lease.endDate), new Date())
   const totalDays = differenceInDays(new Date(lease.endDate), new Date(lease.startDate))
-  const progress = Math.max(0, Math.min(100, ((totalDays - daysRemaining) / totalDays) * 100))
+  const progress = totalDays > 0 ? Math.max(0, Math.min(100, ((totalDays - daysRemaining) / totalDays) * 100)) : 0
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-8 sm:space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold font-heading tracking-tight text-foreground">Lease Agreement</h1>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">Lease Agreement</h1>
           <p className="text-muted-foreground mt-2 font-medium">Review your current property contract terms and documentation.</p>
         </div>
         <div className="flex items-center gap-3 px-4 py-2 bg-secondary border border-border rounded-2xl shadow-sm">
@@ -71,13 +63,13 @@ export default function TenantLease() {
 
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
-          <Card className="border-border bg-card shadow-sm rounded-3xl overflow-hidden">
+          <Card className="border-border bg-card shadow-sm rounded-[1.25rem] overflow-hidden">
             <CardHeader className="p-8 border-b border-border bg-secondary/30">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-xl font-bold font-heading tracking-tight text-foreground">Active Lease - Unit {lease.unit.unitNumber}</CardTitle>
                   <CardDescription className="text-[10px] font-bold uppercase tracking-widest mt-2">
-                    {lease.unit.property.name} • Lease ID: #{lease.id.slice(-6).toUpperCase()}
+                    {lease.unit.property.name} / Lease ID: #{lease.id.slice(-6).toUpperCase()}
                   </CardDescription>
                 </div>
                 <div className="px-3 py-1.5 bg-green-500/10 text-green-600 rounded-md text-[10px] font-bold uppercase tracking-widest">
@@ -105,17 +97,17 @@ export default function TenantLease() {
                 </div>
               </div>
               
-              <div className="p-8 border border-border rounded-3xl bg-secondary/30 flex flex-col md:flex-row items-center justify-between gap-6 group hover:border-primary/30 transition-all">
+              <div className="p-8 border border-border rounded-[1.25rem] bg-secondary/30 flex flex-col md:flex-row items-center justify-between gap-6 group hover:border-primary/30 transition-[background-color,color,border-color,box-shadow,transform,opacity]">
                 <div className="flex items-center gap-6">
                   <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
                     <FileText className="w-7 h-7 text-accent" />
                   </div>
                   <div>
                     <p className="font-bold text-foreground font-heading tracking-tight">Lease_Agreement_{lease.id.slice(-4)}.pdf</p>
-                    <p className="text-[11px] text-muted-foreground font-medium mt-1">Generated: {format(new Date(lease.createdAt), 'MMM dd, yyyy')} • 1.2 MB</p>
+                    <p className="text-[11px] text-muted-foreground font-medium mt-1">Generated: {format(new Date(lease.createdAt), 'MMM dd, yyyy')} / 1.2 MB</p>
                   </div>
                 </div>
-                <Button variant="outline" className="w-full md:w-auto rounded-xl border-border hover:bg-primary hover:text-primary-foreground text-[10px] font-bold uppercase tracking-widest h-12 px-8 transition-all font-heading">
+                <Button variant="outline" className="w-full md:w-auto rounded-xl border-border hover:bg-primary hover:text-primary-foreground text-[10px] font-bold uppercase tracking-widest h-12 px-8 transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading">
                   <Download className="w-4 h-4 mr-2" />
                   Download
                 </Button>
@@ -135,8 +127,8 @@ export default function TenantLease() {
         </div>
 
         <div className="space-y-8">
-          <Card className="border-none bg-primary text-primary-foreground shadow-2xl shadow-primary/30 rounded-3xl overflow-hidden relative group">
-            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 group-hover:-rotate-12 transition-all duration-700">
+          <Card className="border-none bg-primary text-primary-foreground  rounded-[1.25rem] overflow-hidden relative group">
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 group-hover:-rotate-12 transition-[background-color,color,border-color,box-shadow,transform,opacity] duration-700">
               <Calendar className="h-48 w-48 -mr-16 -mt-16" />
             </div>
             <CardHeader className="border-b border-white/10 pb-6 relative z-10">
@@ -154,14 +146,14 @@ export default function TenantLease() {
                 <span>{format(new Date(lease.endDate), 'MMM yyyy')}</span>
               </div>
 
-              <Button className="w-full mt-10 bg-secondary/20 hover:bg-secondary/40 text-primary-foreground font-bold text-[10px] uppercase tracking-[0.2em] py-8 rounded-2xl transition-all border border-white/10 group/btn font-heading backdrop-blur-sm">
+              <Button className="w-full mt-10 bg-secondary/20 hover:bg-secondary/40 text-primary-foreground font-bold text-[10px] uppercase tracking-[0.2em] py-8 rounded-2xl transition-[background-color,color,border-color,box-shadow,transform,opacity] border border-white/10 group/btn font-heading backdrop-blur-sm">
                 Request Modification
                 <ArrowRight className="ml-2 w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="border-border bg-card shadow-sm rounded-3xl overflow-hidden">
+          <Card className="border-border bg-card shadow-sm rounded-[1.25rem] overflow-hidden">
              <CardHeader className="bg-secondary/30 border-b border-border">
               <CardTitle className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground font-heading">Lease Policy Summary</CardTitle>
             </CardHeader>

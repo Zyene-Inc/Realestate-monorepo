@@ -1,8 +1,8 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   InternalServerErrorException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient } from '@supabase/supabase-js';
@@ -11,10 +11,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { EmailsService } from '../emails/emails.service';
 import { AgentSignupDto } from './dto/agent-signup.dto';
+import { LoginDto } from './dto/login.dto';
 import {
   getPortalUrlForRole,
   getPortalUrls,
 } from '../common/config/portal-urls';
+
+const INVALID_LOGIN_MESSAGE = 'Incorrect email or password';
+const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+const LOGIN_PROTECTION_WINDOW_MS = 15 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -38,11 +43,150 @@ export class AuthService {
     });
   }
 
+  private authenticationClient(clientIp?: string) {
+    const url = this.configService.get<string>('SUPABASE_URL');
+    const secretKey = this.configService.get<string>('SUPABASE_SECRET_KEY');
+    if (!url || !secretKey) {
+      throw new InternalServerErrorException(
+        'Supabase server credentials are not configured',
+      );
+    }
+
+    const normalizedIp = clientIp
+      ?.replace(/^::ffff:/, '')
+      .trim()
+      .slice(0, 64);
+    const forwardedFor: Record<string, string> = {};
+    if (normalizedIp && /^[0-9a-f:.]+$/i.test(normalizedIp)) {
+      forwardedFor['Sb-Forwarded-For'] = normalizedIp;
+    }
+
+    return createClient(url, secretKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+      global: { headers: forwardedFor },
+    });
+  }
+
+  private invalidLogin(): never {
+    throw new UnauthorizedException(INVALID_LOGIN_MESSAGE);
+  }
+
+  private async recordFailedLogin(userId: string, now: Date) {
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        failedLoginAttempts: { increment: 1 },
+        lastFailedLoginAt: now,
+      },
+      select: { failedLoginAttempts: true },
+    });
+
+    if (updated.failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          lockedUntil: new Date(now.getTime() + LOGIN_PROTECTION_WINDOW_MS),
+        },
+      });
+    }
+  }
+
+  async login(data: LoginDto, clientIp?: string) {
+    const email = data.email.trim().toLowerCase();
+    const now = new Date();
+    let user = await this.prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        authUserId: true,
+        status: true,
+        failedLoginAttempts: true,
+        lastFailedLoginAt: true,
+        lockedUntil: true,
+      },
+    });
+
+    const protectionExpired =
+      user &&
+      ((user.lockedUntil && user.lockedUntil <= now) ||
+        (user.lastFailedLoginAt &&
+          user.lastFailedLoginAt.getTime() <=
+            now.getTime() - LOGIN_PROTECTION_WINDOW_MS));
+
+    if (user && protectionExpired) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: 0,
+          lastFailedLoginAt: null,
+          lockedUntil: null,
+        },
+        select: {
+          id: true,
+          authUserId: true,
+          status: true,
+          failedLoginAttempts: true,
+          lastFailedLoginAt: true,
+          lockedUntil: true,
+        },
+      });
+    }
+
+    if (
+      user?.status === UserStatus.DISABLED ||
+      (user?.lockedUntil && user.lockedUntil > now)
+    ) {
+      return this.invalidLogin();
+    }
+
+    const supabase = this.authenticationClient(clientIp);
+    const { data: authentication, error } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password: data.password,
+      });
+
+    if (error || !authentication.session || !authentication.user) {
+      if (user && (!error || error.code === 'invalid_credentials')) {
+        await this.recordFailedLogin(user.id, now);
+      }
+      return this.invalidLogin();
+    }
+
+    if (!user || authentication.user.id !== user.authUserId) {
+      await supabase.auth.signOut().catch(() => undefined);
+      return this.invalidLogin();
+    }
+
+    if (
+      user.failedLoginAttempts > 0 ||
+      user.lastFailedLoginAt ||
+      user.lockedUntil
+    ) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: 0,
+          lastFailedLoginAt: null,
+          lockedUntil: null,
+        },
+      });
+    }
+
+    return {
+      accessToken: authentication.session.access_token,
+      refreshToken: authentication.session.refresh_token,
+      expiresAt: authentication.session.expires_at ?? null,
+    };
+  }
+
   async registerAgent(data: AgentSignupDto) {
     const email = data.email.trim().toLowerCase();
+    const companyName = data.companyName.trim();
+    const contactName = data.contactName.trim();
+    const phone = data.phone?.trim() || undefined;
     const existing = await this.prisma.user.findUnique({ where: { email } });
-    if (existing)
-      throw new ConflictException('An account with this email already exists');
+    if (existing) return this.agentSignupResponse();
 
     const redirectTo = `${getPortalUrls(this.configService).agent}/agent/status`;
     const { data: generated, error } =
@@ -54,20 +198,16 @@ export class AuthService {
           redirectTo,
           data: {
             account_type: 'agent',
-            company_name: data.companyName,
-            contact_name: data.contactName,
+            company_name: companyName,
+            contact_name: contactName,
           },
         },
       });
     if (error || !generated.user || !generated.properties?.action_link) {
       if (error?.message?.toLowerCase().includes('already')) {
-        throw new ConflictException(
-          'An account with this email already exists',
-        );
+        return this.agentSignupResponse();
       }
-      throw new BadRequestException(
-        error?.message || 'Unable to create agent account',
-      );
+      throw new BadRequestException('Unable to submit agent application');
     }
 
     try {
@@ -80,10 +220,10 @@ export class AuthService {
             status: UserStatus.ACTIVE,
             agentProfile: {
               create: {
-                companyName: data.companyName,
-                contactName: data.contactName,
+                companyName,
+                contactName,
                 email,
-                phone: data.phone,
+                phone,
                 accountStatus: AgentAccountStatus.PENDING,
               },
             },
@@ -96,7 +236,7 @@ export class AuthService {
             action: 'AGENT_REGISTERED',
             resource: 'agent',
             resourceId: created.agentProfile?.id,
-            newValue: JSON.stringify({ email, companyName: data.companyName }),
+            newValue: JSON.stringify({ email, companyName }),
           },
         });
         return created;
@@ -108,10 +248,14 @@ export class AuthService {
 
     await this.emails.sendAgentVerification(
       email,
-      data.contactName,
+      contactName,
       generated.properties.action_link,
     );
 
+    return this.agentSignupResponse();
+  }
+
+  private agentSignupResponse() {
     return {
       success: true,
       message:
@@ -182,8 +326,11 @@ export class AuthService {
     },
     adminId?: string,
   ) {
+    const email = data.email.trim().toLowerCase();
+    const firstName = data.firstName.trim();
+    const lastName = data.lastName.trim();
     const existingUser = await this.prisma.user.findUnique({
-      where: { email: data.email },
+      where: { email },
     });
     if (existingUser)
       throw new BadRequestException('User with this email already exists');
@@ -192,10 +339,10 @@ export class AuthService {
     const { data: invited, error } =
       await this.adminClient().auth.admin.generateLink({
         type: 'invite',
-        email: data.email,
+        email,
         options: {
           redirectTo,
-          data: { firstName: data.firstName, lastName: data.lastName },
+          data: { firstName, lastName },
         },
       });
     if (error || !invited.user || !invited.properties?.action_link)
@@ -207,16 +354,16 @@ export class AuthService {
       const user = await this.prisma.user.create({
         data: {
           authUserId: invited.user.id,
-          email: data.email,
+          email,
           role: Role.TENANT,
           status: UserStatus.INVITED,
         },
       });
       const tenant = await this.prisma.tenant.create({
         data: {
-          email: data.email,
-          firstName: data.firstName,
-          lastName: data.lastName,
+          email,
+          firstName,
+          lastName,
           userId: user.id,
           unitId: data.unitId,
           status: 'invited',
@@ -227,9 +374,9 @@ export class AuthService {
         action: 'TENANT_INVITED',
         resource: 'tenant',
         resourceId: tenant.id,
-        newValue: JSON.stringify({ email: data.email, unitId: data.unitId }),
+        newValue: JSON.stringify({ email, unitId: data.unitId }),
       });
-      await this.emails.sendInvite(data.email, invited.properties.action_link);
+      await this.emails.sendInvite(email, invited.properties.action_link);
       return { success: true, message: 'Invitation sent' };
     } catch (error) {
       await this.adminClient().auth.admin.deleteUser(invited.user.id);

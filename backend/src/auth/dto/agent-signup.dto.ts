@@ -8,10 +8,18 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import {
+  normalizeEmail,
+  trimOptionalText,
+  trimText,
+} from './auth-input.transforms';
+
+const SAFE_DISPLAY_TEXT = /^[^<>]+$/u;
 
 export class AgentSignupDto {
   @IsEmail()
-  @Transform(({ value }) => String(value).trim().toLowerCase())
+  @MaxLength(254)
+  @Transform(normalizeEmail)
   email: string;
 
   @IsString()
@@ -21,20 +29,19 @@ export class AgentSignupDto {
 
   @IsString()
   @Length(2, 120)
-  @Transform(({ value }) => String(value).trim())
+  @Matches(SAFE_DISPLAY_TEXT)
+  @Transform(trimText)
   companyName: string;
 
   @IsString()
   @Length(2, 120)
-  @Transform(({ value }) => String(value).trim())
+  @Matches(SAFE_DISPLAY_TEXT)
+  @Transform(trimText)
   contactName: string;
 
   @IsOptional()
   @IsString()
   @Matches(/^\+?[0-9().\-\s]{7,25}$/)
-  @Transform(({ value }) => {
-    const normalized = String(value ?? '').trim();
-    return normalized || undefined;
-  })
+  @Transform(trimOptionalText)
   phone?: string;
 }

@@ -72,6 +72,9 @@ model User {
   email              String         @unique
   role               Role           @default(TENANT)
   status             UserStatus     @default(INVITED)
+  failedLoginAttempts Int            @default(0)
+  lastFailedLoginAt  DateTime?
+  lockedUntil        DateTime?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   tenantProfile      Tenant?

@@ -145,28 +145,38 @@ export function AgentSettings({
             </CardHeader>
             <CardContent className="grid gap-5 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>Company name</Label>
+                <Label htmlFor="settings-company-name">Company name</Label>
                 <Input
+                  id="settings-company-name"
+                  name="companyName"
+                  autoComplete="organization"
                   value={companyName}
                   onChange={(event) => setCompanyName(event.target.value)}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label>Primary contact</Label>
+                <Label htmlFor="settings-contact-name">Primary contact</Label>
                 <Input
+                  id="settings-contact-name"
+                  name="contactName"
+                  autoComplete="name"
                   value={contactName}
                   onChange={(event) => setContactName(event.target.value)}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label>Email</Label>
-                <Input value={profile.email} disabled />
+                <Label htmlFor="settings-email">Email</Label>
+                <Input id="settings-email" name="email" type="email" autoComplete="email" value={profile.email} disabled />
               </div>
               <div className="space-y-2">
-                <Label>Phone</Label>
+                <Label htmlFor="settings-phone">Phone</Label>
                 <Input
+                  id="settings-phone"
+                  name="phone"
+                  type="tel"
+                  autoComplete="tel"
                   value={phone}
                   onChange={(event) => setPhone(event.target.value)}
                 />
@@ -195,7 +205,7 @@ export function AgentSettings({
           </p>
         </CardHeader>
         <CardContent className="space-y-5">
-          <label className="inline-flex cursor-pointer items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground has-[:disabled]:opacity-50">
+          <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full bg-accent px-5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/88 has-[:disabled]:opacity-50">
             {uploading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
@@ -211,13 +221,11 @@ export function AgentSettings({
             />
           </label>
           {profile.verificationDocuments.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No account documents uploaded.
-            </p>
+            <div className="rounded-xl border border-dashed border-border px-5 py-8 text-center"><FileText className="mx-auto size-8 text-muted-foreground/50" aria-hidden="true" /><p className="mt-3 text-sm text-muted-foreground">No verification documents uploaded.</p></div>
           ) : (
             <div className="divide-y rounded-xl border">
               {profile.verificationDocuments.map((path, index) => (
-                <div key={path} className="flex items-center gap-3 p-4">
+                <div key={path} className="flex flex-wrap items-center gap-3 p-4">
                   <FileText className="h-5 w-5 text-primary" />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">
                     Document {index + 1}

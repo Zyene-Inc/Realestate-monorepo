@@ -37,11 +37,13 @@ export type CursorPage<T> = {
   nextCursor: string | null;
 };
 
+const inquiryDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+});
+
 export function inquiryTime(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
+  return inquiryDateFormatter.format(new Date(value));
 }

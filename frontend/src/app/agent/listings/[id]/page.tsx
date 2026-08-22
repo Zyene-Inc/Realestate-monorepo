@@ -9,6 +9,7 @@ import { SaleListingForm } from "@/components/agent/sale-listing-form";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import type { SaleListing } from "@/lib/sale-listings";
+import { DirectionalPage } from "@/components/page-transition";
 
 export default function EditSaleListingPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,14 +33,15 @@ export default function EditSaleListingPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <DirectionalPage><div className="space-y-6">
       <Link
         href="/agent/listings"
-        className="inline-flex items-center text-sm font-semibold text-muted-foreground hover:text-foreground"
+        transitionTypes={["nav-back"]}
+        className="inline-flex min-h-11 items-center rounded-full text-sm font-semibold text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to listings
       </Link>
       <SaleListingForm listing={listing} />
-    </div>
+    </div></DirectionalPage>
   );
 }

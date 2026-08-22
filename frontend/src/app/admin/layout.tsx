@@ -63,9 +63,9 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="min-h-[100dvh] bg-background lg:flex">
       <AdminSidebar />
-      <main className="flex-1 overflow-y-auto p-10">{children}</main>
+      <main id="main-content" className="portal-main" data-portal-main>{children}</main>
     </div>
   );
 }

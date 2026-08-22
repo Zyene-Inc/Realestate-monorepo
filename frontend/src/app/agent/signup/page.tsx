@@ -1,132 +1,63 @@
-"use client"
+"use client";
 
-import { FormEvent, useState } from "react"
-import Link from "next/link"
-import { ArrowLeft, Building2, CheckCircle2, Loader2, Mail, Phone, UserRound, type LucideIcon } from "lucide-react"
-import { api } from "@/lib/api"
-import { Button, buttonVariants } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Logo } from "@/components/logo"
-import { toast } from "sonner"
-import { getErrorMessage } from "@/lib/errors"
+import Link from "next/link";
+import { FormEvent, useState } from "react";
+import { Building2, CheckCircle2, Loader2, Mail, Phone, UserRound, type LucideIcon } from "lucide-react";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { api } from "@/lib/api";
+import { getErrorMessage } from "@/lib/errors";
+import { toast } from "sonner";
 
-const initialForm = {
-  companyName: "",
-  contactName: "",
-  email: "",
-  phone: "",
-  password: "",
-  confirmPassword: "",
-}
+const initialForm = { companyName: "", contactName: "", email: "", phone: "", password: "", confirmPassword: "" };
 
 export default function AgentSignupPage() {
-  const [form, setForm] = useState(initialForm)
-  const [loading, setLoading] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [form, setForm] = useState(initialForm);
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const update = (field: keyof typeof form, value: string) => setForm((current) => ({ ...current, [field]: value }));
 
-  const update = (field: keyof typeof form, value: string) => {
-    setForm((current) => ({ ...current, [field]: value }))
-  }
-
-  const submit = async (event: FormEvent) => {
-    event.preventDefault()
-    if (form.password !== form.confirmPassword) {
-      toast.error("Passwords do not match")
-      return
-    }
-    if (form.password.length < 12) {
-      toast.error("Password must be at least 12 characters")
-      return
-    }
-
-    setLoading(true)
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (form.password !== form.confirmPassword) return void toast.error("Passwords do not match");
+    if (form.password.length < 12) return void toast.error("Password must be at least 12 characters");
+    setLoading(true);
     try {
-      await api.post("/auth/agent-signup", {
-        companyName: form.companyName,
-        contactName: form.contactName,
-        email: form.email,
-        phone: form.phone || undefined,
-        password: form.password,
-      })
-      setSubmitted(true)
-      toast.success("Application submitted")
+      await api.post("/auth/agent-signup", { companyName: form.companyName, contactName: form.contactName, email: form.email, phone: form.phone || undefined, password: form.password });
+      setSubmitted(true);
+      toast.success("Application submitted");
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Unable to submit application"))
+      toast.error(getErrorMessage(error, "Unable to submit application"));
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   return (
-    <main className="min-h-screen bg-background px-4 py-12">
-      <div className="mx-auto w-full max-w-2xl">
-        <Link href="/" className="mb-8 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Back to portal
-        </Link>
-
-        <Card className="overflow-hidden rounded-[2rem] border-border shadow-2xl shadow-primary/10">
-          <div className="bg-primary px-8 py-7 text-primary-foreground">
-            <Logo className="mb-5 h-9 text-primary-foreground" />
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary-foreground/60">Buy / Sell Network</p>
-            <h1 className="mt-2 text-3xl font-bold font-heading">Agent company application</h1>
-          </div>
-
-          {submitted ? (
-            <CardContent className="space-y-5 p-10 text-center">
-              <CheckCircle2 className="mx-auto h-16 w-16 text-green-600" />
-              <div>
-                <h2 className="text-2xl font-bold font-heading">Check your email</h2>
-                <p className="mt-2 text-muted-foreground">Verify your email address to complete submission. Johnson Realty will review the company after verification.</p>
-              </div>
-              <Link href="/" className={buttonVariants({ className: "rounded-xl" })}>Return to sign in</Link>
-            </CardContent>
-          ) : (
-            <>
-              <CardHeader className="px-8 pt-8">
-                <CardTitle>Company details</CardTitle>
-                <CardDescription>Applications stay pending until reviewed by Johnson Realty.</CardDescription>
-              </CardHeader>
-              <CardContent className="px-8 pb-10">
-                <form onSubmit={submit} className="grid gap-5 sm:grid-cols-2">
-                  <Field icon={Building2} label="Company name">
-                    <Input value={form.companyName} onChange={(e) => update("companyName", e.target.value)} required minLength={2} maxLength={120} />
-                  </Field>
-                  <Field icon={UserRound} label="Primary contact">
-                    <Input value={form.contactName} onChange={(e) => update("contactName", e.target.value)} required minLength={2} maxLength={120} />
-                  </Field>
-                  <Field icon={Mail} label="Business email">
-                    <Input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} required />
-                  </Field>
-                  <Field icon={Phone} label="Phone (optional)">
-                    <Input type="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
-                  </Field>
-                  <Field label="Password">
-                    <Input type="password" value={form.password} onChange={(e) => update("password", e.target.value)} required minLength={12} autoComplete="new-password" />
-                  </Field>
-                  <Field label="Confirm password">
-                    <Input type="password" value={form.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} required minLength={12} autoComplete="new-password" />
-                  </Field>
-                  <div className="sm:col-span-2 pt-2">
-                    <Button className="h-12 w-full rounded-xl font-bold" disabled={loading}>
-                      {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Submit application"}
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </>
-          )}
-        </Card>
-      </div>
-    </main>
-  )
+    <AuthShell wide eyebrow="Agent company network" title={submitted ? "Verify your email" : "Apply to present properties"} description={submitted ? "Open the secure link in your inbox to complete submission. We review the company after email verification." : "Approved companies can submit sale listings, follow review decisions, and speak directly with interested buyers."}>
+      {submitted ? (
+        <div className="border-y border-border py-8 text-center" aria-live="polite">
+          <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-success/12 text-success"><CheckCircle2 className="size-7" aria-hidden="true" /></span>
+          <p className="mx-auto mt-5 max-w-md text-sm leading-6 text-muted-foreground">The verification message was sent to <strong className="font-semibold text-foreground">{form.email}</strong>. Your review begins after that step.</p>
+          <Link href="/#portal-access" transitionTypes={["nav-back"]} className={buttonVariants({ variant: "outline", className: "mt-6" })}>Return to sign in</Link>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="grid gap-5 sm:grid-cols-2">
+          <Field id="company-name" icon={Building2} label="Company name"><Input id="company-name" name="companyName" autoComplete="organization" value={form.companyName} onChange={(event) => update("companyName", event.target.value)} required minLength={2} maxLength={120} /></Field>
+          <Field id="contact-name" icon={UserRound} label="Primary contact"><Input id="contact-name" name="contactName" autoComplete="name" value={form.contactName} onChange={(event) => update("contactName", event.target.value)} required minLength={2} maxLength={120} /></Field>
+          <Field id="business-email" icon={Mail} label="Business email"><Input id="business-email" name="email" type="email" autoComplete="email" value={form.email} onChange={(event) => update("email", event.target.value)} required maxLength={254} /></Field>
+          <Field id="business-phone" icon={Phone} label="Phone" optional><Input id="business-phone" name="phone" type="tel" autoComplete="tel" value={form.phone} onChange={(event) => update("phone", event.target.value)} /></Field>
+          <Field id="application-password" label="Password"><Input id="application-password" name="password" type="password" autoComplete="new-password" placeholder="At least 12 characters" value={form.password} onChange={(event) => update("password", event.target.value)} required minLength={12} maxLength={72} /></Field>
+          <Field id="application-confirm-password" label="Confirm password"><Input id="application-confirm-password" name="confirmPassword" type="password" autoComplete="new-password" placeholder="Enter it again" value={form.confirmPassword} onChange={(event) => update("confirmPassword", event.target.value)} required minLength={12} maxLength={72} /></Field>
+          <div className="border-t border-border pt-5 sm:col-span-2"><Button className="w-full sm:w-auto" disabled={loading}>{loading ? <><Loader2 className="animate-spin" aria-hidden="true" />Submitting application</> : "Submit for review"}</Button><p className="mt-4 text-xs leading-5 text-muted-foreground">Applications remain pending until company details and verification documents are reviewed.</p></div>
+        </form>
+      )}
+    </AuthShell>
+  );
 }
 
-function Field({ label, icon: Icon, children }: { label: string; icon?: LucideIcon; children: React.ReactNode }) {
-  return (
-    <label className="space-y-2 text-sm font-semibold">
-      <span className="flex items-center gap-2">{Icon && <Icon className="h-4 w-4 text-muted-foreground" />}{label}</span>
-      {children}
-    </label>
-  )
+function Field({ id, label, icon: Icon, optional = false, children }: { id: string; label: string; icon?: LucideIcon; optional?: boolean; children: React.ReactNode }) {
+  return <div className="grid gap-2"><Label htmlFor={id} className="flex items-center gap-2">{Icon ? <Icon className="size-4 text-primary" aria-hidden="true" /> : null}{label}{optional ? <span className="font-normal text-muted-foreground">(optional)</span> : null}</Label>{children}</div>;
 }

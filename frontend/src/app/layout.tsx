@@ -1,23 +1,29 @@
-import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Manrope } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/auth-context";
 
-const inter = Inter({ 
+const manrope = Manrope({
   subsets: ["latin"],
-  variable: '--font-inter',
-});
-
-const outfit = Outfit({ 
-  subsets: ["latin"],
-  variable: '--font-outfit',
+  variable: "--font-manrope",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Coach Johnson Realty - Property Management",
-  description: "Premium property management and tenant portal",
+  title: {
+    default: "Coach Johnson Realty",
+    template: "%s | Coach Johnson Realty",
+  },
+  description: "Kansas City homes, attentive property management, and clear portals for residents, agents, and staff.",
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8f4eb" },
+    { media: "(prefers-color-scheme: dark)", color: "#18231e" },
+  ],
 };
 
 export default function RootLayout({
@@ -27,14 +33,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${outfit.variable} font-sans antialiased`}>
+      <body className={`${manrope.variable} font-sans antialiased`}>
         <AuthProvider>
           <ThemeProvider
             attribute="class"
-            defaultTheme="light"
+            defaultTheme="system"
             enableSystem
             disableTransitionOnChange
           >
+            <a className="skip-link" href="#main-content">
+              Skip to main content
+            </a>
             {children}
             <Toaster />
           </ThemeProvider>

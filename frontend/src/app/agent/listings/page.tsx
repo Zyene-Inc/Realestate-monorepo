@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
-import { Building2, Loader2, Plus, RefreshCw, Send } from "lucide-react";
+import { Building2, Plus, RefreshCw, Send } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/portal/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import {
@@ -61,37 +64,22 @@ export default function AgentListingsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            Buy / Sell portal
-          </p>
-          <h1 className="mt-2 text-4xl font-bold font-heading">
-            Sale listings
-          </h1>
-          <p className="mt-2 text-muted-foreground">
-            Create listings and submit them for Johnson Realty approval.
-          </p>
-        </div>
-        <div className="flex gap-3">
+      <PageHeader eyebrow="Company workspace" title="Sale listings" description="Prepare each property carefully, submit it for review, and follow its path to publication." actions={<>
           <Button variant="outline" onClick={load} disabled={loading}>
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
           </Button>
-          <Link href="/agent/listings/new" className={buttonVariants()}>
+          <Link href="/agent/listings/new" transitionTypes={["nav-forward"]} className={buttonVariants()}>
             <Plus className="mr-2 h-4 w-4" /> New listing
           </Link>
-        </div>
-      </div>
+        </>} />
 
       {loading ? (
-        <div className="flex justify-center py-24">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
+        <div className="grid gap-6 lg:grid-cols-2" aria-label="Loading listings">{[0, 1].map((item) => <Card key={item}><Skeleton className="h-56 rounded-none" /><CardContent className="space-y-4 p-6"><Skeleton className="h-7 w-2/3" /><Skeleton className="h-12 w-full" /></CardContent></Card>)}</div>
       ) : listings.length === 0 ? (
         <Card className="rounded-2xl">
           <CardContent className="py-20 text-center">
             <Building2 className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
-            <p className="text-muted-foreground">No sale listings yet.</p>
+            <h2 className="text-xl font-semibold">Your first listing starts here</h2><p className="mt-2 text-muted-foreground">Add the property story, accurate details, photos, and review documents.</p><Link href="/agent/listings/new" transitionTypes={["nav-forward"]} className={buttonVariants({ className: "mt-6" })}>Create a listing</Link>
           </CardContent>
         </Card>
       ) : (
@@ -102,13 +90,14 @@ export default function AgentListingsPage() {
             );
             return (
               <Card key={listing.id} className="overflow-hidden rounded-2xl">
-                <div className="h-48 bg-secondary">
+                <div className="relative h-56 bg-secondary">
                   {listing.photos[0] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={listing.photos[0]}
-                      alt={listing.name}
-                      className="h-full w-full object-cover"
+                      alt={`${listing.name} exterior`}
+                      fill
+                      sizes="(min-width: 1024px) 45vw, 100vw"
+                      className="object-cover"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center">
@@ -121,7 +110,7 @@ export default function AgentListingsPage() {
                     <div>
                       <CardTitle>{listing.name}</CardTitle>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        {listing.city}, {listing.state} ·{" "}
+                        {listing.city}, {listing.state} /{" "}
                         {formatCurrency(listing.price)}
                       </p>
                     </div>
@@ -132,7 +121,7 @@ export default function AgentListingsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {listing.rejectionReason && (
-                    <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                    <div className="rounded-xl border border-destructive/20 bg-destructive/8 p-4 text-sm text-destructive">
                       <strong>Changes requested:</strong>{" "}
                       {listing.rejectionReason}
                     </div>
@@ -140,6 +129,7 @@ export default function AgentListingsPage() {
                   <div className="flex gap-3">
                     <Link
                       href={`/agent/listings/${listing.id}`}
+                      transitionTypes={["nav-forward"]}
                       className={buttonVariants({
                         variant: "outline",
                         className: "flex-1",

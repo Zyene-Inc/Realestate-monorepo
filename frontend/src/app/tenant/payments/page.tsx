@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CreditCard, Loader2, DollarSign, Calendar, ArrowUpRight, ReceiptText } from "lucide-react"
@@ -8,29 +9,22 @@ import { api } from "@/lib/api"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { getErrorMessage } from "@/lib/errors"
+
+type Payment = { id: string; status: string; totalAmount: number; paidAt?: string | null; dueDate: string; paymentMethod?: string | null }
 
 export default function TenantPayments() {
-  const [payments, setPayments] = useState([])
+  const [payments, setPayments] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchPayments()
+    api.get("/payments/my").then((data: Payment[]) => setPayments(data)).catch((error: unknown) => toast.error(getErrorMessage(error, "Unable to load payment history"))).finally(() => setLoading(false))
   }, [])
 
-  const fetchPayments = async () => {
-    try {
-      const data = await api.get("/payments/my")
-      setPayments(data)
-    } catch (error: any) {
-      toast.error("Failed to load payment history")
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const totalPaid = payments
-    .filter((p: any) => p.status === 'PAID')
-    .reduce((sum, p: any) => sum + p.totalAmount, 0)
+    .filter((payment) => payment.status === 'PAID')
+    .reduce((sum, payment) => sum + payment.totalAmount, 0)
 
   if (loading) {
     return (
@@ -41,19 +35,19 @@ export default function TenantPayments() {
   }
 
   return (
-    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-8 sm:space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-bold text-foreground font-heading tracking-tight">Payment History</h1>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">Payment History</h1>
           <p className="text-muted-foreground mt-2 font-medium">Review your past transactions and download receipts.</p>
         </div>
-        <button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs uppercase tracking-widest px-8 py-4 rounded-2xl shadow-xl shadow-primary/20 transition-all premium-button font-heading flex items-center gap-2">
+        <Button nativeButton={false} render={<Link href="/tenant/pay-rent" />}>
           Make a Payment <ArrowUpRight className="h-4 w-4 text-accent" />
-        </button>
+        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="relative overflow-hidden border-none bg-primary text-primary-foreground shadow-2xl shadow-primary/20 rounded-3xl group">
+        <Card className="relative overflow-hidden border-none bg-primary text-primary-foreground  rounded-[1.25rem] group">
           <div className="absolute -right-4 -top-4 p-3 opacity-10 transition-transform group-hover:scale-110 duration-500">
             <DollarSign className="h-32 w-32" />
           </div>
@@ -62,13 +56,13 @@ export default function TenantPayments() {
             <CreditCard className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold font-heading tabular-nums">${totalPaid.toLocaleString()}</div>
+            <div className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl tabular-nums">${totalPaid.toLocaleString()}</div>
             <p className="text-xs mt-3 opacity-80 font-medium">All completed transactions this year</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="border-border bg-card shadow-sm rounded-3xl overflow-hidden">
+      <Card className="border-border bg-card shadow-sm rounded-[1.25rem] overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-secondary/50">
@@ -88,7 +82,7 @@ export default function TenantPayments() {
                     No payment history found.
                   </TableCell>
                 </TableRow>
-              ) : payments.map((p: any) => (
+              ) : payments.map((p) => (
                 <TableRow key={p.id} className="border-border hover:bg-secondary/30 transition-colors">
                   <TableCell className="py-5">
                     <span className="font-bold text-foreground font-heading">Rent Payment</span>
@@ -113,9 +107,9 @@ export default function TenantPayments() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right py-5">
-                    <button className="p-2 rounded-lg hover:bg-secondary text-muted-foreground hover:text-primary transition-colors inline-flex items-center justify-center">
+                    <Button variant="ghost" size="icon" aria-label={`Open receipt ${p.id.slice(-8)}`}>
                       <ReceiptText className="h-4 w-4" />
-                    </button>
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

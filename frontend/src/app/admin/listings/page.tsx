@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import {
   Bath,
@@ -25,6 +26,23 @@ import {
   type SaleListing,
   type SaleListingAuditEvent,
 } from "@/lib/sale-listings";
+
+const auditDateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "America/Chicago",
+});
+
+async function openListingDocument(listingId: string, index: number) {
+  try {
+    const result = (await api.get(
+      `/admin/sale-listings/${listingId}/documents/${index}/url`,
+    )) as { url: string };
+    window.open(result.url, "_blank", "noopener,noreferrer");
+  } catch (error: unknown) {
+    toast.error(getErrorMessage(error, "Unable to open document"));
+  }
+}
 
 export default function SaleListingReviewPage() {
   const [listings, setListings] = useState<SaleListing[]>([]);
@@ -89,17 +107,6 @@ export default function SaleListingReviewPage() {
     }
   };
 
-  const openDocument = async (listingId: string, index: number) => {
-    try {
-      const result = (await api.get(
-        `/admin/sale-listings/${listingId}/documents/${index}/url`,
-      )) as { url: string };
-      window.open(result.url, "_blank", "noopener,noreferrer");
-    } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Unable to open document"));
-    }
-  };
-
   const toggleHistory = async (listingId: string) => {
     if (historyId === listingId) {
       setHistoryId(null);
@@ -129,7 +136,7 @@ export default function SaleListingReviewPage() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
             Buy / Sell oversight
           </p>
-          <h1 className="mt-2 text-4xl font-bold font-heading">
+          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
             Listing review queue
           </h1>
           <p className="mt-2 text-muted-foreground">
@@ -158,10 +165,11 @@ export default function SaleListingReviewPage() {
               <div className="grid lg:grid-cols-[360px_1fr]">
                 <div className="min-h-72 bg-secondary">
                   {listing.photos[0] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={listing.photos[0]}
-                      alt={listing.name}
+                      alt={`${listing.name} exterior`}
+                      width={720}
+                      height={560}
                       className="h-full w-full object-cover"
                     />
                   ) : (
@@ -190,14 +198,14 @@ export default function SaleListingReviewPage() {
                     <div className="flex flex-wrap gap-5 text-sm font-semibold">
                       <span>
                         <BedDouble className="mr-2 inline h-4 w-4" />
-                        {listing.bedrooms ?? "—"} beds
+                        {listing.bedrooms ?? "Not listed"} beds
                       </span>
                       <span>
                         <Bath className="mr-2 inline h-4 w-4" />
-                        {listing.bathrooms ?? "—"} baths
+                        {listing.bathrooms ?? "Not listed"} baths
                       </span>
                       <span>
-                        {listing.squareFeet?.toLocaleString() ?? "—"} sq ft
+                        {listing.squareFeet?.toLocaleString() ?? "Not listed"} sq ft
                       </span>
                       <span>
                         {listing.documents?.length ?? 0} private document(s)
@@ -208,12 +216,14 @@ export default function SaleListingReviewPage() {
                     </p>
                     {listing.documents?.length ? (
                       <div className="flex flex-wrap gap-2">
-                        {listing.documents.map((_, index) => (
+                        {listing.documents.map((documentPath, index) => (
                           <Button
-                            key={index}
+                            key={documentPath}
                             variant="outline"
                             size="sm"
-                            onClick={() => void openDocument(listing.id, index)}
+                              onClick={() =>
+                                void openListingDocument(listing.id, index)
+                              }
                           >
                             <Download className="mr-2 h-4 w-4" /> Review
                             document {index + 1}
@@ -311,7 +321,7 @@ function ListingAuditTimeline({ events }: { events: SaleListingAuditEvent[] }) {
               {auditActionLabel(event.action)}
             </p>
             <p className="text-xs text-muted-foreground">
-              {new Date(event.createdAt).toLocaleString()} ·{" "}
+              {auditDateFormatter.format(new Date(event.createdAt))} /{" "}
               {event.actor?.email ?? "System"}
             </p>
             {typeof status === "string" && (

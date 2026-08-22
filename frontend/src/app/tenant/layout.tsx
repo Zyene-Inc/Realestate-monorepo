@@ -31,16 +31,16 @@ export default function TenantLayout({
 
   if (isLoading || !user || user.role !== "TENANT") {
     return (
-      <main className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+      <main id="main-content" className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
         Checking tenant access…
       </main>
     );
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="min-h-[100dvh] bg-background lg:flex">
       <TenantSidebar />
-      <main className="flex-1 overflow-y-auto p-10">
+      <main id="main-content" className="portal-main" data-portal-main>
         {children}
       </main>
     </div>

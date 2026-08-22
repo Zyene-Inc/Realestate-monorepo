@@ -1,142 +1,83 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  Bath,
-  BedDouble,
-  Building2,
-  Loader2,
-  MapPin,
-  Ruler,
-} from "lucide-react";
+import { Building2, RefreshCw } from "lucide-react";
+import { DirectionalPage } from "@/components/page-transition";
+import { PropertyCard } from "@/components/public/property-card";
+import { SiteFooter } from "@/components/public/site-footer";
+import { SiteHeader } from "@/components/public/site-header";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Logo } from "@/components/logo";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
-import { formatCurrency, type SaleListing } from "@/lib/sale-listings";
+import type { SaleListing } from "@/lib/sale-listings";
 
 export default function PublicPropertiesPage() {
   const [properties, setProperties] = useState<SaleListing[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
-  useEffect(() => {
+  const loadProperties = () => {
+    setStatus("loading");
     api
       .get("/public/sale-listings")
-      .then(setProperties)
-      .finally(() => setLoading(false));
+      .then((listings: SaleListing[]) => {
+        setProperties(listings);
+        setStatus("ready");
+      })
+      .catch(() => setStatus("error"));
+  };
+
+  useEffect(() => {
+    api.get("/public/sale-listings").then((listings: SaleListing[]) => { setProperties(listings); setStatus("ready"); }).catch(() => setStatus("error"));
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-50 flex w-full items-center justify-between border-b border-border bg-card/90 px-8 py-6 backdrop-blur-md lg:px-16">
-        <Link href="/">
-          <Logo className="h-10" />
-        </Link>
-        <nav className="hidden items-center gap-8 text-[11px] font-bold uppercase tracking-widest text-muted-foreground md:flex">
-          <Link href="/about" className="hover:text-foreground">
-            About us
-          </Link>
-          <Link href="/properties" className="text-foreground">
-            Homes for sale
-          </Link>
-          <Link href="/contact" className="hover:text-foreground">
-            Contact
-          </Link>
-          <Link
-            href="/"
-            className="rounded-xl border border-border px-6 py-2 hover:bg-secondary"
-          >
-            Sign in
-          </Link>
-        </nav>
-      </header>
+    <div className="min-h-[100dvh] bg-background">
+      <SiteHeader />
+      <DirectionalPage>
+        <main id="main-content">
+          <section className="public-container grid gap-10 border-b border-border py-16 sm:py-24 lg:grid-cols-[1.15fr_.85fr] lg:items-end lg:py-28">
+            <div>
+              <p className="text-sm font-semibold text-primary">Homes for sale</p>
+              <h1 className="mt-4 max-w-4xl text-[clamp(3rem,7vw,6.6rem)] font-semibold leading-[.93] tracking-[-0.055em]">A considered collection, not a crowded feed.</h1>
+            </div>
+            <p className="max-w-lg text-base leading-7 text-muted-foreground lg:justify-self-end">Every home is reviewed before it appears here. Explore the details, then open a direct conversation with the listing agent when one feels right.</p>
+          </section>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-8 py-20 lg:px-16">
-        <div className="mx-auto mb-16 max-w-3xl space-y-5 text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-accent">
-            Johnson Realty approved
-          </p>
-          <h1 className="text-5xl font-extrabold font-heading tracking-tight md:text-6xl">
-            Homes for sale
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Every listing below has completed Johnson Realty review. Contact the
-            listed agent directly for property and showing questions.
-          </p>
-        </div>
-
-        {loading ? (
-          <div className="flex justify-center py-24">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        ) : properties.length === 0 ? (
-          <Card className="rounded-3xl">
-            <CardContent className="py-20 text-center">
-              <Building2 className="mx-auto mb-4 h-14 w-14 text-muted-foreground/30" />
-              <h2 className="text-xl font-bold">
-                No approved sale listings yet
-              </h2>
-              <p className="mt-2 text-muted-foreground">
-                Please check back soon.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-            {properties.map((property) => (
-              <Link key={property.id} href={`/properties/${property.id}`}>
-                <Card className="h-full overflow-hidden rounded-[2rem] transition-all hover:-translate-y-1 hover:shadow-xl">
-                  <div className="h-64 bg-secondary">
-                    {property.photos[0] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={property.photos[0]}
-                        alt={property.name}
-                        className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center">
-                        <Building2 className="h-16 w-16 text-muted-foreground/30" />
-                      </div>
-                    )}
-                  </div>
-                  <CardContent className="space-y-5 p-7">
-                    <div>
-                      <p className="text-2xl font-bold font-heading">
-                        {formatCurrency(property.price)}
-                      </p>
-                      <h2 className="mt-1 text-xl font-bold">
-                        {property.name}
-                      </h2>
-                      <p className="mt-2 flex items-center text-sm text-muted-foreground">
-                        <MapPin className="mr-2 h-4 w-4" />
-                        {property.city}, {property.state}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap gap-4 border-t border-border pt-5 text-sm font-semibold">
-                      <span>
-                        <BedDouble className="mr-1 inline h-4 w-4" />
-                        {property.bedrooms ?? "—"}
-                      </span>
-                      <span>
-                        <Bath className="mr-1 inline h-4 w-4" />
-                        {property.bathrooms ?? "—"}
-                      </span>
-                      <span>
-                        <Ruler className="mr-1 inline h-4 w-4" />
-                        {property.squareFeet?.toLocaleString() ?? "—"} sq ft
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Listed by {property.agent?.companyName}
-                    </p>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        )}
-      </main>
+          <section className="public-container py-12 sm:py-16 lg:py-20" aria-live="polite">
+            {status === "loading" ? (
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3" aria-label="Loading properties">
+                {[0, 1, 2, 3].map((item) => (
+                  <Card key={item} className={item === 0 ? "overflow-hidden md:col-span-2" : "overflow-hidden"}>
+                    <Skeleton className={item === 0 ? "h-80 rounded-none" : "h-64 rounded-none"} />
+                    <CardContent className="space-y-4 p-6"><Skeleton className="h-5 w-24" /><Skeleton className="h-8 w-3/4" /><Skeleton className="h-16 w-full" /></CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : status === "error" ? (
+              <Card className="mx-auto max-w-xl">
+                <CardContent className="flex flex-col items-center px-6 py-14 text-center">
+                  <Building2 className="size-12 text-primary" strokeWidth={1.4} aria-hidden="true" />
+                  <h2 className="mt-5 text-2xl font-semibold tracking-[-0.03em]">The collection could not load</h2>
+                  <p className="mt-2 max-w-sm text-sm leading-6 text-muted-foreground">The listing service may be briefly unavailable. Your place on the page is safe.</p>
+                  <Button className="mt-6" variant="outline" onClick={loadProperties}><RefreshCw aria-hidden="true" />Try again</Button>
+                </CardContent>
+              </Card>
+            ) : properties.length === 0 ? (
+              <div className="mx-auto max-w-2xl border-y border-border py-16 text-center">
+                <Building2 className="mx-auto size-12 text-primary" strokeWidth={1.4} aria-hidden="true" />
+                <h2 className="mt-5 text-2xl font-semibold tracking-[-0.03em]">New homes are being prepared</h2>
+                <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted-foreground">Nothing has passed the final review yet. Check back soon, or contact our team to share what you are looking for.</p>
+              </div>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {properties.map((property, index) => <PropertyCard key={property.id} property={property} featured={index === 0} />)}
+              </div>
+            )}
+          </section>
+        </main>
+      </DirectionalPage>
+      <SiteFooter />
     </div>
   );
 }

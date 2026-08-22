@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   Download,
   FileText,
@@ -188,7 +189,7 @@ export function SaleListingForm({ listing }: { listing?: SaleListing }) {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
             {current ? "Listing workspace" : "New sale listing"}
           </p>
-          <h1 className="mt-2 text-4xl font-bold font-heading">
+          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
             {current?.name || "Create a draft"}
           </h1>
         </div>
@@ -210,12 +211,12 @@ export function SaleListingForm({ listing }: { listing?: SaleListing }) {
       </div>
 
       {current?.rejectionReason && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/8 p-4 text-sm text-destructive">
           <strong>Changes requested:</strong> {current.rejectionReason}
         </div>
       )}
       {locked && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <div className="rounded-xl border border-warning/35 bg-warning/12 p-4 text-sm text-warning-foreground">
           Johnson Realty is reviewing this listing. Editing and uploads are
           locked until a decision is made.
         </div>
@@ -348,7 +349,7 @@ export function SaleListingForm({ listing }: { listing?: SaleListing }) {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex flex-wrap gap-3">
-              <label className="inline-flex cursor-pointer items-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+              <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full bg-accent px-5 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/88 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
                 {uploading === "photo" ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -363,7 +364,7 @@ export function SaleListingForm({ listing }: { listing?: SaleListing }) {
                   onChange={(e) => void upload("photo", e.target.files?.[0])}
                 />
               </label>
-              <label className="inline-flex cursor-pointer items-center rounded-md border border-input bg-background px-4 py-2 text-sm font-semibold has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
+              <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-input bg-card px-5 text-sm font-semibold transition-colors hover:bg-secondary has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
                 {uploading === "document" ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
@@ -380,21 +381,13 @@ export function SaleListingForm({ listing }: { listing?: SaleListing }) {
               </label>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {current.photos.map((photo) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={photo}
-                  src={photo}
-                  alt="Listing"
-                  className="h-40 w-full rounded-xl object-cover"
-                />
-              ))}
+              {current.photos.map((photo, index) => <div key={photo} className="relative h-40 overflow-hidden rounded-xl bg-secondary"><Image src={photo} alt={`${current.name} view ${index + 1}`} fill sizes="(min-width: 1024px) 28vw, (min-width: 640px) 45vw, 100vw" className="object-cover" /></div>)}
             </div>
             {current.documents?.length ? (
               <div className="flex flex-wrap gap-2">
-                {current.documents.map((_, index) => (
+                {current.documents.map((documentPath, index) => (
                   <Button
-                    key={index}
+                    key={documentPath}
                     type="button"
                     variant="outline"
                     size="sm"
@@ -445,11 +438,9 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`space-y-2 ${className ?? ""}`}>
-      <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </Label>
+    <Label className={`grid gap-2 ${className ?? ""}`}>
+      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
       {children}
-    </div>
+    </Label>
   );
 }

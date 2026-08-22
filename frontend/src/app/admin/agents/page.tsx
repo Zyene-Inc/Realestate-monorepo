@@ -33,6 +33,19 @@ type Agent = {
 };
 type AgentStatus = Agent["accountStatus"];
 
+async function openAgentDocument(agentId: string, index: number) {
+  try {
+    const result = (await api.get(
+      `/agents/${agentId}/documents/${index}/url`,
+    )) as { url: string };
+    window.open(result.url, "_blank", "noopener,noreferrer");
+  } catch (error: unknown) {
+    toast.error(
+      getErrorMessage(error, "Unable to open verification document"),
+    );
+  }
+}
+
 export default function AgentApprovalsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,17 +107,6 @@ export default function AgentApprovalsPage() {
     }
   };
 
-  const openDocument = async (agentId: string, index: number) => {
-    try {
-      const result = await api.get(`/agents/${agentId}/documents/${index}/url`);
-      window.open(result.url, "_blank", "noopener,noreferrer");
-    } catch (error: unknown) {
-      toast.error(
-        getErrorMessage(error, "Unable to open verification document"),
-      );
-    }
-  };
-
   return (
     <div className="space-y-8">
       <div className="flex items-end justify-between">
@@ -112,7 +114,7 @@ export default function AgentApprovalsPage() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
             Buy / Sell oversight
           </p>
-          <h1 className="mt-2 text-4xl font-bold font-heading">
+          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
             Agent company directory
           </h1>
           <p className="mt-2 text-muted-foreground">
@@ -195,12 +197,14 @@ export default function AgentApprovalsPage() {
                 </div>
                 {agent.verificationDocuments.length ? (
                   <div className="flex flex-wrap gap-2">
-                    {agent.verificationDocuments.map((_, index) => (
+                    {agent.verificationDocuments.map((documentPath, index) => (
                       <Button
-                        key={index}
+                        key={documentPath}
                         variant="outline"
                         size="sm"
-                        onClick={() => void openDocument(agent.id, index)}
+                              onClick={() =>
+                                void openAgentDocument(agent.id, index)
+                              }
                       >
                         <Download className="mr-2 h-4 w-4" /> Verification
                         document {index + 1}
