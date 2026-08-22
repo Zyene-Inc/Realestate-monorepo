@@ -41,7 +41,7 @@ export default function AgentSignupPage() {
         <div className="border-y border-border py-8 text-center" aria-live="polite">
           <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-success/12 text-success"><CheckCircle2 className="size-7" aria-hidden="true" /></span>
           <p className="mx-auto mt-5 max-w-md text-sm leading-6 text-muted-foreground">The verification message was sent to <strong className="font-semibold text-foreground">{form.email}</strong>. Your review begins after that step.</p>
-          <Link href="/#portal-access" transitionTypes={["nav-back"]} className={buttonVariants({ variant: "outline", className: "mt-6" })}>Return to sign in</Link>
+          <Link href="/agent/login" transitionTypes={["nav-back"]} className={buttonVariants({ variant: "outline", className: "mt-6" })}>Return to sign in</Link>
         </div>
       ) : (
         <form onSubmit={submit} className="grid gap-5 sm:grid-cols-2">

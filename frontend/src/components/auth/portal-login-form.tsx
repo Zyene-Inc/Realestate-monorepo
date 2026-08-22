@@ -13,7 +13,7 @@ import { navigateToUserPortal } from "@/lib/auth-routing";
 import { getErrorMessage } from "@/lib/errors";
 import { toast } from "sonner";
 
-export function PortalLoginForm({ eyebrow, title, description, forgotTestId, invitationCopy }: { eyebrow: string; title: string; description: string; forgotTestId: string; invitationCopy: string }) {
+export function PortalLoginForm({ eyebrow, title, description, forgotTestId, invitationCopy, invitationHref, invitationLabel }: { eyebrow: string; title: string; description: string; forgotTestId: string; invitationCopy: string; invitationHref?: string; invitationLabel?: string }) {
   const router = useRouter();
   const { login, user, isLoading: isAuthLoading } = useAuth();
   const [email, setEmail] = useState("");
@@ -56,7 +56,9 @@ export function PortalLoginForm({ eyebrow, title, description, forgotTestId, inv
           {loading ? <><Loader2 className="animate-spin" aria-hidden="true" />Signing in</> : <>Continue<ArrowRight aria-hidden="true" /></>}
         </Button>
       </form>
-      <p className="mt-6 border-t border-border pt-5 text-xs leading-5 text-muted-foreground">{invitationCopy}</p>
+      <p className="mt-6 border-t border-border pt-5 text-xs leading-5 text-muted-foreground">
+        {invitationCopy}{invitationHref && invitationLabel ? <> <Link href={invitationHref} transitionTypes={["nav-forward"]} className="font-semibold text-foreground hover:text-primary">{invitationLabel}</Link></> : null}
+      </p>
     </AuthShell>
   );
 }

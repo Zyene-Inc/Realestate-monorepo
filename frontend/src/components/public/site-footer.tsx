@@ -8,14 +8,16 @@ export function SiteFooter() {
       <div className="public-container grid gap-10 md:grid-cols-[1.4fr_1fr_1fr] md:items-start">
         <div className="max-w-md">
           <Logo className="h-10 text-white" />
-          <p className="mt-5 text-sm leading-6 text-white/68">Thoughtful homes and clear property management for Kansas City residents, owners, and agents.</p>
+          <p className="mt-5 text-sm leading-6 text-white/68">Local representation and clear property management for Missouri buyers, sellers, renters, and owners.</p>
         </div>
         <div>
           <p className="text-sm font-semibold text-white">Explore</p>
           <nav className="mt-4 grid gap-3 text-sm text-white/68" aria-label="Footer navigation">
             <Link className="hover:text-white" href="/properties">Properties</Link>
+            <Link className="hover:text-white" href="/#services">Services</Link>
             <Link className="hover:text-white" href="/about">Our approach</Link>
             <Link className="hover:text-white" href="/contact">Contact</Link>
+            <Link className="hover:text-white" href="/#portal-access">Portal access</Link>
           </nav>
         </div>
         <div>

@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     default: "Coach Johnson Realty",
     template: "%s | Coach Johnson Realty",
   },
-  description: "Kansas City homes, attentive property management, and clear portals for residents, agents, and staff.",
+  description: "Missouri homes, local real estate representation, attentive property management, and clear client portals.",
 };
 
 export const viewport: Viewport = {

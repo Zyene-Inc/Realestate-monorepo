@@ -1,20 +1,44 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { PropertySlideshow, type PropertySlide } from "@/components/public/property-slideshow";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
+
+const authSlides: PropertySlide[] = [
+  {
+    src: "/images/coach-johnson/missouri-brick-rental.webp",
+    alt: "Restored brick Missouri rental building framed by mature trees",
+    caption: "Property care rooted in Missouri",
+  },
+  {
+    src: "/images/coach-johnson/missouri-home-interior.webp",
+    alt: "Comfortable Missouri home interior with restored woodwork",
+    caption: "Clear service starts at home",
+  },
+  {
+    src: "/images/coach-johnson/missouri-neighborhood.webp",
+    alt: "Tree-lined Missouri neighborhood with established homes",
+    caption: "Local knowledge, dependable follow-through",
+  },
+];
 
 export function AuthShell({ children, eyebrow, title, description, wide = false }: { children: React.ReactNode; eyebrow: string; title: string; description: string; wide?: boolean }) {
   return (
     <main id="main-content" className="grid min-h-[100dvh] bg-background lg:grid-cols-[minmax(0,1.08fr)_minmax(28rem,.92fr)]">
       <aside className="hidden min-h-[100dvh] overflow-hidden bg-brand text-white lg:flex lg:flex-col">
-        <div className="relative min-h-0 flex-1">
-          <Image src="/hero-community.png" alt="Restored brick apartment building framed by mature trees" fill priority sizes="55vw" className="object-cover" />
-        </div>
-        <div className="p-12 xl:p-16">
+        <PropertySlideshow
+          slides={authSlides}
+          preload
+          tone="brand"
+          sizes="55vw"
+          className="flex min-h-0 flex-1 flex-col"
+          imageClassName="min-h-0 flex-1"
+          label="Coach Johnson Realty Missouri homes"
+        />
+        <div className="border-t border-white/12 p-10 xl:p-14">
           <p className="max-w-xl text-3xl font-semibold leading-tight tracking-[-0.035em]">A clear path home, and a capable team behind every detail.</p>
-          <p className="mt-4 max-w-md text-sm leading-6 text-white/72">Secure access for residents, approved agents, and Johnson Realty staff.</p>
+          <p className="mt-4 max-w-md text-sm leading-6 text-white/72">Secure access for residents, approved agent companies, and Coach Johnson Realty staff.</p>
         </div>
       </aside>
       <section className="flex min-h-[100dvh] flex-col px-5 py-5 sm:px-8 lg:px-12 xl:px-16">
