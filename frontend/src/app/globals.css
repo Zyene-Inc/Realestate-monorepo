@@ -163,7 +163,7 @@
 
 @layer components {
   .public-container { width: min(100% - 2rem, 88rem); margin-inline: auto; }
-  .portal-main { min-width: 0; flex: 1; overflow-y: auto; padding: clamp(1rem, 2.8vw, 2.75rem); overscroll-behavior: contain; }
+  .portal-main { min-width: 0; flex: 1; overflow-y: auto; padding: clamp(1rem, 2.8vw, 2.75rem); overscroll-behavior-y: contain; }
   .portal-main > * { width: 100%; max-width: 90rem; margin-inline: auto; }
   .portal-main h1 { font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 600; line-height: 1.05; letter-spacing: -0.045em; }
   .portal-main [data-slot="card"] { border-radius: 1.25rem; box-shadow: none; }
@@ -175,6 +175,11 @@
   .lift-shadow { box-shadow: var(--shadow-lift); }
   .focus-ring { @apply outline-none focus-visible:ring-[3px] focus-visible:ring-ring/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background; }
   .skeleton { background: var(--muted); }
+}
+
+@media (min-width: 1024px) {
+  .portal-shell { height: 100dvh; min-height: 0; overflow: hidden; }
+  .portal-main { min-height: 0; }
 }
 
 @media (prefers-reduced-motion: no-preference) { .skeleton { animation: skeleton-shimmer 1.5s linear infinite; } }

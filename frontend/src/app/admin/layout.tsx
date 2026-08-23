@@ -78,7 +78,7 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-[100dvh] bg-background lg:flex">
+    <div className="portal-shell min-h-[100dvh] bg-background lg:flex">
       <AdminSidebar />
       <main id="main-content" className="portal-main" data-portal-main>
         {children}

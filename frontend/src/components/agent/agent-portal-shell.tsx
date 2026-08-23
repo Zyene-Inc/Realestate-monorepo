@@ -47,7 +47,7 @@ export function AgentPortalShell({ children }: { children: React.ReactNode }) {
     );
 
   return (
-    <div className="min-h-[100dvh] bg-background lg:flex">
+    <div className="portal-shell min-h-[100dvh] bg-background lg:flex">
       <PortalSidebar
         items={items}
         portalName="Agent workspace"

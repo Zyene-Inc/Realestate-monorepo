@@ -38,7 +38,7 @@ export default function TenantLayout({
   }
 
   return (
-    <div className="min-h-[100dvh] bg-background lg:flex">
+    <div className="portal-shell min-h-[100dvh] bg-background lg:flex">
       <TenantSidebar />
       <main id="main-content" className="portal-main" data-portal-main>
         {children}
