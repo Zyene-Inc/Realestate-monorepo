@@ -285,11 +285,11 @@ export function PublicChatbot() {
       >
         <MessageCircle className="size-6" aria-hidden="true" />
       </DialogTrigger>
-      <DialogContent className="inset-auto bottom-2 left-2 right-2 top-auto max-h-[calc(100dvh-1rem)] w-auto max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden p-0 sm:bottom-6 sm:left-auto sm:right-6 sm:w-[25rem] sm:max-w-[calc(100vw-3rem)]">
-        <DialogHeader className="border-b bg-brand px-5 py-4 pr-12 text-white">
-          <div className="flex items-center gap-3">
-            <span className="flex size-10 items-center justify-center rounded-full bg-white/12">
-              <Bot className="size-5" aria-hidden="true" />
+      <DialogContent className="inset-auto bottom-0 left-0 right-0 top-auto max-h-[calc(100dvh-0.5rem)] w-full max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-b-none p-0 md:bottom-5 md:left-auto md:right-5 md:w-[23rem] md:max-h-[min(38rem,calc(100dvh-2.5rem))] md:max-w-[calc(100vw-2.5rem)] md:rounded-[1.25rem]">
+        <DialogHeader className="border-b bg-brand px-4 py-3 pr-11 text-white">
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-9 items-center justify-center rounded-full bg-white/12">
+              <Bot className="size-4.5" aria-hidden="true" />
             </span>
             <div>
               <DialogTitle className="text-white">
@@ -304,14 +304,14 @@ export function PublicChatbot() {
 
         <div
           aria-live="polite"
-          className="min-h-64 flex-1 space-y-4 overflow-y-auto bg-background px-4 py-5 sm:max-h-[28rem]"
+          className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-background px-3.5 py-4 md:max-h-[24rem]"
         >
           <div className="flex gap-2.5">
             <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <Bot className="size-3.5" aria-hidden="true" />
             </span>
-            <div className="max-w-[85%] rounded-2xl rounded-tl-sm border bg-card px-3.5 py-2.5">
-              <p className="text-sm leading-6">
+            <div className="max-w-[85%] rounded-xl rounded-tl-sm border bg-card px-3 py-2.5">
+              <p className="text-sm leading-5">
                 Hi, I’m Johnson Realty’s AI assistant. I can help you explore
                 public listings or explain how our services work. I can’t answer
                 general questions outside Coach Johnson Realty.
@@ -357,7 +357,7 @@ export function PublicChatbot() {
                 </span>
                 <div
                   className={cn(
-                    "max-w-[85%] rounded-2xl px-3.5 py-2.5",
+                    "max-w-[85%] rounded-xl px-3 py-2.5",
                     visitor
                       ? "rounded-tr-sm bg-primary text-primary-foreground"
                       : "rounded-tl-sm border bg-card",
@@ -386,16 +386,16 @@ export function PublicChatbot() {
           )}
           {showLeadForm && !leadSubmitted && (
             <form
-              className="rounded-2xl border bg-card p-4 shadow-sm"
+              className="rounded-xl border bg-card p-3"
               onSubmit={(event) => void submitLead(event)}
             >
               <p className="text-sm font-semibold">
                 Book a conversation with Johnson Realty
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
                 Share your contact details and our sales team will follow up.
               </p>
-              <div className="mt-3 space-y-2">
+              <div className="mt-2.5 space-y-2">
                 <Input
                   aria-label="Email"
                   autoComplete="email"
@@ -417,13 +417,13 @@ export function PublicChatbot() {
                 />
                 <Textarea
                   aria-label="Message"
-                  className="min-h-20 resize-none text-sm"
+                  className="min-h-16 resize-none text-sm"
                   disabled={leadBusy}
                   maxLength={4000}
                   onChange={(event) => setLeadMessage(event.target.value)}
                   placeholder="What would you like to discuss?"
                   required
-                  rows={3}
+                  rows={2}
                   value={leadMessage}
                 />
                 <input
@@ -440,7 +440,7 @@ export function PublicChatbot() {
                 <p className="mt-2 text-xs text-destructive">{leadError}</p>
               )}
               <Button
-                className="mt-3 w-full"
+                className="mt-2.5 h-11 w-full"
                 disabled={
                   leadBusy ||
                   leadEmail.trim().length === 0 ||

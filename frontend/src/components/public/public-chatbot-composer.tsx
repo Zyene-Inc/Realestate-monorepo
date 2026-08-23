@@ -21,14 +21,14 @@ export function PublicChatbotComposer({
   onSubmit,
 }: PublicChatbotComposerProps) {
   return (
-    <form className="border-t bg-card p-3" onSubmit={onSubmit}>
+    <form className="border-t bg-card p-2.5" onSubmit={onSubmit}>
       <div className="flex items-end gap-2">
         <Textarea
           aria-describedby={
             chatPausedForBooking ? "chat-booking-required" : undefined
           }
           aria-label="Message the property assistant"
-          className="max-h-28 min-h-11 resize-none py-2.5 text-sm"
+          className="max-h-24 min-h-11 resize-none py-2.5 text-sm"
           disabled={busy || chatPausedForBooking}
           maxLength={1000}
           onChange={(event) => onChange(event.target.value)}
@@ -57,13 +57,13 @@ export function PublicChatbotComposer({
       </div>
       {chatPausedForBooking && (
         <p
-          className="mt-2 text-xs font-medium text-muted-foreground"
+          className="mt-1.5 text-xs font-medium text-muted-foreground"
           id="chat-booking-required"
         >
           Complete the booking form above to continue chatting.
         </p>
       )}
-      <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+      <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">
         Coach Johnson Realty topics only. AI can make mistakes. Don’t share
         financial or identity details. Chats expire after 30 days. For
         decisions, speak with a licensed professional.
