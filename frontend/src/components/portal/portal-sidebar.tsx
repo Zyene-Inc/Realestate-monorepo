@@ -2,9 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Menu, X, type LucideIcon } from "lucide-react";
+import { Compass, LogOut, Menu, X, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/logo";
+import {
+  ProductTour,
+  type ProductTourStep,
+  useProductTour,
+} from "@/components/portal/product-tour";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -25,6 +30,8 @@ export function PortalSidebar({
   userRole,
   initials,
   onLogout,
+  tourId,
+  tourSteps,
 }: {
   items: PortalNavItem[];
   portalName: string;
@@ -32,9 +39,14 @@ export function PortalSidebar({
   userRole: string;
   initials: string;
   onLogout: () => void | Promise<void>;
+  tourId: string;
+  tourSteps: ProductTourStep[];
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const tour = useProductTour(
+    `coach-johnson-realty:product-tour:${tourId}:v1`,
+  );
   const groupedItems = items.reduce<
     Array<{ title: string; items: PortalNavItem[] }>
   >((groups, item) => {
@@ -44,7 +56,8 @@ export function PortalSidebar({
     else groups.push({ title, items: [item] });
     return groups;
   }, []);
-  const showGroupTitles = groupedItems.length > 1 || items.some((item) => item.group);
+  const showGroupTitles =
+    groupedItems.length > 1 || items.some((item) => item.group);
 
   const nav = (
     <nav className="grid gap-5" aria-label={`${portalName} navigation`}>
@@ -95,6 +108,21 @@ export function PortalSidebar({
       ))}
     </nav>
   );
+  const tourButton = (
+    <Button
+      type="button"
+      variant="ghost"
+      className="min-h-11 w-full justify-start gap-3 px-3.5 text-sidebar-foreground/68 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+      onClick={tour.restart}
+    >
+      <Compass
+        className="size-[1.125rem]"
+        strokeWidth={1.8}
+        aria-hidden="true"
+      />
+      Take a tour
+    </Button>
+  );
 
   return (
     <>
@@ -111,6 +139,9 @@ export function PortalSidebar({
         <div id="portal-mobile-navigation" className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-sidebar-border bg-sidebar px-4 py-4 lg:hidden">
           <p className="mb-3 px-3 text-xs font-semibold text-sidebar-foreground/60">{portalName}</p>
           {nav}
+          <div className="mt-4 border-t border-sidebar-border pt-4">
+            {tourButton}
+          </div>
           <div className="mt-4 flex items-center gap-3 border-t border-sidebar-border px-3 pt-4">
             <span className="flex size-10 items-center justify-center rounded-full bg-sidebar-primary text-sm font-bold text-sidebar-primary-foreground">{initials}</span>
             <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-sidebar-foreground">{userName}</p><p className="truncate text-xs text-sidebar-foreground/58">{userRole}</p></div>
@@ -120,7 +151,15 @@ export function PortalSidebar({
       )}
       <aside className="hidden h-[100dvh] w-[17.5rem] shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:sticky lg:top-0 lg:flex" style={{ viewTransitionName: "persistent-nav" }}>
         <div className="px-6 pt-7 pb-6"><Logo className="h-9 text-sidebar-foreground" /></div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4"><p className="mb-3 px-3 text-xs font-semibold text-sidebar-foreground/58">{portalName}</p>{nav}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+          <p className="mb-3 px-3 text-xs font-semibold text-sidebar-foreground/58">
+            {portalName}
+          </p>
+          {nav}
+          <div className="mt-5 border-t border-sidebar-border pt-4">
+            {tourButton}
+          </div>
+        </div>
         <div className="border-t border-sidebar-border p-4">
           <div className="flex items-center gap-3 rounded-2xl bg-sidebar-accent/65 p-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-sm font-bold text-sidebar-primary-foreground">{initials}</span>
@@ -129,6 +168,14 @@ export function PortalSidebar({
           </div>
         </div>
       </aside>
+      <ProductTour
+        key={tour.runId}
+        portalName={portalName}
+        steps={tourSteps}
+        open={tour.open}
+        onOpenChange={tour.setOpen}
+        onComplete={tour.close}
+      />
     </>
   );
 }

@@ -26,6 +26,7 @@ import {
   PortalSidebar,
   type PortalNavItem,
 } from "@/components/portal/portal-sidebar";
+import type { ProductTourStep } from "@/components/portal/product-tour";
 import { useAuth } from "@/context/auth-context";
 import { getNewWebsiteLeadCount } from "@/lib/website-leads";
 
@@ -178,6 +179,105 @@ const items = [
   },
 ];
 
+const salesTour: ProductTourStep[] = [
+  {
+    title: "Start with the sales overview",
+    description:
+      "Use this daily snapshot to see agent applications, listing reviews, published homes, open buyer inquiries, and the commission ledger.",
+    action: { label: "Open sales overview", href: "/admin/sales" },
+  },
+  {
+    title: "Approve agent companies first",
+    description:
+      "New agent companies cannot publish listings until their application and documents have been reviewed and approved here.",
+    action: { label: "Open agent approvals", href: "/admin/agents" },
+  },
+  {
+    title: "Review every property before it is public",
+    description:
+      "Agent listings wait in Listing reviews. Approve a complete, accurate listing to publish it, or return it with a clear reason.",
+    action: { label: "Open listing reviews", href: "/admin/listings" },
+  },
+  {
+    title: "Follow up on buyer conversations",
+    description:
+      "Inquiry oversight shows buyer questions across approved agents. Website leads are separate contact requests from the public site.",
+    action: { label: "Open inquiry oversight", href: "/admin/inquiries" },
+  },
+];
+
+const rentalTour: ProductTourStep[] = [
+  {
+    title: "Start with the rental overview",
+    description:
+      "This is the daily view of occupancy, leases, unpaid rent, maintenance work, and upcoming operational tasks.",
+    action: { label: "Open rental overview", href: "/admin/dashboard" },
+  },
+  {
+    title: "Build the property inventory",
+    description:
+      "Create a rental property, then add its units. Units are what connect residents, leases, rent, and service requests.",
+    action: { label: "Open properties", href: "/admin/properties" },
+  },
+  {
+    title: "Invite residents, then create the lease",
+    description:
+      "Create or invite the tenant before issuing the lease. Starting an active lease automatically marks that unit occupied.",
+    action: { label: "Open tenants", href: "/admin/tenants" },
+  },
+  {
+    title: "Manage rent and owner payouts",
+    description:
+      "Payments tracks rent charges, late fees, and tenant-initiated checkout. Property owners hold the commission rate and secure payout setup.",
+    action: { label: "Open payments", href: "/admin/payments" },
+  },
+  {
+    title: "Keep residents informed",
+    description:
+      "Use Maintenance, Vendors, Messages, and Announcements to coordinate service and communicate with residents.",
+    action: { label: "Open maintenance", href: "/admin/maintenance" },
+  },
+];
+
+const superAdminTour: ProductTourStep[] = [
+  {
+    title: "Begin with sales operations",
+    description:
+      "Sales overview brings together agent applications, listing reviews, buyer inquiries, website leads, and commissions.",
+    action: { label: "Open sales overview", href: "/admin/sales" },
+  },
+  {
+    title: "Approve the right things in the right order",
+    description:
+      "Approve an agent company before it can submit listings. Review each submitted listing before it is published to the public website.",
+    action: { label: "Open agent approvals", href: "/admin/agents" },
+  },
+  {
+    title: "Manage the rental portfolio",
+    description:
+      "Rental overview, Properties, and Units describe the homes Johnson Realty manages. Units connect every property to residents and leases.",
+    action: { label: "Open rental overview", href: "/admin/dashboard" },
+  },
+  {
+    title: "Handle residents, rent, and owner payouts",
+    description:
+      "Invite a tenant, then create the lease. Payments manages rent and late fees, while Property owners stores the management commission and payout setup.",
+    action: { label: "Open tenants", href: "/admin/tenants" },
+  },
+  {
+    title: "Coordinate service and communication",
+    description:
+      "Maintenance, Vendors, Messages, and Announcements keep resident service requests and follow-up organized.",
+    action: { label: "Open maintenance", href: "/admin/maintenance" },
+  },
+  {
+    title: "Use company tools to stay in control",
+    description:
+      "Reports, E-signatures, Email delivery, and Settings provide the cross-company controls you use after operational work is underway.",
+    action: { label: "Open reports", href: "/admin/reports" },
+  },
+];
+
 export function AdminSidebar() {
   const { user, logout } = useAuth();
   const [newLeadCount, setNewLeadCount] = useState(0);
@@ -220,6 +320,12 @@ export function AdminSidebar() {
       : user?.role === "SALES_ADMIN"
         ? "Sales administrator"
         : "Rental administrator";
+  const tourSteps =
+    user?.role === "SALES_ADMIN"
+      ? salesTour
+      : user?.role === "TENANT_ADMIN"
+        ? rentalTour
+        : superAdminTour;
   return (
     <PortalSidebar
       items={visibleItems}
@@ -234,6 +340,8 @@ export function AdminSidebar() {
       userRole={role}
       initials={user?.email?.slice(0, 2).toUpperCase() || "CJ"}
       onLogout={logout}
+      tourId={`admin-${user?.role.toLowerCase() || "staff"}-${user?.id || "unknown"}`}
+      tourSteps={tourSteps}
     />
   );
 }

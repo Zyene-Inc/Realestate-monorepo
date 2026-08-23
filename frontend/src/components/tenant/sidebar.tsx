@@ -15,6 +15,7 @@ import {
   PortalSidebar,
   type PortalNavItem,
 } from "@/components/portal/portal-sidebar";
+import type { ProductTourStep } from "@/components/portal/product-tour";
 import { useAuth } from "@/context/auth-context";
 
 const items: PortalNavItem[] = [
@@ -29,6 +30,33 @@ const items: PortalNavItem[] = [
   { title: "Profile", icon: User, href: "/tenant/profile" },
 ];
 
+const tourSteps: ProductTourStep[] = [
+  {
+    title: "Check your home overview",
+    description:
+      "Start here to see your current rent, lease dates, open maintenance requests, and recent announcements.",
+    action: { label: "Open overview", href: "/tenant/dashboard" },
+  },
+  {
+    title: "Pay rent when you are ready",
+    description:
+      "Rent is never charged automatically. Open Pay rent each time you want to make a tenant-initiated payment.",
+    action: { label: "Open pay rent", href: "/tenant/pay-rent" },
+  },
+  {
+    title: "Request maintenance with details",
+    description:
+      "Use Maintenance to describe the problem, include access instructions, and follow its progress from submission to completion.",
+    action: { label: "Open maintenance", href: "/tenant/maintenance" },
+  },
+  {
+    title: "Keep your records close",
+    description:
+      "Lease, Documents, Messages, Announcements, and Profile keep your rental records and communication in one place.",
+    action: { label: "Open lease", href: "/tenant/lease" },
+  },
+];
+
 export function TenantSidebar() {
   const { user, logout } = useAuth();
   return (
@@ -39,6 +67,8 @@ export function TenantSidebar() {
       userRole="Tenant account"
       initials={user?.email?.slice(0, 2).toUpperCase() || "RE"}
       onLogout={logout}
+      tourId={`tenant-${user?.id || "unknown"}`}
+      tourSteps={tourSteps}
     />
   );
 }

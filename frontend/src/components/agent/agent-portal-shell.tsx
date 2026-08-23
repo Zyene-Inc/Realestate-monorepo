@@ -13,6 +13,7 @@ import {
   PortalSidebar,
   type PortalNavItem,
 } from "@/components/portal/portal-sidebar";
+import type { ProductTourStep } from "@/components/portal/product-tour";
 import { useAuth } from "@/context/auth-context";
 import { navigateToUserPortal } from "@/lib/auth-routing";
 
@@ -22,6 +23,33 @@ const items: PortalNavItem[] = [
   { title: "Documents", icon: FileSignature, href: "/agent/documents" },
   { title: "Company settings", icon: Settings, href: "/agent/settings" },
   { title: "Approval status", icon: ShieldCheck, href: "/agent/status" },
+];
+
+const tourSteps: ProductTourStep[] = [
+  {
+    title: "Create and manage listings",
+    description:
+      "Listings is your working inventory. Save drafts as you prepare property details, photos, and documents.",
+    action: { label: "Open listings", href: "/agent/listings" },
+  },
+  {
+    title: "Submit listings for approval",
+    description:
+      "Submitted listings go to Johnson Realty for review. Only approved listings can appear on the public properties page.",
+    action: { label: "Open listings", href: "/agent/listings" },
+  },
+  {
+    title: "Respond to routed buyer inquiries",
+    description:
+      "Buyer inquiries belong here. Reply promptly, review read status, and keep the conversation focused on the selected property.",
+    action: { label: "Open buyer inquiries", href: "/agent/inquiries" },
+  },
+  {
+    title: "Keep company details current",
+    description:
+      "Documents and Company settings hold the records Johnson Realty uses to keep your company approved and active.",
+    action: { label: "Open company settings", href: "/agent/settings" },
+  },
 ];
 
 export function AgentPortalShell({ children }: { children: React.ReactNode }) {
@@ -57,6 +85,8 @@ export function AgentPortalShell({ children }: { children: React.ReactNode }) {
           .slice(0, 2)
           .toUpperCase()}
         onLogout={logout}
+        tourId={`agent-${user.id}`}
+        tourSteps={tourSteps}
       />
       <main id="main-content" className="portal-main" data-portal-main>
         {children}
