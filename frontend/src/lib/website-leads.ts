@@ -71,3 +71,7 @@ export async function updateWebsiteLeadStatus(
     WebsiteLeadSummary
   >;
 }
+
+export async function deleteWebsiteLead(id: string) {
+  return api.delete(`/admin/website-leads/${id}`) as Promise<{ id: string }>;
+}

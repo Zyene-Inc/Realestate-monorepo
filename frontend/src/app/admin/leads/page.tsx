@@ -1,14 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, Loader2, Mail, Phone } from "lucide-react";
+import { Eye, Loader2, Mail, Phone, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { getErrorMessage } from "@/lib/errors";
 import {
   getWebsiteLead,
+  deleteWebsiteLead,
   leadTime,
   listWebsiteLeads,
   phoneSnippet,
@@ -27,6 +36,8 @@ export default function WebsiteLeadsPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const open = async (id: string) => {
     try {
@@ -79,6 +90,22 @@ export default function WebsiteLeadsPage() {
       toast.error(getErrorMessage(error, "Unable to update lead status"));
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const deleteLead = async () => {
+    if (!selected) return;
+    setDeleting(true);
+    try {
+      await deleteWebsiteLead(selected.id);
+      setItems((current) => current.filter((item) => item.id !== selected.id));
+      setSelected(null);
+      setDeleteDialogOpen(false);
+      toast.success("Website lead deleted");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to delete website lead"));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -184,6 +211,16 @@ export default function WebsiteLeadsPage() {
                       {status}
                     </Button>
                   ))}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                    disabled={updatingStatus || deleting}
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Delete lead
+                  </Button>
                 </div>
               </div>
               <div className="space-y-4 bg-secondary/20 p-6">
@@ -218,6 +255,29 @@ export default function WebsiteLeadsPage() {
           )}
         </Card>
       </div>
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete this website lead?</DialogTitle>
+            <DialogDescription>
+              This permanently removes the selected lead and its contact details
+              from the portal. The deletion is recorded in the company audit
+              log.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter showCloseButton>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleting}
+              onClick={() => void deleteLead()}
+            >
+              {deleting ? <Loader2 className="animate-spin" /> : null}
+              Delete lead
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

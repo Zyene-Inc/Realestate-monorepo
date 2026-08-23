@@ -14,6 +14,7 @@ describe('WebsiteLeadsService', () => {
       websiteLead: {
         create: jest.fn(),
         count: jest.fn(),
+        delete: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
@@ -21,6 +22,7 @@ describe('WebsiteLeadsService', () => {
       auditLog: {
         create: jest.fn(),
       },
+      $transaction: jest.fn(),
     };
   }
 
@@ -175,6 +177,34 @@ describe('WebsiteLeadsService', () => {
     }) as unknown as object;
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
       data: expectedAuditData,
+    });
+  });
+
+  it('deletes a lead and records the administrator who removed it', async () => {
+    const prisma = prismaMock();
+    prisma.$transaction.mockImplementation(
+      (callback: (tx: typeof prisma) => unknown) =>
+        Promise.resolve(callback(prisma)),
+    );
+    prisma.websiteLead.findUnique.mockResolvedValue({ id: 'lead-5' });
+    prisma.websiteLead.delete.mockResolvedValue({ id: 'lead-5' });
+    prisma.auditLog.create.mockResolvedValue({ id: 'audit-5' });
+    const service = new WebsiteLeadsService(prisma as never);
+
+    await expect(service.deleteForAdmin('lead-5', 'admin-1')).resolves.toEqual({
+      id: 'lead-5',
+    });
+    expect(prisma.websiteLead.delete).toHaveBeenCalledWith({
+      where: { id: 'lead-5' },
+      select: { id: true },
+    });
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        userId: 'admin-1',
+        action: 'WEBSITE_LEAD_DELETED',
+        resource: 'website_lead',
+        resourceId: 'lead-5',
+      },
     });
   });
 });

@@ -161,4 +161,28 @@ export class WebsiteLeadsService {
 
     return updated;
   }
+
+  async deleteForAdmin(id: string, actorUserId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.websiteLead.findUnique({
+        where: { id },
+        select: { id: true },
+      });
+      if (!existing) throw new NotFoundException('Website lead not found');
+
+      const lead = await tx.websiteLead.delete({
+        where: { id },
+        select: { id: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          userId: actorUserId,
+          action: 'WEBSITE_LEAD_DELETED',
+          resource: 'website_lead',
+          resourceId: lead.id,
+        },
+      });
+      return lead;
+    });
+  }
 }

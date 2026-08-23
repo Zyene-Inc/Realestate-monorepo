@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -16,6 +17,7 @@ import type { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 import { CursorPageDto } from '../messages/dto/listing-inquiry.dto';
 import { CHATBOT_COOKIE_NAME } from './chatbot.constants';
 import {
@@ -76,5 +78,13 @@ export class AdminWebsiteLeadsController {
     @Body() body: UpdateWebsiteLeadStatusDto,
   ) {
     return this.leads.updateStatus(id, body.status);
+  }
+
+  @Delete(':id')
+  remove(
+    @Param('id') id: string,
+    @Request() request: RequiredAuthenticatedRequest,
+  ) {
+    return this.leads.deleteForAdmin(id, request.user.sub);
   }
 }
