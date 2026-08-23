@@ -60,6 +60,11 @@ export class AdminWebsiteLeadsController {
     return this.leads.listForAdmin(query);
   }
 
+  @Get('unread-count')
+  unreadCount() {
+    return this.leads.getNewCount();
+  }
+
   @Get(':id')
   get(@Param('id') id: string) {
     return this.leads.getForAdmin(id);

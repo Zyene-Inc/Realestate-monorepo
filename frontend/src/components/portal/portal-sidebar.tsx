@@ -15,6 +15,7 @@ export type PortalNavItem = {
   href: string;
   group?: string;
   matchNested?: boolean;
+  badge?: number;
 };
 
 export function PortalSidebar({
@@ -70,6 +71,11 @@ export function PortalSidebar({
                     : "text-sidebar-foreground/68 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 )}
                 aria-current={active ? "page" : undefined}
+                aria-label={
+                  item.badge
+                    ? `${item.title}, ${item.badge} new item${item.badge === 1 ? "" : "s"}`
+                    : undefined
+                }
               >
                 <item.icon
                   className="size-[1.125rem] shrink-0"
@@ -77,6 +83,11 @@ export function PortalSidebar({
                   aria-hidden="true"
                 />
                 <span className="truncate">{item.title}</span>
+                {item.badge ? (
+                  <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 py-0.5 text-[0.6875rem] font-bold leading-none text-destructive-foreground">
+                    {item.badge > 99 ? "99+" : item.badge}
+                  </span>
+                ) : null}
               </Link>
             );
           })}

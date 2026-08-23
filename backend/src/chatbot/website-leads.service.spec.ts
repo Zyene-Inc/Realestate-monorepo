@@ -13,6 +13,7 @@ describe('WebsiteLeadsService', () => {
       },
       websiteLead: {
         create: jest.fn(),
+        count: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
         update: jest.fn(),
@@ -136,6 +137,17 @@ describe('WebsiteLeadsService', () => {
     expect(prisma.websiteLead.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ take: 3 }),
     );
+  });
+
+  it('counts new leads for the navigation badge', async () => {
+    const prisma = prismaMock();
+    prisma.websiteLead.count.mockResolvedValue(4);
+    const service = new WebsiteLeadsService(prisma as never);
+
+    await expect(service.getNewCount()).resolves.toEqual({ count: 4 });
+    expect(prisma.websiteLead.count).toHaveBeenCalledWith({
+      where: { status: WebsiteLeadStatus.NEW },
+    });
   });
 
   it('updates lead status and writes an audit log', async () => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   BarChart3,
   Building2,
@@ -26,6 +27,7 @@ import {
   type PortalNavItem,
 } from "@/components/portal/portal-sidebar";
 import { useAuth } from "@/context/auth-context";
+import { getNewWebsiteLeadCount } from "@/lib/website-leads";
 
 const items = [
   {
@@ -178,12 +180,39 @@ const items = [
 
 export function AdminSidebar() {
   const { user, logout } = useAuth();
+  const [newLeadCount, setNewLeadCount] = useState(0);
+  const canReviewLeads =
+    user?.role === "SUPER_ADMIN" || user?.role === "SALES_ADMIN";
+
+  useEffect(() => {
+    if (!canReviewLeads) return;
+
+    let active = true;
+    const refreshNewLeadCount = async () => {
+      try {
+        const { count } = await getNewWebsiteLeadCount();
+        if (active) setNewLeadCount(count);
+      } catch {
+        // Navigation remains available if the non-critical badge request fails.
+      }
+    };
+
+    void refreshNewLeadCount();
+    const interval = window.setInterval(() => void refreshNewLeadCount(), 30_000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [canReviewLeads]);
+
   const visibleItems = items.filter((item) =>
     user?.role === "SALES_ADMIN"
       ? item.area !== "rent" && item.area !== "super"
       : user?.role === "TENANT_ADMIN"
         ? item.area !== "sales" && item.area !== "super"
         : true,
+  ).map((item) =>
+    item.href === "/admin/leads" ? { ...item, badge: newLeadCount } : item,
   ) as PortalNavItem[];
   const role =
     user?.role === "SUPER_ADMIN"

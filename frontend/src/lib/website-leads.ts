@@ -53,6 +53,12 @@ export async function listWebsiteLeads(cursor?: string) {
   >;
 }
 
+export async function getNewWebsiteLeadCount() {
+  return api.get("/admin/website-leads/unread-count") as Promise<{
+    count: number;
+  }>;
+}
+
 export async function getWebsiteLead(id: string) {
   return api.get(`/admin/website-leads/${id}`) as Promise<WebsiteLeadDetail>;
 }

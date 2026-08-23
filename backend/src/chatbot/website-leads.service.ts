@@ -108,6 +108,13 @@ export class WebsiteLeadsService {
     };
   }
 
+  async getNewCount() {
+    const count = await this.prisma.websiteLead.count({
+      where: { status: WebsiteLeadStatus.NEW },
+    });
+    return { count };
+  }
+
   async getForAdmin(id: string) {
     const lead = await this.prisma.websiteLead.findUnique({
       where: { id },
