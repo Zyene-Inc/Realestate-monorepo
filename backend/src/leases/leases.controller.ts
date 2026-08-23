@@ -15,8 +15,7 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CreateLeaseDto, UpdateLeaseDto } from './dto/lease.dto';
 import { LeasesService } from './leases.service';
-
-type AuthenticatedRequest = { user: { sub: string } };
+import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('admin/leases')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -26,7 +25,7 @@ export class LeasesController {
 
   @Post()
   create(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Body() body: CreateLeaseDto,
   ) {
     return this.leasesService.create(request.user.sub, body);
@@ -44,7 +43,7 @@ export class LeasesController {
 
   @Patch(':id')
   update(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: UpdateLeaseDto,
   ) {
@@ -52,7 +51,10 @@ export class LeasesController {
   }
 
   @Delete(':id')
-  remove(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
+  remove(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.leasesService.remove(request.user.sub, id);
   }
 }

@@ -14,8 +14,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
 import { RecordPaymentDto, UpdatePaymentStatusDto } from './dto/payment.dto';
-
-type AuthenticatedRequest = { user: { sub: string } };
+import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('payments')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -32,7 +31,7 @@ export class PaymentsController {
   @Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN)
   async recordPayment(
     @Body() data: RecordPaymentDto,
-    @Request() req: AuthenticatedRequest,
+    @Request() req: RequiredAuthenticatedRequest,
   ) {
     return this.paymentsService.recordPayment(
       {
@@ -48,7 +47,7 @@ export class PaymentsController {
   async updateStatus(
     @Param('id') id: string,
     @Body() data: UpdatePaymentStatusDto,
-    @Request() req: AuthenticatedRequest,
+    @Request() req: RequiredAuthenticatedRequest,
   ) {
     return this.paymentsService.updatePaymentStatus(id, data, req.user.sub);
   }
@@ -61,7 +60,7 @@ export class PaymentsController {
 
   @Get('my')
   @Roles(Role.TENANT)
-  async getMyPayments(@Request() req: AuthenticatedRequest) {
+  async getMyPayments(@Request() req: RequiredAuthenticatedRequest) {
     const userId = req.user.sub;
     return this.paymentsService.findByUser(userId);
   }

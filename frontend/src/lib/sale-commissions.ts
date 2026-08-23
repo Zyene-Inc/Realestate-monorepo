@@ -101,15 +101,19 @@ export type SaleCommissionReport = {
   }>;
 };
 
+const commissionMoneyFormatter = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 2,
+});
+
+const commissionDateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeZone: "America/Chicago",
+});
+
 export const commissionMoney = (amount: string | number | null) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(Number(amount ?? 0));
+  commissionMoneyFormatter.format(Number(amount ?? 0));
 
 export const commissionDate = (date: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeZone: "America/Chicago",
-  }).format(new Date(date));
+  commissionDateFormatter.format(new Date(date));

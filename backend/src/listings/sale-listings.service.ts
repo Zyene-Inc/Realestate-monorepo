@@ -619,7 +619,7 @@ export class SaleListingsService {
         : data.path;
     const existing = data.kind === 'photo' ? listing.photos : listing.documents;
     if (existing.includes(value)) return listing;
-    const values = existing.includes(value) ? existing : [...existing, value];
+    const values = [...existing, value];
     const wasApproved = listing.listingStatus === ListingStatus.APPROVED;
     const updated = await this.prisma.$transaction(async (tx) => {
       const changed = await tx.property.updateMany({

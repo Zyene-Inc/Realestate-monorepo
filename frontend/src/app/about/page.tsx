@@ -28,7 +28,7 @@ export default function AboutPage() {
 
           <section className="public-container pb-16 sm:pb-24">
             <div className="relative aspect-[4/3] overflow-hidden rounded-[1.75rem] sm:aspect-[16/8]">
-              <Image src="/about_interior.png" alt="Warm, thoughtfully restored apartment interior" fill priority sizes="(min-width: 1440px) 1408px, calc(100vw - 32px)" className="object-cover" />
+              <Image src="/about-interior.png" alt="Warm, thoughtfully restored apartment interior" fill priority sizes="(min-width: 1440px) 1408px, calc(100vw - 32px)" className="object-cover" />
             </div>
           </section>
 

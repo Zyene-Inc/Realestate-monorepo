@@ -18,7 +18,7 @@ import { DirectionalPage } from "@/components/page-transition";
 import { BuyerInquiryPanel } from "@/components/public/buyer-inquiry-panel";
 import { SiteFooter } from "@/components/public/site-footer";
 import { SiteHeader } from "@/components/public/site-header";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";

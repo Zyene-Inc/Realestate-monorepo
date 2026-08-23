@@ -1,14 +1,15 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Building2, MapPin } from "lucide-react";
+import { ArrowRight, Building2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import {
-  ListingRail,
-  type ListingPreview,
-} from "@/components/public/listing-rail";
+import type { ListingPreview } from "@/components/public/listing-rail";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  FeaturedAreas,
+  InventorySection,
+  type Area,
+} from "@/components/public/home-inventory-sections";
 import { api } from "@/lib/api";
 import { rentalPrice, type RentalProperty } from "@/lib/rental-properties";
 import { formatCurrency, type SaleListing } from "@/lib/sale-listings";
@@ -22,15 +23,6 @@ const rentalFallbacks = [
   "/images/coach-johnson/missouri-craftsman.webp",
   "/images/coach-johnson/missouri-home-interior.webp",
 ];
-
-type Area = {
-  key: string;
-  city: string;
-  state: string;
-  saleCount: number;
-  rentalCount: number;
-  completedCount: number;
-};
 
 function listedDate(value?: string | null, prefix = "Listed") {
   if (!value) return "Recently added";
@@ -90,6 +82,40 @@ function rentalPreview(
     bathrooms: unit?.bathrooms ?? property.bathrooms,
     squareFeet: unit?.squareFeet ?? property.squareFeet,
   };
+}
+
+function salePreviews(
+  listings: SaleListing[],
+  selectedArea: string | null,
+  completed: boolean,
+) {
+  const previews: ListingPreview[] = [];
+  for (const listing of listings) {
+    const matchesCompletion = (listing.status === "sold") === completed;
+    const matchesArea =
+      !selectedArea || `${listing.city}, ${listing.state}` === selectedArea;
+    if (matchesCompletion && matchesArea) previews.push(salePreview(listing));
+    if (previews.length === 8) break;
+  }
+  return previews;
+}
+
+function rentalPreviews(
+  properties: RentalProperty[],
+  selectedArea: string | null,
+  completed: boolean,
+) {
+  const previews: ListingPreview[] = [];
+  for (const [index, property] of properties.entries()) {
+    const matchesCompletion = (property.status === "rented") === completed;
+    const matchesArea =
+      !selectedArea || `${property.city}, ${property.state}` === selectedArea;
+    if (matchesCompletion && matchesArea) {
+      previews.push(rentalPreview(property, index));
+    }
+    if (previews.length === 8) break;
+  }
+  return previews;
 }
 
 export function HomeInventory() {
@@ -159,34 +185,12 @@ export function HomeInventory() {
     );
   }, [rentals, sales]);
 
-  const visibleSales = sales
-    .filter(
-      (listing) =>
-        listing.status !== "sold" &&
-        (!selectedArea || `${listing.city}, ${listing.state}` === selectedArea),
-    )
-    .slice(0, 8)
-    .map(salePreview);
-  const visibleRentals = rentals
-    .filter(
-      (property) =>
-        property.status !== "rented" &&
-        (!selectedArea ||
-          `${property.city}, ${property.state}` === selectedArea),
-    )
-    .slice(0, 8)
-    .map(rentalPreview);
+  const visibleSales = salePreviews(sales, selectedArea, false);
+  const visibleRentals = rentalPreviews(rentals, selectedArea, false);
   const completedListings = [
-    ...sales.filter((listing) => listing.status === "sold").map(salePreview),
-    ...rentals
-      .filter((property) => property.status === "rented")
-      .map(rentalPreview),
-  ]
-    .filter(
-      (listing) =>
-        !selectedArea || `${listing.city}, ${listing.state}` === selectedArea,
-    )
-    .slice(0, 8);
+    ...salePreviews(sales, selectedArea, true),
+    ...rentalPreviews(rentals, selectedArea, true),
+  ].slice(0, 8);
   const activeArea = areas.find((area) => area.key === selectedArea) || null;
 
   function selectArea(area: string) {
@@ -233,214 +237,63 @@ export function HomeInventory() {
 
   return (
     <>
-      <section
+      <InventorySection
         id="for-sale"
-        className="scroll-mt-24 border-y border-border bg-card py-20 sm:py-28"
-      >
-        <div className="public-container mb-9 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div>
-            <p className="text-sm font-semibold text-primary">
-              Latest approved homes
-            </p>
-            <h2 className="mt-3 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">
-              Just listed for sale.
-            </h2>
-            <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
-              Fresh properties from approved local agents, reviewed before they
-              reach the public collection.
-            </p>
-          </div>
-          <Link
-            href="/properties"
-            transitionTypes={["nav-forward"]}
-            className="focus-ring inline-flex items-center gap-2 rounded text-sm font-semibold text-foreground hover:text-primary"
-          >
-            Discover all listings{" "}
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </div>
-        <div className="ml-[max(1rem,calc((100vw-88rem)/2))]">
-          <ListingRail
-            listings={visibleSales}
-            emptyMessage={
-              selectedArea
-                ? `No approved sale listings are published in ${selectedArea} right now.`
-                : "New sale listings are in review. Approved homes will appear here automatically."
-            }
-            onAreaSelect={selectArea}
-            ariaLabel="sale listings"
-          />
-        </div>
-      </section>
-
-      <section id="rentals" className="scroll-mt-24 py-20 sm:py-28">
-        <div className="public-container mb-9 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div>
-            <p className="text-sm font-semibold text-primary">Homes for rent</p>
-            <h2 className="mt-3 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">
-              Rent with a local team behind you.
-            </h2>
-            <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
-              Published rental properties with clear addresses, current
-              availability, and a direct path to the management team.
-            </p>
-          </div>
-          <Link
-            href="/contact?intent=rent"
-            transitionTypes={["nav-forward"]}
-            className="focus-ring inline-flex items-center gap-2 rounded text-sm font-semibold text-foreground hover:text-primary"
-          >
-            Ask about a rental{" "}
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </div>
-        <div className="ml-[max(1rem,calc((100vw-88rem)/2))]">
-          <ListingRail
-            listings={visibleRentals}
-            emptyMessage={
-              selectedArea
-                ? `No published rentals are available in ${selectedArea} right now.`
-                : "Rental availability is being updated. Contact the team to share what you need."
-            }
-            onAreaSelect={selectArea}
-            ariaLabel="rental properties"
-          />
-        </div>
-      </section>
-
-      <section
+        bordered
+        eyebrow="Latest approved homes"
+        title="Just listed for sale."
+        description="Fresh properties from approved local agents, reviewed before they reach the public collection."
+        linkHref="/properties"
+        linkLabel="Discover all listings"
+        listings={visibleSales}
+        emptyMessage={
+          selectedArea
+            ? `No approved sale listings are published in ${selectedArea} right now.`
+            : "New sale listings are in review. Approved homes will appear here automatically."
+        }
+        onAreaSelect={selectArea}
+        ariaLabel="sale listings"
+      />
+      <InventorySection
+        id="rentals"
+        eyebrow="Homes for rent"
+        title="Rent with a local team behind you."
+        description="Published rental properties with clear addresses, current availability, and a direct path to the management team."
+        linkHref="/contact?intent=rent"
+        linkLabel="Ask about a rental"
+        listings={visibleRentals}
+        emptyMessage={
+          selectedArea
+            ? `No published rentals are available in ${selectedArea} right now.`
+            : "Rental availability is being updated. Contact the team to share what you need."
+        }
+        onAreaSelect={selectArea}
+        ariaLabel="rental properties"
+      />
+      <InventorySection
         id="recent-results"
-        className="scroll-mt-24 border-y border-border bg-card py-20 sm:py-28"
-      >
-        <div className="public-container mb-9 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div>
-            <p className="text-sm font-semibold text-primary">
-              Completed properties
-            </p>
-            <h2 className="mt-3 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">
-              Recently sold and rented.
-            </h2>
-            <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground">
-              Completed homes stay visible as part of the property record, with
-              their availability stated clearly.
-            </p>
-          </div>
-          <Link
-            href="/contact"
-            transitionTypes={["nav-forward"]}
-            className="focus-ring inline-flex items-center gap-2 rounded text-sm font-semibold text-foreground hover:text-primary"
-          >
-            Work with our team{" "}
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
-        </div>
-        <div className="ml-[max(1rem,calc((100vw-88rem)/2))]">
-          <ListingRail
-            listings={completedListings}
-            emptyMessage={
-              selectedArea
-                ? `No completed properties are recorded in ${selectedArea} yet.`
-                : "Sold and rented property profiles will remain visible here as transactions are completed."
-            }
-            onAreaSelect={selectArea}
-            ariaLabel="completed properties"
-          />
-        </div>
-      </section>
-
-      <section id="featured-areas" className="scroll-mt-24 py-20 sm:py-28">
-        <div className="public-container grid gap-8 lg:grid-cols-[1.08fr_.92fr] lg:items-stretch">
-          <div className="relative min-h-[28rem] overflow-hidden rounded-[1.5rem] lg:min-h-[38rem]">
-            <Image
-              src="/images/coach-johnson/missouri-neighborhood.webp"
-              alt="Established Missouri neighborhood with varied homes and mature trees"
-              fill
-              sizes="(min-width: 1024px) 54vw, 100vw"
-              className="object-cover"
-            />
-          </div>
-          <div className="flex flex-col justify-between rounded-[1.5rem] border border-border bg-background p-7 sm:p-10 lg:p-12">
-            <div>
-              <p className="text-sm font-semibold text-primary">
-                Discover featured areas
-              </p>
-              <h2 className="mt-4 text-4xl font-semibold leading-[1.02] tracking-[-0.05em] sm:text-5xl">
-                Follow the addresses that shape our work.
-              </h2>
-              <p className="mt-5 max-w-lg text-base leading-7 text-muted-foreground">
-                Coverage is drawn directly from currently published sale and
-                rental properties.
-              </p>
-            </div>
-            <div className="mt-10">
-              {areas.length > 0 ? (
-                <div className="grid gap-3">
-                  <button
-                    type="button"
-                    aria-pressed={selectedArea === null}
-                    onClick={() => setSelectedArea(null)}
-                    className={`focus-ring grid min-h-16 grid-cols-[1fr_auto] items-center rounded-xl border px-5 text-left ${selectedArea === null ? "border-primary bg-secondary" : "border-border bg-card hover:border-primary/35"}`}
-                  >
-                    <span className="font-semibold">All published areas</span>
-                    <span className="text-sm text-muted-foreground">
-                      {sales.length + rentals.length} properties
-                    </span>
-                  </button>
-                  {areas.map((area) => (
-                    <button
-                      key={area.key}
-                      type="button"
-                      aria-pressed={selectedArea === area.key}
-                      onClick={() => setSelectedArea(area.key)}
-                      className={`focus-ring grid min-h-16 grid-cols-[1fr_auto] items-center rounded-xl border px-5 text-left ${selectedArea === area.key ? "border-primary bg-secondary" : "border-border bg-card hover:border-primary/35"}`}
-                    >
-                      <span className="flex items-center gap-2 font-semibold">
-                        <MapPin
-                          className="size-4 text-primary"
-                          aria-hidden="true"
-                        />
-                        {area.city}, {area.state}
-                      </span>
-                      <span className="text-sm text-muted-foreground">
-                        {area.saleCount +
-                          area.rentalCount +
-                          area.completedCount}{" "}
-                        properties
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="border-y border-border py-6 text-sm leading-6 text-muted-foreground">
-                  Featured areas will appear as published properties are added.
-                </p>
-              )}
-              <div
-                aria-live="polite"
-                className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3 text-sm"
-              >
-                <p className="text-muted-foreground">
-                  {activeArea
-                    ? `${activeArea.saleCount} for sale, ${activeArea.rentalCount} rentals, ${activeArea.completedCount} completed in ${activeArea.key}`
-                    : "Showing all published areas"}
-                </p>
-                <a
-                  href="#for-sale"
-                  className="focus-ring rounded font-semibold text-foreground hover:text-primary"
-                >
-                  View sale homes
-                </a>
-                <a
-                  href="#rentals"
-                  className="focus-ring rounded font-semibold text-foreground hover:text-primary"
-                >
-                  View rentals
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+        bordered
+        eyebrow="Completed properties"
+        title="Recently sold and rented."
+        description="Completed homes stay visible as part of the property record, with their availability stated clearly."
+        linkHref="/contact"
+        linkLabel="Work with our team"
+        listings={completedListings}
+        emptyMessage={
+          selectedArea
+            ? `No completed properties are recorded in ${selectedArea} yet.`
+            : "Sold and rented property profiles will remain visible here as transactions are completed."
+        }
+        onAreaSelect={selectArea}
+        ariaLabel="completed properties"
+      />
+      <FeaturedAreas
+        areas={areas}
+        activeArea={activeArea}
+        selectedArea={selectedArea}
+        setSelectedArea={setSelectedArea}
+        propertyCount={sales.length + rentals.length}
+      />
     </>
   );
 }

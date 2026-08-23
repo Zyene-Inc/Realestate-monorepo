@@ -6,7 +6,8 @@ import { Clock3, Loader2, LogOut, RefreshCw, ShieldCheck, XCircle } from "lucide
 import { AgentSettings } from "@/components/agent/agent-settings";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/auth-context";

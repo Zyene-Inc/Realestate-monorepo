@@ -15,8 +15,7 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CreateUnitDto, UpdateUnitDto } from './dto/unit.dto';
 import { UnitsService } from './units.service';
-
-type AuthenticatedRequest = { user: { sub: string } };
+import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('admin/units')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -26,7 +25,7 @@ export class UnitsController {
 
   @Post()
   create(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Body() body: CreateUnitDto,
   ) {
     return this.unitsService.create(request.user.sub, body);
@@ -44,7 +43,7 @@ export class UnitsController {
 
   @Patch(':id')
   update(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: UpdateUnitDto,
   ) {
@@ -52,7 +51,10 @@ export class UnitsController {
   }
 
   @Delete(':id')
-  remove(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
+  remove(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.unitsService.remove(request.user.sub, id);
   }
 }

@@ -224,7 +224,6 @@ export class AgentsService {
       this.logger.error(
         `Agent document database reference was removed, but Storage cleanup failed for ${path}: ${error.message}`,
       );
-      throw new BadRequestException(error.message);
     }
     return updated;
   }

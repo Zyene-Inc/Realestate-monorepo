@@ -20,8 +20,7 @@ import {
   AttachRentalPhotoDto,
   CreateRentalPhotoUploadDto,
 } from './dto/rental-property.dto';
-
-type AuthenticatedRequest = { user: { sub: string } };
+import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('admin/properties')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -31,7 +30,7 @@ export class PropertiesController {
 
   @Post()
   create(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Body() createPropertyDto: RentalPropertyDto,
   ) {
     return this.propertiesService.create(request.user.sub, createPropertyDto);
@@ -49,7 +48,7 @@ export class PropertiesController {
 
   @Patch(':id')
   update(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() updatePropertyDto: UpdateRentalPropertyDto,
   ) {
@@ -61,12 +60,18 @@ export class PropertiesController {
   }
 
   @Post(':id/publish')
-  publish(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
+  publish(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.propertiesService.publish(request.user.sub, id);
   }
 
   @Post(':id/unpublish')
-  unpublish(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
+  unpublish(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.propertiesService.unpublish(request.user.sub, id);
   }
 
@@ -80,7 +85,7 @@ export class PropertiesController {
 
   @Post(':id/photos')
   attachPhoto(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: AttachRentalPhotoDto,
   ) {
@@ -88,7 +93,10 @@ export class PropertiesController {
   }
 
   @Delete(':id')
-  remove(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
+  remove(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.propertiesService.remove(request.user.sub, id);
   }
 }

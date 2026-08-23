@@ -100,9 +100,7 @@ export function SignaturePortalPage({
       ) : (
         <div className="grid gap-5">
           {items.map((envelope) => {
-            const canSign = !terminalSignatureStatuses.includes(
-              envelope.status,
-            );
+            const canSign = !terminalSignatureStatuses.has(envelope.status);
             return (
               <Card key={envelope.id} className="rounded-2xl">
                 <CardHeader className="flex-row items-start justify-between gap-4">

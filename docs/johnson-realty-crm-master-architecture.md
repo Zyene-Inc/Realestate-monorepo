@@ -50,7 +50,7 @@ The original plan correctly identified the major missing architecture, but sever
 - `announcements` has a Prisma model and service, but its controller is empty and both announcement pages use static data. `notifications` is only an empty module. Status: **PARTIAL**.
 - `vendors` has a model and service, but its controller is empty and the admin page is static. Status: **PARTIAL**.
 - `documents` is an empty module. Generic tenant document records exist, and completed private-file workflows use Supabase Storage, but no generic tenant-document API or end-to-end UI flow exists. Status: **PARTIAL**.
-- The Stripe package and PaymentIntent fields are present, but payment code explicitly contains future-integration TODOs. The tenant checkout and admin Stripe settings are static mockups. Stripe/Stripe Connect status: **PENDING**.
+- Stripe is not installed and no online payment flow is active. PaymentIntent-compatible database placeholders remain reserved for a future integration, while the tenant checkout and admin Stripe settings are static mockups. Stripe/Stripe Connect status: **PENDING**.
 - Public sale/rental properties, Phase 6 rental-admin screens, and Phase 10 Super Admin reporting use backend data. Some later-phase vendor, announcement, document, and online-payment screens still contain static groundwork.
 - Backend dependencies and frontend dependencies are installed. The backend production build and test suite pass, and the frontend production build passes.
 - The repository's original migration history incorrectly mixed a PostgreSQL Prisma schema with SQLite migration SQL and a SQLite migration lock. The initial migration and lock are normalized to PostgreSQL; the connected Supabase migration history remains authoritative and is mapped to its checked-in SQL sources in the root README.
@@ -288,7 +288,7 @@ Phase score: **3 / 3**. Verified by backend unit tests and `backend/scripts/veri
 - **DONE** — Submitted, resubmitted, approved, and rejected lifecycle emails are wired through Resend.
 - **DONE** — Public Buy/Sell list and detail APIs/UI expose only approved listings and exclude private documents.
 
-Phase score: **5 / 5**. Verified with `backend/scripts/verify-listing-workflow.ts`, Prisma validation, backend and frontend production builds, scoped lint for the Phase 1/3 files, and the connected Supabase project. Repository-wide frontend lint is clean. Repository-wide backend lint is not clean: the August 22 baseline contains 21 errors and 3 warnings in older announcement, payment, vendor, framework-support, and lease-test files outside the completed Phase 1–5 and Phase 7 scope.
+Phase score: **5 / 5**. Verified with `backend/scripts/verify-listing-workflow.ts`, Prisma validation, backend and frontend production builds, scoped lint for the Phase 1/3 files, and the connected Supabase project. The August 23, 2026 full-codebase baseline confirms that repository-wide backend and frontend lint both pass with zero errors and zero warnings.
 
 ### Phase 4 — Buy/Sell Admin Portal — **DONE**
 

@@ -33,8 +33,7 @@ import {
   TenantMessagePageDto,
 } from './dto/tenant-message.dto';
 import { MessagesService } from './messages.service';
-
-type AuthenticatedRequest = { user: { sub: string } };
+import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('tenant/portal/messages')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -44,7 +43,7 @@ export class TenantMessagesController {
 
   @Get()
   get(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Query() query: TenantMessagePageDto,
   ) {
     return this.messages.getForTenant(request.user.sub, query);
@@ -52,14 +51,14 @@ export class TenantMessagesController {
 
   @Post()
   send(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Body() body: SendTenantMessageDto,
   ) {
     return this.messages.sendFromTenant(request.user.sub, body);
   }
 
   @Post('read')
-  read(@Request() request: AuthenticatedRequest) {
+  read(@Request() request: RequiredAuthenticatedRequest) {
     return this.messages.markReadForTenant(request.user.sub);
   }
 }
@@ -85,7 +84,7 @@ export class AdminTenantMessagesController {
 
   @Post(':tenantId')
   send(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('tenantId') tenantId: string,
     @Body() body: SendTenantMessageDto,
   ) {
@@ -94,7 +93,7 @@ export class AdminTenantMessagesController {
 
   @Post(':tenantId/read')
   read(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('tenantId') tenantId: string,
   ) {
     return this.messages.markReadForAdmin(request.user.sub, tenantId);
@@ -164,7 +163,7 @@ export class AgentListingInquiriesController {
 
   @Get()
   list(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Query() query: CursorPageDto,
   ) {
     return this.inquiries.listForAgent(request.user.sub, query);
@@ -172,7 +171,7 @@ export class AgentListingInquiriesController {
 
   @Get(':id')
   get(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Query() query: CursorPageDto,
   ) {
@@ -181,7 +180,7 @@ export class AgentListingInquiriesController {
 
   @Post(':id/read')
   read(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: CursorPageDto,
   ) {
@@ -190,7 +189,7 @@ export class AgentListingInquiriesController {
 
   @Post(':id/messages')
   reply(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: AgentInquiryReplyDto,
   ) {
@@ -199,7 +198,7 @@ export class AgentListingInquiriesController {
 
   @Patch(':id/status')
   status(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: UpdateInquiryStatusDto,
   ) {

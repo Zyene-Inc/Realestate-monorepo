@@ -25,11 +25,13 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: node ../scripts/verify-repository-standards.mjs
+      - run: node ../scripts/verify-migration-ledger.mjs
       - run: npx prisma validate
       - run: npm run build
       - run: npm run lint
       - run: npm run audit:dead-code
-      - run: npm test -- --runInBand
+      - run: npm run test:cov
+      - run: npm run test:e2e
 
   frontend:
     runs-on: ubuntu-latest

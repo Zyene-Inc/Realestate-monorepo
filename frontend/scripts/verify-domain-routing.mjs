@@ -34,6 +34,8 @@ assert.equal(entryPathForPortal("rentalAdmin"), "/admin/login");
 assert.equal(entryPathForPortal("superAdmin"), "/admin/login");
 
 assert.equal(isLocalOrPreviewHostname("localhost:3000"), true);
+assert.equal(isLocalOrPreviewHostname("::1"), true);
+assert.equal(isLocalOrPreviewHostname("[::1]:3000"), true);
 assert.equal(isLocalOrPreviewHostname("branch.vercel.app"), true);
 assert.equal(
   sharedAuthCookieDomain("agents.coachjohnsonrealty.com"),
