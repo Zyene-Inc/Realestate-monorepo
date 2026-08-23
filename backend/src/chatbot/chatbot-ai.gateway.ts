@@ -67,6 +67,11 @@ export class OpenRouterChatbotGateway implements ChatbotAiGateway {
       messages: input.messages,
       maxOutputTokens: 500,
       maxRetries: 1,
+      providerOptions: {
+        openrouter: {
+          reasoning: { exclude: true },
+        },
+      },
       timeout: { totalMs: 30_000, firstChunkMs: 12_000, chunkMs: 10_000 },
       abortSignal: input.abortSignal,
     });
