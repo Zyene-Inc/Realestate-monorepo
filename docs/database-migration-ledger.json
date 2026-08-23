@@ -21,7 +21,8 @@
     { "version": "20260822213828", "name": "complete_phase_9_verdocs_esignatures", "sources": ["supabase/migrations/20260822210321_complete_phase_9_verdocs_esignatures.sql", "backend/prisma/migrations/20260822210321_complete_phase_9_verdocs_esignatures/migration.sql"] },
     { "version": "20260822230722", "name": "complete_phase_10_reporting", "sources": ["supabase/migrations/20260822224826_complete_phase_10_reporting.sql", "backend/prisma/migrations/20260822224826_complete_phase_10_reporting/migration.sql"] },
     { "version": "20260823000305", "name": "complete_phase_11_launch_hardening", "sources": ["supabase/migrations/20260822235105_complete_phase_11_launch_hardening.sql", "backend/prisma/migrations/20260822235105_complete_phase_11_launch_hardening/migration.sql"] },
-    { "version": "20260823000347", "name": "index_remaining_foreign_keys_phase_11", "sources": ["supabase/migrations/20260823000325_index_remaining_foreign_keys_phase_11.sql", "backend/prisma/migrations/20260823000325_index_remaining_foreign_keys_phase_11/migration.sql"] }
+    { "version": "20260823000347", "name": "index_remaining_foreign_keys_phase_11", "sources": ["supabase/migrations/20260823000325_index_remaining_foreign_keys_phase_11.sql", "backend/prisma/migrations/20260823000325_index_remaining_foreign_keys_phase_11/migration.sql"] },
+    { "version": "20260823203635", "name": "complete_rental_billing_workflow", "sources": ["supabase/migrations/20260823193000_complete_rental_billing_workflow.sql", "backend/prisma/migrations/20260823193000_complete_rental_billing_workflow/migration.sql"] }
   ],
   "pending": [
     {
@@ -35,12 +36,6 @@
       "name": "add_tenant_initiated_stripe_rent_payments",
       "sources": ["supabase/migrations/20260823183000_add_tenant_initiated_stripe_rent_payments.sql", "backend/prisma/migrations/20260823183000_add_tenant_initiated_stripe_rent_payments/migration.sql"],
       "reason": "Stripe Connect implementation is validated locally; production application awaits an explicit migration approval and sensitive Vercel configuration."
-    },
-    {
-      "version": "20260823193000",
-      "name": "complete_rental_billing_workflow",
-      "sources": ["supabase/migrations/20260823193000_complete_rental_billing_workflow.sql", "backend/prisma/migrations/20260823193000_complete_rental_billing_workflow/migration.sql"],
-      "reason": "Idempotent monthly rent charges and the protected daily late-fee job are validated locally; production application requires the reviewed Supabase migration before activation."
     }
   ],
   "legacyExceptions": [
