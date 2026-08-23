@@ -52,8 +52,17 @@ export default function AdminOwnersPage() {
     setSubmitting(true);
     try {
       await api.post("/property-owners", {
-        ...form,
+        contactEmail: form.contactEmail.trim(),
         commissionRate: Number(form.commissionRate),
+        ...(form.ownerName.trim()
+          ? { ownerName: form.ownerName.trim() }
+          : {}),
+        ...(form.companyName.trim()
+          ? { companyName: form.companyName.trim() }
+          : {}),
+        ...(form.contactPhone.trim()
+          ? { contactPhone: form.contactPhone.trim() }
+          : {}),
       });
       setForm(emptyOwner);
       await loadOwners();
@@ -138,7 +147,7 @@ export default function AdminOwnersPage() {
               />
             </div>
             <div>
-              <Label htmlFor="owner-phone">Phone</Label>
+              <Label htmlFor="owner-phone">Phone (optional)</Label>
               <Input
                 id="owner-phone"
                 value={form.contactPhone}
@@ -165,7 +174,7 @@ export default function AdminOwnersPage() {
               />
             </div>
             <div className="flex items-end">
-              <Button disabled={submitting}>
+              <Button type="submit" disabled={submitting}>
                 {submitting ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
