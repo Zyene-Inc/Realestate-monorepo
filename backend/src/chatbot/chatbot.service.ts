@@ -57,7 +57,7 @@ const SAFE_FALLBACK_ASSISTANT_MESSAGE =
   'Hi! I can help with Coach Johnson Realty listings, rentals, buying, selling, leasing, property management, showings, and how to contact our team. What would you like to know?';
 
 export function sanitizeAssistantOutput(text: string) {
-  let cleaned = text
+  const cleaned = text
     .replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, '')
     .replace(/```(?:thinking|reasoning)[\s\S]*?```/gi, '')
     .trim();
@@ -73,7 +73,11 @@ export function sanitizeAssistantOutput(text: string) {
     return cleaned;
   }
 
-  const afterFence = cleaned.split(/<\/think>/i).pop()?.trim() ?? '';
+  const afterFence =
+    cleaned
+      .split(/<\/think>/i)
+      .pop()
+      ?.trim() ?? '';
   if (
     afterFence &&
     afterFence !== cleaned &&
@@ -83,7 +87,7 @@ export function sanitizeAssistantOutput(text: string) {
   }
 
   const finalAnswer = cleaned.match(
-    /(?:final answer|visitor-facing answer|reply(?: to the visitor)?)\s*[:\-]\s*([\s\S]+)$/i,
+    /(?:final answer|visitor-facing answer|reply(?: to the visitor)?)\s*[:-]\s*([\s\S]+)$/i,
   );
   if (finalAnswer?.[1]?.trim() && finalAnswer[1].trim().length > 12) {
     return finalAnswer[1].trim();
@@ -134,7 +138,9 @@ export class ChatbotService {
     // Hard-block only clear attacks and clearly unrelated requests. Realty
     // follow-ups, greetings, typos, and booking/contact questions go to the
     // model with conversation history so the assistant can stay helpful.
-    return OUT_OF_SCOPE_REQUEST_PATTERNS.some((pattern) => pattern.test(message));
+    return OUT_OF_SCOPE_REQUEST_PATTERNS.some((pattern) =>
+      pattern.test(message),
+    );
   }
 
   private scopeRefusalGeneration(): ChatbotGeneration {
@@ -150,7 +156,9 @@ export class ChatbotService {
     };
   }
 
-  private sanitizedGeneration(generation: ChatbotGeneration): ChatbotGeneration {
+  private sanitizedGeneration(
+    generation: ChatbotGeneration,
+  ): ChatbotGeneration {
     const completion = generation.completion.then((result) => ({
       ...result,
       text: sanitizeAssistantOutput(result.text),

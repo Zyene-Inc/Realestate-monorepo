@@ -66,7 +66,10 @@ export class AdminWebsiteLeadsController {
   }
 
   @Patch(':id')
-  updateStatus(@Param('id') id: string, @Body() body: UpdateWebsiteLeadStatusDto) {
+  updateStatus(
+    @Param('id') id: string,
+    @Body() body: UpdateWebsiteLeadStatusDto,
+  ) {
     return this.leads.updateStatus(id, body.status);
   }
 }

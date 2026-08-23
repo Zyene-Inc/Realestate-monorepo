@@ -1,8 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import {
-  WebsiteLeadSource,
-  WebsiteLeadStatus,
-} from '@prisma/client';
+import { WebsiteLeadSource, WebsiteLeadStatus } from '@prisma/client';
 import { WebsiteLeadsService } from './website-leads.service';
 
 describe('WebsiteLeadsService', () => {
@@ -68,24 +65,27 @@ describe('WebsiteLeadsService', () => {
 
     expect(result).toEqual({ id: 'lead-1', status: WebsiteLeadStatus.NEW });
     expect(prisma.chatConversation.findFirst).not.toHaveBeenCalled();
+    const anyString = expect.any(String) as unknown as string;
+    const expectedLeadData = expect.objectContaining({
+      email: 'buyer@example.com',
+      phone: '555-0100',
+      message: 'Please call me about rentals.',
+      source: WebsiteLeadSource.CHATBOT,
+      status: WebsiteLeadStatus.NEW,
+      conversationId: undefined,
+      visitorDayHash: anyString,
+    }) as unknown as object;
     expect(prisma.websiteLead.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        email: 'buyer@example.com',
-        phone: '555-0100',
-        message: 'Please call me about rentals.',
-        source: WebsiteLeadSource.CHATBOT,
-        status: WebsiteLeadStatus.NEW,
-        conversationId: undefined,
-        visitorDayHash: expect.any(String),
-      }),
+      data: expectedLeadData,
       select: { id: true, status: true },
     });
+    const expectedAuditData = expect.objectContaining({
+      action: 'PUBLIC_CHATBOT_LEAD_CREATED',
+      resource: 'website_lead',
+      resourceId: 'lead-1',
+    }) as unknown as object;
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        action: 'PUBLIC_CHATBOT_LEAD_CREATED',
-        resource: 'website_lead',
-        resourceId: 'lead-1',
-      }),
+      data: expectedAuditData,
     });
   });
 
@@ -111,10 +111,11 @@ describe('WebsiteLeadsService', () => {
     );
 
     expect(prisma.chatConversation.findFirst).toHaveBeenCalled();
+    const expectedLeadData = expect.objectContaining({
+      conversationId: 'conv-1',
+    }) as unknown as object;
     expect(prisma.websiteLead.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        conversationId: 'conv-1',
-      }),
+      data: expectedLeadData,
       select: { id: true, status: true },
     });
   });
@@ -156,11 +157,12 @@ describe('WebsiteLeadsService', () => {
     );
 
     expect(updated.status).toBe(WebsiteLeadStatus.CONTACTED);
+    const expectedAuditData = expect.objectContaining({
+      action: 'WEBSITE_LEAD_STATUS_UPDATED',
+      resourceId: 'lead-4',
+    }) as unknown as object;
     expect(prisma.auditLog.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        action: 'WEBSITE_LEAD_STATUS_UPDATED',
-        resourceId: 'lead-4',
-      }),
+      data: expectedAuditData,
     });
   });
 });

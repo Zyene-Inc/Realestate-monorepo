@@ -6,7 +6,6 @@ import "@verdocs/web-sdk-react/dist/overrides.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/auth-context";
-import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { PublicChatbot } from "@/components/public/public-chatbot";
 
@@ -53,7 +52,6 @@ export default function RootLayout({
             {children}
             <PublicChatbot />
             <Toaster />
-            <Analytics />
             <SpeedInsights />
           </ThemeProvider>
         </AuthProvider>
