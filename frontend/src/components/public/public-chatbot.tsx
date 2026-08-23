@@ -19,11 +19,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  CHATBOT_LEAD_FORM_THRESHOLD,
+  CHATBOT_LEAD_SUBMITTED_KEY,
   chatbotHistory,
   chatbotStatus,
+  hasChatbotBookingIntent,
+  isChatbotDailyLimitError,
   streamChatbotReply,
+  submitWebsiteLead,
   type ChatbotMessage,
 } from "@/lib/chatbot";
 import { canonicalPortalForPath } from "@/lib/portal-paths";
@@ -71,6 +77,18 @@ function publicChatAllowed(pathname: string) {
   return portal === "public" || isLocalOrPreviewHostname(hostname);
 }
 
+function countUserMessages(messages: ChatbotMessage[]) {
+  return messages.filter((message) => message.role === "USER").length;
+}
+
+function leadAlreadySubmitted() {
+  try {
+    return sessionStorage.getItem(CHATBOT_LEAD_SUBMITTED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function PublicChatbot() {
   const pathname = usePathname();
   const publicRoute = canonicalPortalForPath(pathname) === null;
@@ -80,6 +98,13 @@ export function PublicChatbot() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showLeadForm, setShowLeadForm] = useState(false);
+  const [leadSubmitted, setLeadSubmitted] = useState(() => leadAlreadySubmitted());
+  const [leadEmail, setLeadEmail] = useState("");
+  const [leadPhone, setLeadPhone] = useState("");
+  const [leadMessage, setLeadMessage] = useState("");
+  const [leadBusy, setLeadBusy] = useState(false);
+  const [leadError, setLeadError] = useState<string | null>(null);
   const messageEnd = useRef<HTMLDivElement>(null);
   const activeRequest = useRef<AbortController | null>(null);
 
@@ -92,6 +117,12 @@ export function PublicChatbot() {
         setAvailable(true);
         const history = await chatbotHistory(controller.signal);
         setMessages(history.items);
+        if (
+          !leadAlreadySubmitted() &&
+          countUserMessages(history.items) >= CHATBOT_LEAD_FORM_THRESHOLD
+        ) {
+          setShowLeadForm(true);
+        }
       })
       .catch(() => {
         setAvailable(false);
@@ -101,7 +132,7 @@ export function PublicChatbot() {
 
   useEffect(() => {
     messageEnd.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, open]);
+  }, [messages, open, showLeadForm, leadSubmitted]);
 
   useEffect(
     () => () => {
@@ -109,6 +140,17 @@ export function PublicChatbot() {
     },
     [],
   );
+
+  function maybeShowLeadForm(message: string, currentMessages: ChatbotMessage[]) {
+    if (leadSubmitted || leadAlreadySubmitted()) return;
+    if (hasChatbotBookingIntent(message)) {
+      setShowLeadForm(true);
+      return;
+    }
+    if (countUserMessages(currentMessages) >= CHATBOT_LEAD_FORM_THRESHOLD) {
+      setShowLeadForm(true);
+    }
+  }
 
   if (!publicRoute || !available) return null;
 
@@ -118,8 +160,8 @@ export function PublicChatbot() {
     const now = new Date().toISOString();
     const userId = crypto.randomUUID();
     const assistantId = crypto.randomUUID();
-    setMessages((current) => [
-      ...current,
+    const nextMessages: ChatbotMessage[] = [
+      ...messages,
       { id: userId, role: "USER", content: value, createdAt: now },
       {
         id: assistantId,
@@ -127,7 +169,9 @@ export function PublicChatbot() {
         content: "",
         createdAt: now,
       },
-    ]);
+    ];
+    setMessages(nextMessages);
+    maybeShowLeadForm(value, nextMessages);
     setInput("");
     setError(null);
     setBusy(true);
@@ -150,11 +194,14 @@ export function PublicChatbot() {
       });
     } catch (caught) {
       if (!controller.signal.aborted) {
-        setError(
+        const messageText =
           caught instanceof Error
             ? caught.message
-            : "The assistant is temporarily unavailable.",
-        );
+            : "The assistant is temporarily unavailable.";
+        setError(messageText);
+        if (isChatbotDailyLimitError(messageText)) {
+          setShowLeadForm(true);
+        }
         setMessages((current) =>
           current.filter(
             (item) => item.id !== assistantId || item.content.length > 0,
@@ -164,6 +211,47 @@ export function PublicChatbot() {
     } finally {
       if (activeRequest.current === controller) activeRequest.current = null;
       setBusy(false);
+    }
+  }
+
+  async function submitLead(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (leadBusy || leadSubmitted) return;
+    setLeadError(null);
+    setLeadBusy(true);
+    try {
+      await submitWebsiteLead({
+        email: leadEmail.trim(),
+        phone: leadPhone.trim() || undefined,
+        message: leadMessage.trim(),
+        website: "",
+      });
+      try {
+        sessionStorage.setItem(CHATBOT_LEAD_SUBMITTED_KEY, "1");
+      } catch {
+        // sessionStorage may be unavailable in restricted contexts.
+      }
+      setLeadSubmitted(true);
+      setShowLeadForm(false);
+      const now = new Date().toISOString();
+      setMessages((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          role: "ASSISTANT",
+          content:
+            "Thanks — your message is with our sales team. Someone from Johnson Realty will follow up soon.",
+          createdAt: now,
+        },
+      ]);
+    } catch (caught) {
+      setLeadError(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to submit your request.",
+      );
+    } finally {
+      setLeadBusy(false);
     }
   }
 
@@ -220,8 +308,8 @@ export function PublicChatbot() {
             <div className="max-w-[85%] rounded-2xl rounded-tl-sm border bg-card px-3.5 py-2.5">
               <p className="text-sm leading-6">
                 Hi, I’m Johnson Realty’s AI assistant. I can help you explore
-                public listings or explain how our services work. I can’t
-                answer general questions outside Coach Johnson Realty.
+                public listings or explain how our services work. I can’t answer
+                general questions outside Coach Johnson Realty.
               </p>
             </div>
           </div>
@@ -291,6 +379,78 @@ export function PublicChatbot() {
               for human help.
             </div>
           )}
+          {showLeadForm && !leadSubmitted && (
+            <form
+              className="rounded-2xl border bg-card p-4 shadow-sm"
+              onSubmit={(event) => void submitLead(event)}
+            >
+              <p className="text-sm font-semibold">
+                Book a conversation with Johnson Realty
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Share your contact details and our sales team will follow up.
+              </p>
+              <div className="mt-3 space-y-2">
+                <Input
+                  aria-label="Email"
+                  autoComplete="email"
+                  disabled={leadBusy}
+                  onChange={(event) => setLeadEmail(event.target.value)}
+                  placeholder="Email"
+                  required
+                  type="email"
+                  value={leadEmail}
+                />
+                <Input
+                  aria-label="Phone"
+                  autoComplete="tel"
+                  disabled={leadBusy}
+                  onChange={(event) => setLeadPhone(event.target.value)}
+                  placeholder="Phone (optional)"
+                  type="tel"
+                  value={leadPhone}
+                />
+                <Textarea
+                  aria-label="Message"
+                  className="min-h-20 resize-none text-sm"
+                  disabled={leadBusy}
+                  maxLength={4000}
+                  onChange={(event) => setLeadMessage(event.target.value)}
+                  placeholder="What would you like to discuss?"
+                  required
+                  rows={3}
+                  value={leadMessage}
+                />
+                <input
+                  aria-hidden="true"
+                  className="hidden"
+                  name="website"
+                  tabIndex={-1}
+                  type="text"
+                  value=""
+                  readOnly
+                />
+              </div>
+              {leadError && (
+                <p className="mt-2 text-xs text-destructive">{leadError}</p>
+              )}
+              <Button
+                className="mt-3 w-full"
+                disabled={
+                  leadBusy ||
+                  leadEmail.trim().length === 0 ||
+                  leadMessage.trim().length < 5
+                }
+                type="submit"
+              >
+                {leadBusy ? (
+                  <LoaderCircle className="size-4 animate-spin" />
+                ) : (
+                  "Send to Johnson Realty"
+                )}
+              </Button>
+            </form>
+          )}
           <div ref={messageEnd} />
         </div>
 
@@ -322,9 +482,9 @@ export function PublicChatbot() {
             </Button>
           </div>
           <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
-            Coach Johnson Realty topics only. AI can make mistakes. Don’t
-            share financial or identity details. Chats expire after 30 days.
-            For decisions, speak with a licensed professional.
+            Coach Johnson Realty topics only. AI can make mistakes. Don’t share
+            financial or identity details. Chats expire after 30 days. For
+            decisions, speak with a licensed professional.
           </p>
         </form>
       </DialogContent>

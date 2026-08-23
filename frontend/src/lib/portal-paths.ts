@@ -5,6 +5,7 @@ const salesPaths = [
   "/admin/agents",
   "/admin/listings",
   "/admin/inquiries",
+  "/admin/leads",
 ];
 
 const rentalPaths = [

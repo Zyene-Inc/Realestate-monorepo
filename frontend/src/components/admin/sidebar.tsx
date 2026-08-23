@@ -53,6 +53,12 @@ const items = [
     area: "sales",
   },
   {
+    title: "Website leads",
+    icon: MailCheck,
+    href: "/admin/leads",
+    area: "sales",
+  },
+  {
     title: "Commission ledger",
     icon: ReceiptText,
     href: "/admin/sales/commissions",

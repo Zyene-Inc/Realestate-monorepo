@@ -120,3 +120,44 @@ export async function streamChatbotReply(input: {
   if (buffer.trim()) consume(buffer);
   if (streamError) throw new Error(streamError);
 }
+
+export type SubmitWebsiteLeadInput = {
+  email: string;
+  phone?: string;
+  message: string;
+  website?: string;
+};
+
+export async function submitWebsiteLead(input: SubmitWebsiteLeadInput) {
+  const response = await fetch(`${API_URL}/public/chatbot/leads`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      email: input.email,
+      phone: input.phone,
+      message: input.message,
+      website: input.website ?? "",
+    }),
+  });
+  if (!response.ok) throw new Error(await responseError(response));
+  return (await response.json()) as { id: string; status: string };
+}
+
+export const CHATBOT_LEAD_FORM_THRESHOLD = 6;
+export const CHATBOT_LEAD_SUBMITTED_KEY = "jr_chatbot_lead_submitted";
+export const CHATBOT_BOOKING_INTENT_PATTERN =
+  /\b(book|schedule|tour|showing|appointment|contact)\b/i;
+
+export function hasChatbotBookingIntent(message: string) {
+  return CHATBOT_BOOKING_INTENT_PATTERN.test(message);
+}
+
+export function isChatbotDailyLimitError(message: string) {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("chat limit") ||
+    normalized.includes("free-model limit") ||
+    normalized.includes("too many requests")
+  );
+}
