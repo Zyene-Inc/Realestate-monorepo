@@ -64,4 +64,13 @@ export class PaymentsController {
     const userId = req.user.sub;
     return this.paymentsService.findByUser(userId);
   }
+
+  @Post(':id/checkout')
+  @Roles(Role.TENANT)
+  startTenantCheckout(
+    @Param('id') id: string,
+    @Request() req: RequiredAuthenticatedRequest,
+  ) {
+    return this.paymentsService.startTenantCheckout(req.user.sub, id);
+  }
 }

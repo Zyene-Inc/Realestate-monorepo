@@ -43,6 +43,13 @@ export function validateEnvironment(config: Record<string, unknown>) {
   if (value(config, 'CHATBOT_ENABLED').toLowerCase() === 'true') {
     required.push('OPENROUTER_API_KEY', 'CHATBOT_FINGERPRINT_SECRET');
   }
+  if (value(config, 'STRIPE_RENT_PAYMENTS_ENABLED').toLowerCase() === 'true') {
+    required.push(
+      'STRIPE_SECRET_KEY',
+      'STRIPE_WEBHOOK_SECRET',
+      'STRIPE_CONNECT_WEBHOOK_SECRET',
+    );
+  }
   const missing = required.filter((key) => !value(config, key));
   if (missing.length > 0) {
     throw new Error(
@@ -118,6 +125,23 @@ export function validateEnvironment(config: Record<string, unknown>) {
       openRouterKey.length < 20
     ) {
       throw new Error('OPENROUTER_API_KEY is not a usable OpenRouter API key');
+    }
+  }
+
+  if (value(config, 'STRIPE_RENT_PAYMENTS_ENABLED').toLowerCase() === 'true') {
+    const stripeKey = value(config, 'STRIPE_SECRET_KEY');
+    if (!/^(rk|sk)_live_/.test(stripeKey)) {
+      throw new Error(
+        'STRIPE_SECRET_KEY must be a live restricted or secret Stripe key when rent payments are enabled',
+      );
+    }
+    if (!value(config, 'STRIPE_WEBHOOK_SECRET').startsWith('whsec_')) {
+      throw new Error('STRIPE_WEBHOOK_SECRET must be a Stripe webhook secret');
+    }
+    if (!value(config, 'STRIPE_CONNECT_WEBHOOK_SECRET').startsWith('whsec_')) {
+      throw new Error(
+        'STRIPE_CONNECT_WEBHOOK_SECRET must be a Stripe webhook secret',
+      );
     }
   }
 

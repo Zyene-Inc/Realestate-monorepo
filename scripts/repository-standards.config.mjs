@@ -22,9 +22,9 @@ export const repositoryStandards = {
         "Cohesive append-only manual commission ledger with correction, voiding, attribution, pagination, reporting, and audit rules.",
     },
     "backend/src/payments/payments.service.ts": {
-      maxLines: 550,
+      maxLines: 1100,
       reason:
-        "Cohesive manual rent ledger with idempotent receipt, correction, refund, allocation, owner snapshot, and audit behavior.",
+        "Cohesive rent-payment aggregate with idempotent ledger updates, Stripe checkout settlement, connected-owner proceeds, webhook replay protection, and audit behavior.",
     },
     "backend/src/properties/properties.service.ts": {
       maxLines: 550,

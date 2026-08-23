@@ -50,7 +50,7 @@ The original plan correctly identified the major missing architecture, but sever
 - `announcements` has a Prisma model and service, but its controller is empty and both announcement pages use static data. `notifications` is only an empty module. Status: **PARTIAL**.
 - `vendors` has a model and service, but its controller is empty and the admin page is static. Status: **PARTIAL**.
 - `documents` is an empty module. Generic tenant document records exist, and completed private-file workflows use Supabase Storage, but no generic tenant-document API or end-to-end UI flow exists. Status: **PARTIAL**.
-- Stripe is not installed and no online payment flow is active. PaymentIntent-compatible database placeholders remain reserved for a future integration, while the tenant checkout and admin Stripe settings are static mockups. Stripe/Stripe Connect status: **PENDING**.
+- Tenant-initiated Stripe Checkout and Stripe Connect destination-charge code are implemented behind a disabled production feature flag. Rental Admin can set an owner-specific commission and send Stripe-hosted payout onboarding; verified webhooks persist payment, transfer, refund, dispute, and account-capability state. Production migration, restricted Vercel key, webhook registration, and controlled live verification remain required before activation. Stripe/Stripe Connect status: **READY TO ACTIVATE, NOT LIVE**.
 - Public sale/rental properties, Phase 6 rental-admin screens, and Phase 10 Super Admin reporting use backend data. Some later-phase vendor, announcement, document, and online-payment screens still contain static groundwork.
 - Backend dependencies and frontend dependencies are installed. The backend production build and test suite pass, and the frontend production build passes.
 - The repository's original migration history incorrectly mixed a PostgreSQL Prisma schema with SQLite migration SQL and a SQLite migration lock. The initial migration and lock are normalized to PostgreSQL; the connected Supabase migration history remains authoritative and is mapped to its checked-in SQL sources in the root README.
@@ -73,7 +73,7 @@ The vertical split is **DONE for Phases 1–8 and Phases 10–11**: buy/sell app
 | Johnson Realty main admin / `SUPER_ADMIN` | **DONE through Phase 11** — cross-vertical portal access, agent-chat oversight, filtered audit history, operational/financial/owner reporting, email oversight, and production hardening are live. Phase 6.5 payouts and Phase 9 legal/provider activation remain separate. |
 | Sub-agent company / `AGENT`               | **DONE for the current company model** — role, signup, approval, protected listing workspace, company settings, private documents, listing workflow, and buyer messaging are live. Multi-user company membership is not yet modeled.          |
 | Buyer/prospect                            | **PARTIAL** — sale listing inquiries and replies are live; rental prospect/application workflows remain pending.                                                                                                                              |
-| Property owner                            | **PARTIAL** — owner model and rental-property relationship exist; management UI and payout onboarding do not.                                                                                                                                 |
+| Property owner                            | **READY TO ACTIVATE** — Rental Admin/Super Admin can manage owner commission rates and send payout onboarding; the connected account capability webhook gates online rent collection until the owner is active. Production activation remains pending. |
 | Tenant admin staff / `TENANT_ADMIN`       | **DONE for Phase 6** — dedicated rental dashboard, properties, units, tenants, leases, maintenance, and shared tenant inbox are API-backed and role-protected.                                                                                |
 | Tenant                                    | **DONE for Phase 6** — invited-only authentication, active lease/dashboard, maintenance with photos, completion confirmation, and direct management messaging are live; later document/announcement/payment work remains.                     |
 
@@ -128,9 +128,9 @@ Generic auth, storage, email, message, and audit services support both completed
 | Manual payment ledger/history                                 | **DONE as a foundation** | Payment records, status updates, overdue lookup, audit events, and tenant history exist. This is not online rent collection.                                                                           |
 | Direct rental property publishing                             | **DONE**                 | Rental Admin/Super Admin manage draft/published/unpublished rentals, signed photos, public visibility, and live public rental pages without a sales-style approval gate.                               |
 | Property owner entity and property ownership linkage          | **DONE as a foundation** | `PropertyOwner`, payout state, commission rate, owner/property relation, and seeded owner linkage exist.                                                                                               |
-| Owner Stripe Connect onboarding and payout status             | **PENDING**              |
-| Block rent collection until owner payout setup is active      | **PENDING**              |
-| Destination charges and commission split                      | **PENDING**              |
+| Owner Stripe Connect onboarding and payout status             | **READY TO ACTIVATE**    |
+| Block rent collection until owner payout setup is active      | **READY TO ACTIVATE**    |
+| Destination charges and commission split                      | **READY TO ACTIVATE**    |
 | Owner-attributed manual payment ledger/reporting              | **DONE for Phase 10**    | Paid/partial rent entries snapshot the owner, management rate, Johnson Realty commission, and owner proceeds; this does not execute or confirm an owner payout.                                        |
 | Tenant documents, chat, announcements, and autopay end to end | **PARTIAL**              | Tenant chat is complete; documents, announcements, and autopay remain later-phase work.                                                                                                                |
 
@@ -139,18 +139,18 @@ Generic auth, storage, email, message, and audit services support both completed
 | Requirement                                                   | Status                                                                                                                                                     |
 | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Manual rent payment ledger                                    | **DONE as a foundation**                                                                                                                                   |
-| Tenant card/ACH collection                                    | **PENDING**                                                                                                                                                |
-| Rent-side Stripe Connect owner onboarding                     | **PENDING**                                                                                                                                                |
-| Rent-side destination charge with `transfer_data.destination` | **PENDING**                                                                                                                                                |
-| Johnson Realty fee with `application_fee_amount`              | **PENDING**                                                                                                                                                |
-| Payment attribution to property owner and net payout          | **PENDING**                                                                                                                                                |
-| Webhook processing                                            | **PENDING**                                                                                                                                                |
+| Tenant one-time card/ACH collection                           | **READY TO ACTIVATE** — tenant explicitly starts every Stripe-hosted Checkout Session; no automatic debit is implemented.                                   |
+| Rent-side Stripe Connect owner onboarding                     | **READY TO ACTIVATE** — admin commission controls and owner invitation flow are implemented.                                                               |
+| Rent-side destination charge with `transfer_data.destination` | **READY TO ACTIVATE** — owner proceeds route automatically to the connected account after payment succeeds.                                                |
+| Johnson Realty fee with `application_fee_amount`              | **READY TO ACTIVATE** — exact owner commission snapshot is supplied in the destination charge.                                                            |
+| Payment attribution to property owner and net payout          | **READY TO ACTIVATE** — payment records snapshot the owner, rate, retained commission, and proceeds.                                                     |
+| Webhook processing                                            | **READY TO ACTIVATE** — raw-body signature validation, replay protection, audit logging, payment/refund/dispute/account transitions.                      |
 | Home purchase, loan, escrow, or closing-payment processing    | **OUT OF SCOPE** — handled outside the CRM by the applicable lenders, title/closing parties, and financial institutions.                                   |
 | Manual buy/sell commission ledger                             | **DONE** — authorized Sales/Super Admin staff record commission income after receipt against an approved listing marked sold; no Stripe charge is created. |
 
 The manual sale commission record should include the closed property/listing, responsible agent, optional sale price, commission amount, date received, payment method (`ACH`, `CASH`, `CHECK`, `WIRE`, or `OTHER`), optional reference number, notes, recording admin, timestamps, and an auditable void/correction path. The CRM must not collect buyer bank, loan, escrow, or full purchase-payment details.
 
-The `stripe` dependency, `stripePaymentIntentId` placeholder, Stripe-branded UI, and comments for future endpoints are not counted as payment integration.
+The payment implementation is disabled until its reviewed Supabase migration, Stripe webhook, and sensitive Vercel configuration are in place. See [Stripe rental payments](stripe-rental-payments.md) for the activation checklist.
 
 ## Part 6 — Email Architecture
 

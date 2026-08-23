@@ -9,6 +9,7 @@
     "node": "22.x"
   },
   "scripts": {
+    "prebuild": "node ../scripts/verify-repository-standards.mjs",
     "build": "nest build",
     "audit:dead-code": "knip",
     "postinstall": "prisma generate",

@@ -74,9 +74,16 @@ Configure these production environment variables in Vercel:
 - `CHATBOT_ENABLED`: keep `false` until the chatbot migration and key are present; then set `true`.
 - `OPENROUTER_API_KEY`: server-only OpenRouter key. Never add this to the web project or use a `NEXT_PUBLIC_` prefix.
 - `CHATBOT_FINGERPRINT_SECRET`: server-only random value of at least 32 characters, generated independently from every other secret (for example, `openssl rand -hex 32`).
-- Stripe variables when that future module is enabled. Existing file workflows use the configured Supabase project and require no S3 credentials.
+- `STRIPE_RENT_PAYMENTS_ENABLED`: set to `true` only after the reviewed rental-payment migration and Stripe webhook are live; otherwise keep `false`.
+- `STRIPE_SECRET_KEY`: sensitive server-only restricted live Stripe key (`rk_live_` preferred). Never expose this to the web project.
+- `STRIPE_WEBHOOK_SECRET`: sensitive server-only `whsec_` value for `/api/stripe/webhook`.
+- `STRIPE_CONNECT_WEBHOOK_SECRET`: sensitive server-only `whsec_` value for `/api/stripe/connect-webhook`; never reuse the Snapshot destination secret.
 
 Do not run Prisma migrations as part of every Vercel build. Apply reviewed migrations to Supabase separately, then deploy the generated application code.
+
+### Rental payments and owner payouts
+
+The rent flow is tenant-initiated only: the portal creates a one-time Stripe-hosted Checkout Session after a tenant explicitly clicks pay. It does not store a payment method or create a subscription/off-session debit. A destination charge automatically places owner proceeds in the owner’s Stripe Connect balance while Johnson Realty retains the owner-specific management commission. Configure the Snapshot payment destination at `https://coach-johnson-realty-api-nu.vercel.app/api/stripe/webhook` and the separate Accounts v2 Thin capability destination at `https://coach-johnson-realty-api-nu.vercel.app/api/stripe/connect-webhook`, as documented in [Stripe rental payments](stripe-rental-payments.md). Apply `20260823183000_add_tenant_initiated_stripe_rent_payments.sql` before setting the feature flag to `true`.
 
 ### Public chatbot activation
 

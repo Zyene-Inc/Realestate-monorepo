@@ -25,6 +25,8 @@ import { CommissionsModule } from './commissions/commissions.module';
 import { ESignaturesModule } from './e-signatures/e-signatures.module';
 import { ReportsModule } from './reports/reports.module';
 import { ChatbotModule } from './chatbot/chatbot.module';
+import { StripeModule } from './stripe/stripe.module';
+import { PropertyOwnersModule } from './property-owners/property-owners.module';
 
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -39,8 +41,10 @@ import { APP_GUARD } from '@nestjs/core';
       },
     ]),
     PrismaModule,
+    StripeModule,
     AuthModule,
     PropertiesModule,
+    PropertyOwnersModule,
     UnitsModule,
     TenantsModule,
     LeasesModule,

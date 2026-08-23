@@ -1,4 +1,8 @@
-import { PaymentStatus, Prisma } from '@prisma/client';
+import {
+  PaymentStatus,
+  Prisma,
+  PropertyOwnerPayoutStatus,
+} from '@prisma/client';
 import { PaymentsService } from './payments.service';
 
 describe('PaymentsService owner attribution', () => {
@@ -158,5 +162,160 @@ describe('PaymentsService owner attribution', () => {
     expect(data.managementCommissionAmount.toFixed(2)).toBe('200.00');
     expect(data.ownerProceedsAmount.toFixed(2)).toBe('1800.00');
     expect(data.paidAt).toBe(paidAt);
+  });
+
+  it('creates a tenant-initiated one-time Checkout with the owner commission', async () => {
+    const payment = {
+      id: 'payment-1',
+      status: PaymentStatus.PENDING,
+      balanceDue: 1200,
+      paidAmount: 0,
+      ownerCommissionRate: null,
+      updatedAt: new Date('2026-08-23T12:00:00.000Z'),
+      stripeCheckoutStatus: 'NOT_STARTED',
+      stripeCheckoutUrl: null,
+      stripeCheckoutExpiresAt: null,
+      tenant: { email: 'tenant@example.com' },
+      unit: {
+        property: {
+          name: 'Oakwood Place',
+          owner: {
+            id: 'owner-1',
+            commissionRate: new Prisma.Decimal('12.50'),
+            stripeConnectedAccountId: 'acct_owner_1',
+            payoutStatus: 'ACTIVE',
+          },
+        },
+      },
+    };
+    const checkout = {
+      id: 'cs_test_123',
+      url: 'https://checkout.stripe.com/c/pay/cs_test_123',
+      expires_at: 1_788_000_000,
+    };
+    const tx = {
+      payment: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          ...payment,
+          stripeCheckoutExpiresAt: new Date(checkout.expires_at * 1000),
+        }),
+      },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      payment: { findFirst: jest.fn().mockResolvedValue(payment) },
+      $transaction: jest.fn(
+        async (callback: (client: typeof tx) => Promise<unknown>) =>
+          callback(tx),
+      ),
+    };
+    const stripe = {
+      createCheckoutSession: jest.fn().mockResolvedValue(checkout),
+    };
+    const emails = { sendPaymentRecorded: jest.fn().mockResolvedValue({}) };
+
+    const result = await new PaymentsService(
+      prisma as never,
+      emails as never,
+      stripe as never,
+    ).startTenantCheckout('user-1', 'payment-1');
+
+    expect(stripe.createCheckoutSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentId: 'payment-1',
+        amountCents: 120000,
+        commissionCents: 15000,
+        destinationAccountId: 'acct_owner_1',
+      }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({ url: checkout.url, reused: false }),
+    );
+    const updateData = (
+      tx.payment.updateMany.mock.calls as unknown as Array<
+        [
+          {
+            data: {
+              stripeCheckoutStatus: string;
+              ownerCommissionRate: Prisma.Decimal;
+            };
+          },
+        ]
+      >
+    )[0][0].data;
+    expect(updateData.stripeCheckoutStatus).toBe('OPEN');
+    expect(updateData.ownerCommissionRate.toFixed(2)).toBe('12.50');
+  });
+
+  it('synchronizes owner payout readiness from a Stripe Accounts v2 Thin event', async () => {
+    const owner = {
+      id: 'owner-1',
+      payoutStatus: PropertyOwnerPayoutStatus.PENDING_ONBOARDING,
+      onboardedAt: null,
+      contactEmail: 'owner@example.com',
+      ownerName: 'Olivia Owner',
+      companyName: null,
+    };
+    const tx = {
+      propertyOwner: { update: jest.fn().mockResolvedValue({}) },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      stripeWebhookEvent: {
+        create: jest.fn().mockResolvedValue({}),
+        update: jest.fn().mockResolvedValue({}),
+      },
+      propertyOwner: { findUnique: jest.fn().mockResolvedValue(owner) },
+      $transaction: jest.fn(
+        async (callback: (client: typeof tx) => Promise<unknown>) =>
+          callback(tx),
+      ),
+    };
+    const stripe = {
+      retrieveConnectedAccount: jest.fn().mockResolvedValue({
+        id: 'acct_owner_1',
+        configuration: {
+          recipient: {
+            capabilities: {
+              stripe_balance: { stripe_transfers: { status: 'active' } },
+            },
+          },
+        },
+      }),
+    };
+    const emails = {
+      sendOwnerStripeOnboardingCompleted: jest.fn().mockResolvedValue({}),
+    };
+
+    const result = await new PaymentsService(
+      prisma as never,
+      emails as never,
+      stripe as never,
+    ).processStripeConnectWebhook({
+      id: 'evt_connect_1',
+      type: 'v2.core.account[configuration.recipient].capability_status_updated',
+      livemode: true,
+      related_object: { id: 'acct_owner_1', type: 'v2.core.account' },
+    });
+
+    expect(result).toEqual({ received: true, duplicate: false });
+    expect(stripe.retrieveConnectedAccount).toHaveBeenCalledWith(
+      'acct_owner_1',
+    );
+    const ownerUpdate = (
+      tx.propertyOwner.update.mock.calls as unknown as Array<
+        [{ data: { payoutStatus: PropertyOwnerPayoutStatus } }]
+      >
+    )[0][0];
+    const eventUpdate = (
+      prisma.stripeWebhookEvent.update.mock.calls as unknown as Array<
+        [{ data: { status: string } }]
+      >
+    )[0][0];
+    expect(ownerUpdate.data.payoutStatus).toBe(
+      PropertyOwnerPayoutStatus.ACTIVE,
+    );
+    expect(eventUpdate.data.status).toBe('PROCESSED');
   });
 });

@@ -5,6 +5,7 @@ import {
   Building2,
   ClipboardCheck,
   CreditCard,
+  Landmark,
   DoorOpen,
   FileText,
   FileSignature,
@@ -76,6 +77,12 @@ const items = [
     title: "Payments",
     icon: CreditCard,
     href: "/admin/payments",
+    area: "rent",
+  },
+  {
+    title: "Property owners",
+    icon: Landmark,
+    href: "/admin/owners",
     area: "rent",
   },
   {

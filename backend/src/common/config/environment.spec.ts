@@ -100,4 +100,24 @@ describe('validateEnvironment', () => {
     };
     expect(validateEnvironment(environment)).toBe(environment);
   });
+
+  it('requires Stripe secrets only when tenant-initiated rent payments are enabled', () => {
+    expect(() =>
+      validateEnvironment({
+        ...productionEnvironment,
+        STRIPE_RENT_PAYMENTS_ENABLED: 'true',
+      }),
+    ).toThrow(
+      'STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_CONNECT_WEBHOOK_SECRET',
+    );
+
+    const environment = {
+      ...productionEnvironment,
+      STRIPE_RENT_PAYMENTS_ENABLED: 'true',
+      STRIPE_SECRET_KEY: 'rk_live_restricted_key_for_rent_payments',
+      STRIPE_WEBHOOK_SECRET: 'whsec_stripe_webhook_secret',
+      STRIPE_CONNECT_WEBHOOK_SECRET: 'whsec_stripe_connect_webhook_secret',
+    };
+    expect(validateEnvironment(environment)).toBe(environment);
+  });
 });

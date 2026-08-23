@@ -187,6 +187,7 @@ model PropertyOwner {
   stripeConnectedAccountId String?                   @unique
   payoutStatus             PropertyOwnerPayoutStatus @default(PENDING_ONBOARDING)
   commissionRate           Decimal                   @default(10.00) @db.Decimal(5, 2)
+  stripeAccountLastSyncedAt DateTime?
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   onboardedAt              DateTime?
@@ -401,6 +402,21 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum StripeCheckoutStatus {
+  NOT_STARTED
+  OPEN
+  COMPLETE
+  FAILED
+  EXPIRED
+}
+
+enum StripeWebhookEventStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
 model Payment {
   id                         String         @id @default(cuid())
   tenantId                   String
@@ -432,15 +448,44 @@ model Payment {
   createdAt                  DateTime       @default(now())
   updatedAt                  DateTime       @updatedAt
 
-  // Future Stripe Integration Placeholders
-  stripeCustomerId      String?
-  stripePaymentIntentId String?
+  // Tenant-initiated, one-time Checkout records. No subscription or off-session
+  // collection is permitted for rental payments.
+  stripeCustomerId        String?
+  stripeCheckoutSessionId String?              @unique
+  stripeCheckoutUrl       String?              @db.Text
+  stripeCheckoutStatus    StripeCheckoutStatus @default(NOT_STARTED)
+  stripeCheckoutExpiresAt DateTime?
+  stripePaymentIntentId   String?              @unique
+  stripeChargeId          String?              @unique
+  stripeTransferId        String?
+  stripePaymentMethodType String?
+  stripeLastEventAt       DateTime?
+  stripeWebhookEvents     StripeWebhookEvent[]
 
   @@index([propertyOwnerId, paidAt(sort: Desc), id(sort: Desc)])
   @@index([status, paidAt(sort: Desc), id(sort: Desc)])
+  @@index([stripeCheckoutStatus, stripeCheckoutExpiresAt])
   @@index([tenantId])
   @@index([leaseId])
   @@index([unitId])
+}
+
+model StripeWebhookEvent {
+  id              String                    @id @default(cuid())
+  stripeEventId   String                    @unique
+  type            String
+  livemode        Boolean
+  status          StripeWebhookEventStatus  @default(RECEIVED)
+  paymentId       String?
+  payment         Payment?                  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  payload         String                    @db.Text
+  processingError String?                   @db.Text
+  processedAt     DateTime?
+  createdAt       DateTime                  @default(now())
+
+  @@index([type, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([paymentId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model PaymentMethod {

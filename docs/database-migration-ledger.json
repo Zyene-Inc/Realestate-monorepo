@@ -29,6 +29,12 @@
       "name": "add_public_chatbot",
       "sources": ["supabase/migrations/20260823164507_add_public_chatbot.sql", "backend/prisma/migrations/20260823164507_add_public_chatbot/migration.sql"],
       "reason": "Phase 12 implementation is validated locally; production application awaits an explicit migration approval."
+    },
+    {
+      "version": "20260823183000",
+      "name": "add_tenant_initiated_stripe_rent_payments",
+      "sources": ["supabase/migrations/20260823183000_add_tenant_initiated_stripe_rent_payments.sql", "backend/prisma/migrations/20260823183000_add_tenant_initiated_stripe_rent_payments/migration.sql"],
+      "reason": "Stripe Connect implementation is validated locally; production application awaits an explicit migration approval and sensitive Vercel configuration."
     }
   ],
   "legacyExceptions": [

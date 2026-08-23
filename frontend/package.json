@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "prebuild": "node ../scripts/verify-repository-standards.mjs",
     "dev": "next dev",
     "audit:dead-code": "knip",
     "build": "next build",

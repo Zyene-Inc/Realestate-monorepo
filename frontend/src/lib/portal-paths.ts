@@ -14,6 +14,7 @@ const rentalPaths = [
   "/admin/tenants",
   "/admin/leases",
   "/admin/payments",
+  "/admin/owners",
   "/admin/maintenance",
   "/admin/vendors",
   "/admin/messages",

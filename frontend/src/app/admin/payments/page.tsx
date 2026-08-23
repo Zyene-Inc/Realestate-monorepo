@@ -1,119 +1,205 @@
-"use client"
+"use client";
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Search, Download, TrendingUp } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { api } from "@/lib/api";
+import { getErrorMessage } from "@/lib/errors";
+import { toast } from "sonner";
 
-const payments = [
-  { id: "1", tenant: "Marcus Bell", unit: "A1", amount: 1200, fee: 5, total: 1205, status: "Paid", date: "2026-04-01", method: "ACH" },
-  { id: "2", tenant: "Elena Torres", unit: "B4", amount: 1200, fee: 35.10, total: 1235.10, status: "Paid", date: "2026-04-02", method: "Card" },
-  { id: "3", tenant: "Andre Lewis", unit: "1", amount: 1200, fee: 0, total: 1200, status: "Overdue", date: "2026-04-01", method: "-" },
-]
+type Payment = {
+  id: string;
+  status: string;
+  rentAmount: number;
+  lateFee: number;
+  totalAmount: number;
+  paidAmount: number;
+  balanceDue: number;
+  paymentMethod: string | null;
+  dueDate: string;
+  tenant: { firstName: string; lastName: string };
+  unit: { unitNumber: string };
+  propertyOwner?: {
+    ownerName?: string | null;
+    companyName?: string | null;
+  } | null;
+  managementCommissionAmount?: number | null;
+  ownerProceedsAmount?: number | null;
+};
+
+const money = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
 
 export default function AdminPayments() {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api
+      .get("/payments")
+      .then((rows: Payment[]) => setPayments(rows))
+      .catch((error: unknown) =>
+        toast.error(getErrorMessage(error, "Unable to load payments")),
+      )
+      .finally(() => setLoading(false));
+  }, []);
+
+  const rows = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return payments;
+    return payments.filter((payment) =>
+      `${payment.tenant.firstName} ${payment.tenant.lastName} ${payment.unit.unitNumber} ${payment.status}`
+        .toLowerCase()
+        .includes(normalized),
+    );
+  }, [payments, query]);
+  const collected = payments.reduce(
+    (total, payment) => total + payment.paidAmount,
+    0,
+  );
+  const outstanding = payments.reduce(
+    (total, payment) => total + payment.balanceDue,
+    0,
+  );
+  const commission = payments.reduce(
+    (total, payment) => total + Number(payment.managementCommissionAmount || 0),
+    0,
+  );
+
   return (
     <div className="space-y-8 sm:space-y-10">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">Payments</h1>
-          <p className="text-muted-foreground mt-2 font-medium">Track rent collection and processing fees.</p>
-        </div>
-        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl  transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group">
-          <Download className="mr-2 h-4 w-4 text-current transition-transform group-hover:-translate-y-1" />
-          Export Report
-        </Button>
+      <div>
+        <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">
+          Rental payments
+        </h1>
+        <p className="mt-2 font-medium text-muted-foreground">
+          Live payment ledger. Online rent payments are tenant-initiated only;
+          owner proceeds move automatically through Stripe after payment
+          confirmation.
+        </p>
       </div>
-
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="border-border bg-card shadow-sm hover:shadow-md transition-[background-color,color,border-color,box-shadow,transform,opacity] rounded-[1.25rem] group relative overflow-hidden">
-          <CardHeader className="pb-2 relative z-10">
-            <CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground font-heading">Total Collected (April)</CardTitle>
-          </CardHeader>
-          <CardContent className="relative z-10">
-            <div className="text-4xl font-bold text-foreground font-heading tabular-nums">$142,500.00</div>
-            <div className="mt-3 flex items-center text-[10px] font-bold uppercase tracking-widest text-success font-heading">
-              <TrendingUp className="w-3 h-3 mr-1" /> +4% from last month
-            </div>
-            <div className="absolute right-0 top-0 -mr-12 -mt-12 h-24 w-24 rounded-full bg-success/10 transition-transform group-hover:scale-110" />
-          </CardContent>
-        </Card>
-        
-        <Card className="border-border bg-card shadow-sm hover:shadow-md transition-[background-color,color,border-color,box-shadow,transform,opacity] rounded-[1.25rem] group relative overflow-hidden">
-          <CardHeader className="pb-2 relative z-10">
-            <CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground font-heading">Outstanding Balance</CardTitle>
-          </CardHeader>
-          <CardContent className="relative z-10">
-            <div className="text-4xl font-bold text-destructive font-heading tabular-nums">$12,400.00</div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-3 font-heading">10 tenants overdue</p>
-            <div className="absolute right-0 top-0 w-24 h-24 bg-destructive/10 rounded-full -mr-12 -mt-12 transition-[background-color,color,border-color,box-shadow,transform,opacity] group-hover:scale-110" />
-          </CardContent>
-        </Card>
-        
-        <Card className="border-border bg-card shadow-sm hover:shadow-md transition-[background-color,color,border-color,box-shadow,transform,opacity] rounded-[1.25rem] group relative overflow-hidden">
-          <CardHeader className="pb-2 relative z-10">
-            <CardTitle className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground font-heading">Fees Collected</CardTitle>
-          </CardHeader>
-          <CardContent className="relative z-10">
-            <div className="text-4xl font-bold text-foreground font-heading tabular-nums">$1,840.00</div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-3 font-heading">Total processing fees</p>
-            <div className="absolute right-0 top-0 w-24 h-24 bg-accent/10 rounded-full -mr-12 -mt-12 transition-[background-color,color,border-color,box-shadow,transform,opacity] group-hover:scale-110" />
-          </CardContent>
-        </Card>
+      <div className="grid gap-5 md:grid-cols-3">
+        <Metric title="Collected" value={money.format(collected)} />
+        <Metric title="Outstanding" value={money.format(outstanding)} />
+        <Metric
+          title="Management commission retained"
+          value={money.format(commission)}
+        />
       </div>
-
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-          <Input className="pl-12 h-12 rounded-2xl border-border bg-card shadow-sm focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium" placeholder="Search payments" />
-        </div>
+      <div className="relative max-w-md">
+        <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="pl-11"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search tenant, unit, or status"
+        />
       </div>
-
-      <Card className="border-border bg-card shadow-sm rounded-[1.25rem] overflow-hidden">
-        <Table>
-          <TableHeader className="bg-secondary/50">
-            <TableRow className="border-border hover:bg-transparent">
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">Tenant & Unit</TableHead>
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">Rent Amount</TableHead>
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">Fee</TableHead>
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">Total Paid</TableHead>
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">Method</TableHead>
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">Status</TableHead>
-              <TableHead className="text-right font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">Receipt</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {payments.map((p) => (
-              <TableRow key={p.id} className="hover:bg-secondary/30 transition-colors border-border">
-                <TableCell className="py-4">
-                  <div className="font-bold text-foreground font-heading">{p.tenant}</div>
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-1 font-heading">Unit {p.unit}</div>
-                </TableCell>
-                <TableCell className="py-4 font-medium tabular-nums">${p.amount.toFixed(2)}</TableCell>
-                <TableCell className="py-4 font-medium text-muted-foreground tabular-nums">${p.fee.toFixed(2)}</TableCell>
-                <TableCell className="py-4 font-bold text-foreground font-heading tabular-nums">${p.total.toFixed(2)}</TableCell>
-                <TableCell className="py-4 text-sm font-bold text-muted-foreground uppercase tracking-widest">{p.method}</TableCell>
-                <TableCell className="py-4">
-                  <Badge 
-                    className={cn(
-                      "font-bold uppercase tracking-widest text-[9px] px-3 py-1 rounded-md border-transparent",
-                      p.status === 'Paid' ? 'bg-success/10 text-success hover:bg-success/20' : 'bg-destructive/10 text-destructive hover:bg-destructive/20'
-                    )}
-                  >
-                    {p.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="py-4 text-right">
-                  <Button variant="outline" size="sm" className="rounded-lg border-border hover:bg-secondary text-[10px] font-bold uppercase tracking-widest font-heading transition-[background-color,color,border-color,box-shadow,transform,opacity]">PDF</Button>
-                </TableCell>
+      <Card>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tenant / unit</TableHead>
+                <TableHead>Due</TableHead>
+                <TableHead>Paid</TableHead>
+                <TableHead>Johnson Realty commission</TableHead>
+                <TableHead>Owner proceeds</TableHead>
+                <TableHead>Method</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-28 text-center">
+                    <Loader2 className="mx-auto size-6 animate-spin text-primary" />
+                  </TableCell>
+                </TableRow>
+              ) : rows.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={7}
+                    className="h-28 text-center text-muted-foreground"
+                  >
+                    No payments found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                rows.map((payment) => (
+                  <TableRow key={payment.id}>
+                    <TableCell>
+                      <p className="font-semibold">
+                        {payment.tenant.firstName} {payment.tenant.lastName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Unit {payment.unit.unitNumber}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      {money.format(payment.totalAmount)}
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(payment.dueDate).toLocaleDateString()}
+                      </p>
+                    </TableCell>
+                    <TableCell>{money.format(payment.paidAmount)}</TableCell>
+                    <TableCell>
+                      {money.format(
+                        Number(payment.managementCommissionAmount || 0),
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {money.format(Number(payment.ownerProceedsAmount || 0))}
+                    </TableCell>
+                    <TableCell className="text-xs uppercase">
+                      {payment.paymentMethod || "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          payment.status === "PAID" ? "default" : "secondary"
+                        }
+                      >
+                        {payment.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
     </div>
-  )
+  );
+}
+
+function Metric({ title, value }: { title: string; value: string }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-3xl font-semibold tracking-tight tabular-nums">
+          {value}
+        </p>
+      </CardContent>
+    </Card>
+  );
 }
