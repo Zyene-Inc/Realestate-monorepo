@@ -369,6 +369,16 @@ Phase score: **4 / 4**. Verified by connected migrations `complete_phase_11_laun
 
 `35 weighted points / 40 items = 87.5% complete`.
 
+### Phase 12 — Public Website Property Assistant — **READY FOR ACTIVATION**
+
+- **DONE** — Main-site-only accessible floating chat with streamed responses, refresh-safe history, approved sale/published rental links, and human contact fallback.
+- **DONE** — Server-only Vercel AI SDK/OpenRouter integration fixed to `openrouter/free`; the browser receives no provider secret and the model has no direct database or private-record access.
+- **DONE** — HttpOnly hashed sessions, RLS-denied chat tables, 30-day deletion, per-visitor/shared daily quota enforcement, Nest throttling, completion/failure audit events, and bounded prompt/history/listing context.
+- **DONE** — Fair Housing, anti-fabrication, sensitive-data, professional-advice, and prompt-injection guardrails are encoded in the system boundary and visible disclosure.
+- **ACTIVATION GATE** — Apply the locally validated pending Supabase migration and configure the API Vercel project's OpenRouter key/fingerprint secret before setting `CHATBOT_ENABLED=true`.
+
+Phase 12 implementation score: **4 / 4**. Production-active status remains unclaimed until the external activation gate and live browser/security verification pass. This optional phase is outside the original 11-phase weighted score.
+
 ---
 
 ## Part 13 — Recommended Next Implementation Order

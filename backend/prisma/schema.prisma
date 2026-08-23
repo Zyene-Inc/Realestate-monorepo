@@ -54,6 +54,11 @@ enum InquirySenderType {
   AGENT
 }
 
+enum ChatMessageRole {
+  USER
+  ASSISTANT
+}
+
 enum PublishStatus {
   DRAFT
   PUBLISHED
@@ -274,6 +279,37 @@ model ListingInquiryMessage {
   createdAt  DateTime          @default(now())
 
   @@index([inquiryId, createdAt])
+}
+
+model ChatConversation {
+  id              String        @id @default(cuid())
+  accessTokenHash String        @unique @db.Char(64)
+  lastMessageAt   DateTime      @default(now())
+  expiresAt       DateTime
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  messages        ChatMessage[]
+
+  @@index([expiresAt])
+  @@index([lastMessageAt(sort: Desc), id(sort: Desc)])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           ChatMessageRole
+  content        String
+  visitorDayHash String?          @db.Char(64)
+  model          String?
+  finishReason   String?
+  inputTokens    Int?
+  outputTokens   Int?
+  createdAt      DateTime         @default(now())
+
+  @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([visitorDayHash, createdAt])
+  @@index([role, createdAt])
 }
 
 model Unit {

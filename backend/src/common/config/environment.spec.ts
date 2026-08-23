@@ -80,4 +80,24 @@ describe('validateEnvironment', () => {
     };
     expect(validateEnvironment(environment)).toBe(environment);
   });
+
+  it('requires the OpenRouter key and private fingerprint secret when chatbot is enabled', () => {
+    expect(() =>
+      validateEnvironment({
+        ...productionEnvironment,
+        CHATBOT_ENABLED: 'true',
+      }),
+    ).toThrow('OPENROUTER_API_KEY, CHATBOT_FINGERPRINT_SECRET');
+  });
+
+  it('accepts a configured free-model chatbot', () => {
+    const environment = {
+      ...productionEnvironment,
+      CHATBOT_ENABLED: 'true',
+      OPENROUTER_API_KEY: 'sk-or-v1-production-key-placeholder',
+      CHATBOT_FINGERPRINT_SECRET:
+        'chatbot-fingerprint-secret-at-least-thirty-two-characters',
+    };
+    expect(validateEnvironment(environment)).toBe(environment);
+  });
 });

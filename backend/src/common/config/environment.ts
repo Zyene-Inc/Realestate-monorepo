@@ -40,6 +40,9 @@ export function validateEnvironment(config: Record<string, unknown>) {
       'VERDOCS_AGREEMENT_TEMPLATE_ID',
     );
   }
+  if (value(config, 'CHATBOT_ENABLED').toLowerCase() === 'true') {
+    required.push('OPENROUTER_API_KEY', 'CHATBOT_FINGERPRINT_SECRET');
+  }
   const missing = required.filter((key) => !value(config, key));
   if (missing.length > 0) {
     throw new Error(
@@ -101,6 +104,21 @@ export function validateEnvironment(config: Record<string, unknown>) {
     throw new Error(
       'RESEND_FROM_EMAIL must use the verified coachjohnsonrealty.com domain',
     );
+  }
+
+  if (value(config, 'CHATBOT_ENABLED').toLowerCase() === 'true') {
+    if (value(config, 'CHATBOT_FINGERPRINT_SECRET').length < 32) {
+      throw new Error(
+        'CHATBOT_FINGERPRINT_SECRET must be at least 32 characters',
+      );
+    }
+    const openRouterKey = value(config, 'OPENROUTER_API_KEY');
+    if (
+      openRouterKey === 'sk-or-v1-replace-with-openrouter-key' ||
+      openRouterKey.length < 20
+    ) {
+      throw new Error('OPENROUTER_API_KEY is not a usable OpenRouter API key');
+    }
   }
 
   return config;

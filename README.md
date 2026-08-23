@@ -17,13 +17,14 @@ A production-ready full-stack application for modern property management.
 - **Email**: Resend Integration
 - **Storage**: Supabase Storage signed uploads for agent, sale-listing, rental-listing, and private maintenance files
 - **Infrastructure**: Vercel deployments with Supabase-managed Auth and PostgreSQL
+- **Website AI**: Vercel AI SDK with OpenRouter's free-model router; keys remain in the API project
 
 ## Getting Started
 
 ### 1. Supabase setup
 This application uses the connected `coachjohnsonrealty Project` for PostgreSQL and authentication. Copy `backend/.env.example` to `backend/.env` and add the database password and server-only Supabase secret key from **Settings > API Keys**. Copy `frontend/.env.example` to `frontend/.env.local`.
 
-The database migrations have been applied to the connected project. The live Supabase migration history is authoritative. Baseline Prisma migrations remain in `backend/prisma/migrations`; Supabase-specific storage, inquiry, rental, email, and sale-commission migrations live in `supabase/migrations` with matching Prisma schema migrations where applicable. [The checked-in migration ledger](docs/database-migration-ledger.json) maps all 19 live records to their SQL sources and records the one pre-existing history exception explicitly; CI rejects unmapped or missing migration SQL. Future schema changes must be applied through the Supabase integration and committed alongside the matching Prisma schema change. Do not run both histories blindly against the same database or run `migration repair` without a reviewed production change.
+The live Supabase migration history is authoritative. Baseline Prisma migrations remain in `backend/prisma/migrations`; Supabase-specific migrations live in `supabase/migrations` with matching Prisma schema migrations where applicable. [The checked-in migration ledger](docs/database-migration-ledger.json) maps all 19 live records, the locally validated pending chatbot migration, and the one pre-existing history exception explicitly; CI rejects unmapped or missing migration SQL. Future schema changes must be applied through the Supabase integration and committed alongside the matching Prisma schema change. Do not run both histories blindly against the same database or run `migration repair` without a reviewed production change.
 
 ### 2. Backend Setup
 ```bash
@@ -54,6 +55,7 @@ npm run dev
 - **Transactional Email Operations**: Versioned Resend templates, durable delivery events, signed webhooks, bounded critical retries, and Super Admin delivery oversight.
 - **Sale Commission Ledger**: Sales/Super Admin recording against sold listings, exact decimal revenue, listing-derived agent attribution, correction/void history, and bounded revenue reporting without online home-sale payments.
 - **E-Signatures**: Verdocs envelope issuance for leases, disclosures, and agreements; tenant/agent embedded signing with email OTP; signed PDF/certificate archival in private Supabase Storage; and a cursor-bounded audit timeline.
+- **Public Property Assistant**: Main-site-only floating chat, OpenRouter `openrouter/free` streaming, approved sale/published rental context, HttpOnly sessions, database-backed quotas, 30-day retention, audit events, Fair Housing safeguards, and human handoff.
 
 ## Environment Variables
 

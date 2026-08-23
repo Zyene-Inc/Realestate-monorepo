@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/auth-context";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { PublicChatbot } from "@/components/public/public-chatbot";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -50,6 +51,7 @@ export default function RootLayout({
               Skip to main content
             </a>
             {children}
+            <PublicChatbot />
             <Toaster />
             <Analytics />
             <SpeedInsights />

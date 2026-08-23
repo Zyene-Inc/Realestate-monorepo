@@ -24,6 +24,7 @@ import { validateEnvironment } from './common/config/environment';
 import { CommissionsModule } from './commissions/commissions.module';
 import { ESignaturesModule } from './e-signatures/e-signatures.module';
 import { ReportsModule } from './reports/reports.module';
+import { ChatbotModule } from './chatbot/chatbot.module';
 
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -57,6 +58,7 @@ import { APP_GUARD } from '@nestjs/core';
     CommissionsModule,
     ESignaturesModule,
     ReportsModule,
+    ChatbotModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

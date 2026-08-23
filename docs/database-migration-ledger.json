@@ -23,6 +23,14 @@
     { "version": "20260823000305", "name": "complete_phase_11_launch_hardening", "sources": ["supabase/migrations/20260822235105_complete_phase_11_launch_hardening.sql", "backend/prisma/migrations/20260822235105_complete_phase_11_launch_hardening/migration.sql"] },
     { "version": "20260823000347", "name": "index_remaining_foreign_keys_phase_11", "sources": ["supabase/migrations/20260823000325_index_remaining_foreign_keys_phase_11.sql", "backend/prisma/migrations/20260823000325_index_remaining_foreign_keys_phase_11/migration.sql"] }
   ],
+  "pending": [
+    {
+      "version": "20260823164507",
+      "name": "add_public_chatbot",
+      "sources": ["supabase/migrations/20260823164507_add_public_chatbot.sql", "backend/prisma/migrations/20260823164507_add_public_chatbot/migration.sql"],
+      "reason": "Phase 12 implementation is validated locally; production application awaits an explicit migration approval."
+    }
+  ],
   "legacyExceptions": [
     {
       "source": "supabase/migrations/20260822132441_add_auth_login_lockout_fields.sql",

@@ -71,9 +71,24 @@ Configure these production environment variables in Vercel:
 - `VERDOCS_AGREEMENT_TEMPLATE_ID`: UUID of the legal-approved agent/company agreement template.
 - `VERDOCS_SENDER_NAME`: `Coach Johnson Realty`.
 - `VERDOCS_SENDER_EMAIL`: `noreply@coachjohnsonrealty.com` (used in the envelope UI/certificate; Verdocs still sends notifications from its own delivery domain).
+- `CHATBOT_ENABLED`: keep `false` until the chatbot migration and key are present; then set `true`.
+- `OPENROUTER_API_KEY`: server-only OpenRouter key. Never add this to the web project or use a `NEXT_PUBLIC_` prefix.
+- `CHATBOT_FINGERPRINT_SECRET`: server-only random value of at least 32 characters, generated independently from every other secret (for example, `openssl rand -hex 32`).
 - Stripe variables when that future module is enabled. Existing file workflows use the configured Supabase project and require no S3 credentials.
 
 Do not run Prisma migrations as part of every Vercel build. Apply reviewed migrations to Supabase separately, then deploy the generated application code.
+
+### Public chatbot activation
+
+The chatbot implementation is disabled safely when its feature flag or OpenRouter key is absent. To activate it:
+
+1. Review and apply `20260823164507_add_public_chatbot.sql` to Supabase through the migration integration.
+2. Confirm RLS is enabled and `anon`/`authenticated` have no direct privileges on `ChatConversation` or `ChatMessage`; confirm the daily expired-conversation cron exists.
+3. Add `OPENROUTER_API_KEY` and a unique `CHATBOT_FINGERPRINT_SECRET` to the API project's encrypted Production environment, then set `CHATBOT_ENABLED=true`.
+4. Redeploy the API first and the web project second. The web project requires no AI secret and continues using the same-origin `/api` rewrite.
+5. Verify `/api/public/chatbot/status`, one streamed reply, browser refresh history, a public property link, the `/contact` fallback, and absence of the widget on every role portal.
+
+The implementation pins the router ID to `openrouter/free`; it cannot be changed through environment configuration to a paid model. Database-backed limits allow 12 visitor messages and 45 total messages per UTC day, preserving headroom under the base free-account quota. NestJS also permits at most five message starts per minute per caller.
 
 ## Web project
 

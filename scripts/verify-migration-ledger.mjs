@@ -48,6 +48,32 @@ for (const migration of ledger.applied) {
   }
 }
 
+for (const migration of ledger.pending ?? []) {
+  if (!/^\d{14}$/.test(migration.version)) {
+    violations.push(`${migration.name}: pending version must contain 14 digits`);
+  }
+  if (!/^[a-z0-9_]+$/.test(migration.name)) {
+    violations.push(`${migration.version}: pending name must be snake_case`);
+  }
+  if (versions.has(migration.version) || names.has(migration.name)) {
+    violations.push(`${migration.name}: duplicates an applied migration`);
+  }
+  if (!migration.reason || migration.reason.trim().length < 40) {
+    violations.push(`${migration.name}: pending migration needs a concrete reason`);
+  }
+  versions.add(migration.version);
+  names.add(migration.name);
+  for (const source of migration.sources ?? []) {
+    if (mappedSources.has(source)) {
+      violations.push(`${source}: mapped more than once`);
+    }
+    mappedSources.add(source);
+    if (!existsSync(resolve(repositoryRoot, source))) {
+      violations.push(`${migration.name}: missing pending source ${source}`);
+    }
+  }
+}
+
 for (const exception of ledger.legacyExceptions) {
   if (!exception.reason || !exception.status) {
     violations.push(`${exception.source}: incomplete legacy exception`);
@@ -65,6 +91,9 @@ const checkedInSql = execFileSync(
   "git",
   [
     "ls-files",
+    "--cached",
+    "--others",
+    "--exclude-standard",
     "supabase/migrations/*.sql",
     "backend/prisma/migrations/*/migration.sql",
   ],
@@ -91,5 +120,5 @@ if (violations.length > 0) {
 }
 
 process.stdout.write(
-  `MIGRATION_LEDGER_VERIFIED (${ledger.applied.length} applied, ${ledger.legacyExceptions.length} explicit exception)\n`,
+  `MIGRATION_LEDGER_VERIFIED (${ledger.applied.length} applied, ${(ledger.pending ?? []).length} pending, ${ledger.legacyExceptions.length} explicit exception)\n`,
 );

@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "verify:chatbot": "node --no-warnings --experimental-strip-types scripts/verify-chatbot-stream.mjs",
     "verify:domains": "node --no-warnings --experimental-strip-types scripts/verify-domain-routing.mjs"
   },
   "dependencies": {
