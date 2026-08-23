@@ -90,14 +90,14 @@ export class VerdocsService {
         'Verdocs e-signatures are not configured',
       );
     }
-    const endpoint = new VerdocsEndpoint({
-      baseURL:
-        this.config.get<string>('VERDOCS_API_BASE_URL')?.trim() ||
-        'https://api.verdocs.com',
-      timeout: 20_000,
-      persist: false,
-    });
     try {
+      const endpoint = new VerdocsEndpoint({
+        baseURL:
+          this.config.get<string>('VERDOCS_API_BASE_URL')?.trim() ||
+          'https://api.verdocs.com',
+        timeout: 20_000,
+        persist: false,
+      });
       const session = await authenticate(endpoint, {
         grant_type: 'client_credentials',
         client_id: clientId,
