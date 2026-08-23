@@ -9,22 +9,79 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export type PortalNavItem = { title: string; icon: LucideIcon; href: string };
+export type PortalNavItem = {
+  title: string;
+  icon: LucideIcon;
+  href: string;
+  group?: string;
+  matchNested?: boolean;
+};
 
-export function PortalSidebar({ items, portalName, userName, userRole, initials, onLogout }: { items: PortalNavItem[]; portalName: string; userName: string; userRole: string; initials: string; onLogout: () => void | Promise<void> }) {
+export function PortalSidebar({
+  items,
+  portalName,
+  userName,
+  userRole,
+  initials,
+  onLogout,
+}: {
+  items: PortalNavItem[];
+  portalName: string;
+  userName: string;
+  userRole: string;
+  initials: string;
+  onLogout: () => void | Promise<void>;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const groupedItems = items.reduce<
+    Array<{ title: string; items: PortalNavItem[] }>
+  >((groups, item) => {
+    const title = item.group || "Navigation";
+    const existing = groups.find((group) => group.title === title);
+    if (existing) existing.items.push(item);
+    else groups.push({ title, items: [item] });
+    return groups;
+  }, []);
+  const showGroupTitles = groupedItems.length > 1 || items.some((item) => item.group);
+
   const nav = (
-    <nav className="grid gap-1" aria-label={`${portalName} navigation`}>
-      {items.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return (
-          <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className={cn("group flex min-h-11 items-center gap-3 rounded-xl px-3.5 text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-sidebar-ring/25", active ? "bg-sidebar-primary text-sidebar-primary-foreground" : "text-sidebar-foreground/68 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground")} aria-current={active ? "page" : undefined}>
-            <item.icon className="size-[1.125rem] shrink-0" strokeWidth={1.8} aria-hidden="true" />
-            <span className="truncate">{item.title}</span>
-          </Link>
-        );
-      })}
+    <nav className="grid gap-5" aria-label={`${portalName} navigation`}>
+      {groupedItems.map((group) => (
+        <section key={group.title} className="grid gap-1" aria-label={group.title}>
+          {showGroupTitles && (
+            <p className="mb-1 px-3 text-[0.6875rem] font-bold uppercase tracking-[0.12em] text-sidebar-foreground/50">
+              {group.title}
+            </p>
+          )}
+          {group.items.map((item) => {
+            const active =
+              pathname === item.href ||
+              (item.matchNested !== false && pathname.startsWith(`${item.href}/`));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={cn(
+                  "group flex min-h-11 items-center gap-3 rounded-xl px-3.5 text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-sidebar-ring/25",
+                  active
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                    : "text-sidebar-foreground/68 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                )}
+                aria-current={active ? "page" : undefined}
+              >
+                <item.icon
+                  className="size-[1.125rem] shrink-0"
+                  strokeWidth={1.8}
+                  aria-hidden="true"
+                />
+                <span className="truncate">{item.title}</span>
+              </Link>
+            );
+          })}
+        </section>
+      ))}
     </nav>
   );
 
@@ -40,7 +97,7 @@ export function PortalSidebar({ items, portalName, userName, userRole, initials,
         </div>
       </header>
       {open && (
-        <div id="portal-mobile-navigation" className="border-b border-sidebar-border bg-sidebar px-4 py-4 lg:hidden">
+        <div id="portal-mobile-navigation" className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-sidebar-border bg-sidebar px-4 py-4 lg:hidden">
           <p className="mb-3 px-3 text-xs font-semibold text-sidebar-foreground/60">{portalName}</p>
           {nav}
           <div className="mt-4 flex items-center gap-3 border-t border-sidebar-border px-3 pt-4">
