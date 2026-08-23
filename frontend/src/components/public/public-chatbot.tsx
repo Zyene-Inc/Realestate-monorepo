@@ -3,14 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
-import {
-  Bot,
-  LoaderCircle,
-  MessageCircle,
-  Send,
-  UserRound,
-} from "lucide-react";
+import { Bot, LoaderCircle, MessageCircle, Send, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PublicChatbotMessageContent } from "@/components/public/public-chatbot-message-content";
+import { PublicChatbotWelcome } from "@/components/public/public-chatbot-welcome";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   CHATBOT_LEAD_FORM_THRESHOLD,
   CHATBOT_LEAD_SUBMITTED_KEY,
+  CHATBOT_WELCOME_DISMISSED_KEY,
   chatbotHistory,
   chatbotStatus,
   hasChatbotBookingIntent,
@@ -39,36 +36,7 @@ import {
 } from "@/lib/portal-domains";
 import { cn } from "@/lib/utils";
 
-const suggestions = [
-  "Show me homes for sale",
-  "What rentals are available?",
-  "How can I sell my property?",
-];
-
-function MessageContent({ content }: { content: string }) {
-  const parts = content.split(
-    /(https:\/\/coachjohnsonrealty\.com\/(?:properties|rentals)\/[^\s)]+)/g,
-  );
-  return (
-    <p className="whitespace-pre-wrap text-sm leading-6">
-      {parts.map((part, index) =>
-        /^https:\/\/coachjohnsonrealty\.com\/(?:properties|rentals)\//.test(
-          part,
-        ) ? (
-          <a
-            className="font-semibold text-primary underline underline-offset-4"
-            href={part}
-            key={`${part}-${index}`}
-          >
-            View property
-          </a>
-        ) : (
-          part
-        ),
-      )}
-    </p>
-  );
-}
+const suggestions = ["Show me homes for sale", "What rentals are available?", "How can I sell my property?"];
 
 function publicChatAllowed(pathname: string) {
   if (canonicalPortalForPath(pathname)) return false;
@@ -89,11 +57,20 @@ function leadAlreadySubmitted() {
   }
 }
 
+function chatbotWelcomeDismissed() {
+  try {
+    return sessionStorage.getItem(CHATBOT_WELCOME_DISMISSED_KEY) === "1";
+  } catch {
+    return true;
+  }
+}
+
 export function PublicChatbot() {
   const pathname = usePathname();
   const publicRoute = canonicalPortalForPath(pathname) === null;
   const [available, setAvailable] = useState(false);
   const [open, setOpen] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
   const [messages, setMessages] = useState<ChatbotMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -117,6 +94,11 @@ export function PublicChatbot() {
         setAvailable(true);
         const history = await chatbotHistory(controller.signal);
         setMessages(history.items);
+        setShowWelcome(
+          pathname === "/" &&
+            history.items.length === 0 &&
+            !chatbotWelcomeDismissed(),
+        );
         if (
           !leadAlreadySubmitted() &&
           countUserMessages(history.items) >= CHATBOT_LEAD_FORM_THRESHOLD
@@ -267,8 +249,29 @@ export function PublicChatbot() {
     }
   }
 
+  function dismissWelcome() {
+    setShowWelcome(false);
+    try {
+      sessionStorage.setItem(CHATBOT_WELCOME_DISMISSED_KEY, "1");
+    } catch {
+      // sessionStorage may be unavailable in restricted contexts.
+    }
+  }
+
+  function startWelcomeConversation(message: string) {
+    dismissWelcome();
+    setOpen(true);
+    void sendMessage(message);
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
+      {showWelcome && (
+        <PublicChatbotWelcome
+          onDismiss={dismissWelcome}
+          onSelect={startWelcomeConversation}
+        />
+      )}
       <DialogTrigger
         render={
           <Button
@@ -359,7 +362,7 @@ export function PublicChatbot() {
                   )}
                 >
                   {message.content ? (
-                    <MessageContent content={message.content} />
+                    <PublicChatbotMessageContent content={message.content} />
                   ) : (
                     <span className="flex items-center gap-2 text-xs text-muted-foreground">
                       <LoaderCircle className="size-3.5 animate-spin" />
