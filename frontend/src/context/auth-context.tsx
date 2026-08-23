@@ -45,7 +45,11 @@ interface LoginResponse {
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<AuthUser>;
+  login: (
+    email: string,
+    password: string,
+    portal: "admin" | "agent" | "tenant",
+  ) => Promise<AuthUser>;
   logout: () => Promise<void>;
   isLoading: boolean;
 }
@@ -81,11 +85,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     restoreAuth();
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (
+    email: string,
+    password: string,
+    portal: "admin" | "agent" | "tenant",
+  ) => {
     try {
       const authentication = (await api.post("/auth/login", {
         email,
         password,
+        portal,
       })) as LoginResponse;
       const { data, error } = await supabase.auth.setSession({
         access_token: authentication.accessToken,

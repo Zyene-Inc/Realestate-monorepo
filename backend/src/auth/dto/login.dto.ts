@@ -1,5 +1,12 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { normalizeEmail } from './auth-input.transforms';
 
 export class LoginDto {
@@ -14,4 +21,8 @@ export class LoginDto {
   @MinLength(1)
   @MaxLength(72)
   password!: string;
+
+  @IsOptional()
+  @IsIn(['admin', 'agent', 'tenant'])
+  portal?: 'admin' | 'agent' | 'tenant';
 }

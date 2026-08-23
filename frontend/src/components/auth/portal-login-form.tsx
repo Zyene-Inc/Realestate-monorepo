@@ -13,7 +13,25 @@ import { navigateToUserPortal } from "@/lib/auth-routing";
 import { getErrorMessage } from "@/lib/errors";
 import { toast } from "sonner";
 
-export function PortalLoginForm({ eyebrow, title, description, forgotTestId, invitationCopy, invitationHref, invitationLabel }: { eyebrow: string; title: string; description: string; forgotTestId: string; invitationCopy: string; invitationHref?: string; invitationLabel?: string }) {
+export function PortalLoginForm({
+  eyebrow,
+  title,
+  description,
+  forgotTestId,
+  invitationCopy,
+  invitationHref,
+  invitationLabel,
+  portal,
+}: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  forgotTestId: string;
+  invitationCopy: string;
+  invitationHref?: string;
+  invitationLabel?: string;
+  portal: "admin" | "agent" | "tenant";
+}) {
   const router = useRouter();
   const { login, user, isLoading: isAuthLoading } = useAuth();
   const [email, setEmail] = useState("");
@@ -28,7 +46,7 @@ export function PortalLoginForm({ eyebrow, title, description, forgotTestId, inv
     event.preventDefault();
     setLoading(true);
     try {
-      const authenticatedUser = await login(email, password);
+      const authenticatedUser = await login(email, password, portal);
       toast.success("Signed in");
       navigateToUserPortal(router, authenticatedUser);
     } catch (error: unknown) {

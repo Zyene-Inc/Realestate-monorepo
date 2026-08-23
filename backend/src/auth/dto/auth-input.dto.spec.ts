@@ -9,11 +9,13 @@ describe('auth input DTOs', () => {
     const dto = plainToInstance(LoginDto, {
       email: '  USER@Example.COM ',
       password: ' password with spaces ',
+      portal: 'tenant',
     });
 
     await expect(validate(dto)).resolves.toHaveLength(0);
     expect(dto.email).toBe('user@example.com');
     expect(dto.password).toBe(' password with spaces ');
+    expect(dto.portal).toBe('tenant');
   });
 
   it('does not coerce objects into valid display text', async () => {

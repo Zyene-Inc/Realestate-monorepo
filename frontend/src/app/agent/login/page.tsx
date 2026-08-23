@@ -10,6 +10,7 @@ export default function AgentLoginPage() {
       invitationCopy="New agent company?"
       invitationHref="/agent/signup"
       invitationLabel="Apply for approval."
+      portal="agent"
     />
   );
 }

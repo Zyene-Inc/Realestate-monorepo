@@ -1,4 +1,5 @@
 import { AuthService } from './auth.service';
+import { Role } from '@prisma/client';
 
 const mockSignInWithPassword = jest.fn();
 const mockSignOut = jest.fn();
@@ -17,6 +18,7 @@ describe('AuthService login protection', () => {
   const activeUser = {
     id: 'user-1',
     authUserId: '11111111-1111-4111-8111-111111111111',
+    role: Role.SUPER_ADMIN,
     status: 'ACTIVE',
     failedLoginAttempts: 0,
     lastFailedLoginAt: null,
@@ -165,5 +167,35 @@ describe('AuthService login protection', () => {
         lockedUntil: null,
       },
     });
+  });
+
+  it('rejects an administrator who tries to use the tenant login portal', async () => {
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue(activeUser),
+        update: jest.fn(),
+      },
+    };
+    mockSignInWithPassword.mockResolvedValue({
+      data: {
+        user: { id: activeUser.authUserId },
+        session: {
+          access_token: 'access-token',
+          refresh_token: 'refresh-token',
+          expires_at: 12345,
+        },
+      },
+      error: null,
+    });
+    mockSignOut.mockResolvedValue({ error: null });
+
+    await expect(
+      serviceWith(prisma).login({
+        email: 'admin@example.com',
+        password: 'correct-password',
+        portal: 'tenant',
+      }),
+    ).rejects.toThrow('Incorrect email or password');
+    expect(mockSignOut).toHaveBeenCalled();
   });
 });

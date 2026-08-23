@@ -73,6 +73,17 @@ export class AuthService {
     throw new UnauthorizedException(INVALID_LOGIN_MESSAGE);
   }
 
+  private roleCanUsePortal(role: Role, portal: LoginDto['portal']) {
+    if (!portal) return true;
+    if (portal === 'tenant') return role === Role.TENANT;
+    if (portal === 'agent') return role === Role.AGENT;
+    return (
+      role === Role.SUPER_ADMIN ||
+      role === Role.SALES_ADMIN ||
+      role === Role.TENANT_ADMIN
+    );
+  }
+
   private async recordFailedLogin(userId: string, now: Date) {
     const updated = await this.prisma.user.update({
       where: { id: userId },
@@ -101,6 +112,7 @@ export class AuthService {
       select: {
         id: true,
         authUserId: true,
+        role: true,
         status: true,
         failedLoginAttempts: true,
         lastFailedLoginAt: true,
@@ -126,6 +138,7 @@ export class AuthService {
         select: {
           id: true,
           authUserId: true,
+          role: true,
           status: true,
           failedLoginAttempts: true,
           lastFailedLoginAt: true,
@@ -156,6 +169,11 @@ export class AuthService {
     }
 
     if (!user || authentication.user.id !== user.authUserId) {
+      await supabase.auth.signOut().catch(() => undefined);
+      return this.invalidLogin();
+    }
+
+    if (!this.roleCanUsePortal(user.role, data.portal)) {
       await supabase.auth.signOut().catch(() => undefined);
       return this.invalidLogin();
     }
