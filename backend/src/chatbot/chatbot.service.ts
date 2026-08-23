@@ -151,7 +151,7 @@ export class ChatbotService {
     const validToken = this.validAccessToken(accessToken);
     const expiresAt = this.sessionExpiry();
     return this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(${CHATBOT_ADVISORY_LOCK_ID})`;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${CHATBOT_ADVISORY_LOCK_ID})`;
       const since = this.startOfUtcDay();
       const [globalCount, visitorCount] = await Promise.all([
         tx.chatMessage.count({

@@ -90,7 +90,7 @@ describe('ChatbotService', () => {
       expiresAt: new Date('2026-09-22T00:00:00.000Z'),
     };
     const tx = {
-      $queryRaw: jest.fn().mockResolvedValue([{ pg_advisory_xact_lock: null }]),
+      $executeRaw: jest.fn().mockResolvedValue(1),
       chatMessage: {
         count: jest.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(0),
         create: jest.fn().mockResolvedValue({ id: 'message-1' }),
@@ -145,6 +145,7 @@ describe('ChatbotService', () => {
     });
 
     expect(started.conversationId).toBe(conversation.id);
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
     const persisted = firstArgument(tx.chatMessage.create) as {
       data: {
         conversationId: string;
@@ -197,7 +198,7 @@ describe('ChatbotService', () => {
 
   it('enforces the shared free-model daily quota before creating a conversation', async () => {
     const tx = {
-      $queryRaw: jest.fn().mockResolvedValue([]),
+      $executeRaw: jest.fn().mockResolvedValue(1),
       chatMessage: {
         count: jest.fn().mockResolvedValueOnce(45).mockResolvedValueOnce(0),
       },
@@ -230,7 +231,7 @@ describe('ChatbotService', () => {
       expiresAt: new Date('2026-09-22T00:00:00.000Z'),
     };
     const tx = {
-      $queryRaw: jest.fn().mockResolvedValue([]),
+      $executeRaw: jest.fn().mockResolvedValue(1),
       chatMessage: {
         count: jest.fn().mockResolvedValue(0),
         create: jest.fn().mockResolvedValue({ id: 'message-1' }),
@@ -271,7 +272,7 @@ describe('ChatbotService', () => {
       expiresAt: new Date('2026-09-22T00:00:00.000Z'),
     };
     const tx = {
-      $queryRaw: jest.fn().mockResolvedValue([]),
+      $executeRaw: jest.fn().mockResolvedValue(1),
       chatMessage: {
         count: jest.fn().mockResolvedValue(0),
         create: jest.fn().mockResolvedValue({ id: 'message-1' }),
