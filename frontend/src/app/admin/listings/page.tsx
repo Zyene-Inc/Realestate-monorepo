@@ -182,7 +182,7 @@ export default function SaleListingReviewPage() {
                   <CardHeader>
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <CardTitle className="text-2xl">
+                        <CardTitle className="text-lg">
                           {listing.name}
                         </CardTitle>
                         <p className="mt-2 flex items-center text-sm text-muted-foreground">

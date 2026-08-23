@@ -72,10 +72,10 @@ function MaintenanceRequestDialog({
           </Button>
         }
       />
-      <DialogContent className="sm:max-w-[500px] rounded-[1.25rem] p-5 sm:p-8">
+      <DialogContent className="sm:max-w-[500px] rounded-xl p-5 sm:p-6">
         <form onSubmit={onSubmit}>
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">
+            <DialogTitle className="text-xl font-semibold">
               New Service Request
             </DialogTitle>
             <DialogDescription>
@@ -406,20 +406,17 @@ export default function TenantMaintenance() {
             </CardContent>
           </Card>
 
-          <div className="p-10 bg-primary rounded-[2.5rem] text-primary-foreground  relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 group-hover:-rotate-12 transition-[background-color,color,border-color,box-shadow,transform,opacity] duration-700">
-              <Wrench className="h-40 w-40 -mr-10 -mt-10" />
-            </div>
-            <h4 className="font-bold font-heading text-2xl mb-4 relative z-10">
+          <div className="rounded-xl bg-primary p-6 text-primary-foreground">
+            <h4 className="text-xl font-semibold">
               Critical Emergency?
             </h4>
-            <p className="text-[11px] text-primary-foreground/70 font-medium uppercase tracking-[0.1em] leading-relaxed mb-8 relative z-10">
+            <p className="mt-2 text-sm leading-6 text-primary-foreground/75">
               If you have a life-safety emergency or major property damage,
               contact our 24/7 priority line.
             </p>
             <a
               href="tel:+18165550147"
-              className={buttonVariants({ className: "relative z-10 w-full" })}
+              className={buttonVariants({ className: "mt-5 w-full" })}
             >
               Connect to support
             </a>

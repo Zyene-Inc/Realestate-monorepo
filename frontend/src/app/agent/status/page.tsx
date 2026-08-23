@@ -48,18 +48,18 @@ export default function AgentStatusPage() {
   return (
     <div className="min-h-[100dvh] bg-background">
       <header className="border-b border-border bg-card/90 py-3 backdrop-blur-xl"><div className="mx-auto flex w-full max-w-5xl items-center justify-between px-5 sm:px-8"><Logo className="h-9" /><div className="flex items-center gap-1"><ThemeToggle /><Button variant="ghost" size="icon" onClick={logout} aria-label="Sign out"><LogOut aria-hidden="true" /></Button></div></div></header>
-      <main id="main-content" className="mx-auto w-full max-w-5xl px-5 py-10 sm:px-8 sm:py-16">
-        <section className="grid gap-8 border-b border-border pb-10 lg:grid-cols-[.72fr_1.28fr] lg:items-center">
-          <div className={cn("flex size-20 items-center justify-center rounded-[1.35rem]", tone)}><Icon className="size-9" strokeWidth={1.6} aria-hidden="true" /></div>
+      <main id="main-content" className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-8 sm:py-10">
+        <section className="grid gap-6 border-b border-border pb-8 lg:grid-cols-[.72fr_1.28fr] lg:items-center">
+          <div className={cn("flex size-16 items-center justify-center rounded-xl", tone)}><Icon className="size-7" strokeWidth={1.6} aria-hidden="true" /></div>
           <div>
             <p className="text-sm font-semibold text-primary">Company review</p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">{approved ? "Your company is approved" : declined ? "Your application needs attention" : "Your application is under review"}</h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">{approved ? "You can now create sale listings, send them for review, and respond to buyer questions from the company workspace." : declined ? profile?.declineReason || "Review the company information below and contact our team if you need more context." : "The property team is reviewing your company details and documents. A decision will be sent to your email."}</p>
-            <div className="mt-6 flex flex-wrap gap-3">{approved ? <Link href="/agent/listings" className={buttonVariants()}>Open company workspace</Link> : null}<Button variant="outline" onClick={logout}><LogOut aria-hidden="true" />Sign out</Button></div>
+            <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">{approved ? "Your company is approved" : declined ? "Your application needs attention" : "Your application is under review"}</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">{approved ? "You can now create sale listings, send them for review, and respond to buyer questions from the company workspace." : declined ? profile?.declineReason || "Review the company information below and contact our team if you need more context." : "The property team is reviewing your company details and documents. A decision will be sent to your email."}</p>
+            <div className="mt-5 flex flex-wrap gap-3">{approved ? <Link href="/agent/listings" className={buttonVariants()}>Open company workspace</Link> : null}<Button variant="outline" onClick={logout}><LogOut aria-hidden="true" />Sign out</Button></div>
           </div>
         </section>
 
-        <div className="mt-10 grid gap-8 lg:grid-cols-[15rem_1fr]">
+        <div className="mt-8 grid gap-6 lg:grid-cols-[15rem_1fr]">
           <aside className="text-sm"><p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Application</p><p className="mt-3 font-semibold">{profile?.companyName}</p><p className="mt-1 break-all text-muted-foreground">{user.email}</p></aside>
           <div>
             {!approved ? <AgentSettings documentsOnly={!declined} /> : null}

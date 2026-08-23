@@ -24,25 +24,20 @@ export default function TenantAnnouncements() {
         </div>
       </div>
 
-      <div className="grid gap-8">
+      <div className="grid gap-5">
         {announcements.map((announcement) => (
-          <Card key={announcement.id} className="border-border bg-card shadow-sm hover:shadow-md transition-[background-color,color,border-color,box-shadow,transform,opacity] rounded-[1.25rem] overflow-hidden group">
-            <div className="flex flex-col md:flex-row">
-              <div className={cn(
-                "w-full md:w-2 transition-colors",
-                announcement.isNew ? "bg-accent" : "bg-primary"
-              )} />
-              <div className="flex-1 p-8">
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+          <Card key={announcement.id} className="border-border bg-card">
+            <div className="p-5 sm:p-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div className="flex items-center gap-4">
                     <div className={cn(
-                      "p-3 rounded-xl transition-[background-color,color,border-color,box-shadow,transform,opacity] duration-300",
+                      "flex size-10 items-center justify-center rounded-lg",
                       announcement.isNew ? "bg-accent/10 text-accent" : "bg-secondary text-muted-foreground"
                     )}>
                       <Megaphone className="h-6 w-6" />
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold text-foreground font-heading tracking-tight">{announcement.title}</h3>
+                      <h3 className="text-lg font-semibold text-foreground">{announcement.title}</h3>
                       <div className="flex items-center gap-4 mt-2">
                         <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">
                           <Calendar className="h-3 w-3" /> {announcement.date}
@@ -60,15 +55,14 @@ export default function TenantAnnouncements() {
                   )}
                 </div>
                 
-                <p className="text-foreground/80 leading-relaxed font-medium mb-8">
+                <p className="mt-5 text-sm leading-6 text-foreground/80">
                   {announcement.content}
                 </p>
 
-                <div className="pt-6 border-t border-border flex items-center justify-between">
+                <div className="mt-5 flex items-center justify-between border-t border-border pt-5">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Posted by the property team</span>
                   <span className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest font-heading">Post ID: #ANN-{announcement.id}42</span>
                 </div>
-              </div>
             </div>
           </Card>
         ))}

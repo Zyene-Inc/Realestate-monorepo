@@ -202,7 +202,7 @@ export default function AdminReportsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1440px] space-y-8 p-5 sm:p-8">
+    <div className="mx-auto w-full max-w-[1440px] space-y-6">
       <ReportHeader
         from={from}
         to={to}

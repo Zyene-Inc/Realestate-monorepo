@@ -81,7 +81,7 @@ export default function TenantLease() {
         <div className="h-24 w-24 bg-secondary rounded-full flex items-center justify-center mb-6">
           <FileText className="w-10 h-10 text-muted-foreground" />
         </div>
-        <h2 className="text-3xl font-bold font-heading tracking-tight text-foreground">
+        <h2 className="text-2xl font-semibold font-heading tracking-tight text-foreground">
           No Active Lease Found
         </h2>
         <p className="text-muted-foreground font-medium mt-3 max-w-md">

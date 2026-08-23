@@ -92,10 +92,10 @@ function LeaseCreateDialog({
         <Plus className="mr-2 h-4 w-4 text-current transition-transform group-hover:rotate-90" />
         Create Lease
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] rounded-[2rem] border-border bg-card p-5 sm:p-8">
+      <DialogContent className="sm:max-w-[600px] rounded-xl border-border bg-card p-5 sm:p-6">
         <form onSubmit={onSubmit}>
           <DialogHeader className="mb-6">
-            <DialogTitle className="text-3xl font-bold font-heading">
+            <DialogTitle className="text-xl font-semibold font-heading">
               Create New Lease
             </DialogTitle>
             <DialogDescription className="text-muted-foreground font-medium mt-2">

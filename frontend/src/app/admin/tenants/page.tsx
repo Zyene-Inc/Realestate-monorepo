@@ -78,10 +78,10 @@ function TenantInviteDialog({
         <UserPlus className="mr-2 h-4 w-4 text-current transition-transform group-hover:scale-110" />
         Invite Tenant
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] rounded-[2rem] border-border bg-card p-5 sm:p-8">
+      <DialogContent className="sm:max-w-[500px] rounded-xl border-border bg-card p-5 sm:p-6">
         <form onSubmit={onSubmit}>
           <DialogHeader className="mb-6">
-            <DialogTitle className="text-3xl font-bold font-heading">
+            <DialogTitle className="text-xl font-semibold font-heading">
               Invite Resident
             </DialogTitle>
             <DialogDescription className="text-muted-foreground font-medium mt-2">

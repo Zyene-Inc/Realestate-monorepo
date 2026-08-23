@@ -163,10 +163,14 @@
 
 @layer components {
   .public-container { width: min(100% - 2rem, 88rem); margin-inline: auto; }
-  .portal-main { min-width: 0; flex: 1; overflow-y: auto; padding: clamp(1rem, 2.8vw, 2.75rem); overscroll-behavior-y: contain; }
+  .portal-main { min-width: 0; flex: 1; overflow-y: auto; padding: clamp(1rem, 2vw, 2rem); overscroll-behavior-y: contain; }
   .portal-main > * { width: 100%; max-width: 90rem; margin-inline: auto; }
-  .portal-main h1 { font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 600; line-height: 1.05; letter-spacing: -0.045em; }
-  .portal-main [data-slot="card"] { border-radius: 1.25rem; box-shadow: none; }
+  .portal-main h1 { font-size: clamp(1.75rem, 2.1vw, 2rem); font-weight: 650; line-height: 1.15; letter-spacing: -0.03em; }
+  .portal-main [data-slot="card"] { border-radius: 1rem; box-shadow: none; }
+  .portal-main [data-slot="card-header"].p-8,
+  .portal-main [data-slot="card-content"].p-8 { padding: 1.25rem; }
+  .portal-main :is(p, div).text-3xl { font-size: 1.5rem; letter-spacing: -0.03em; }
+  .portal-main [data-slot="card-title"].text-3xl { font-size: 1.25rem; }
   .portal-main [data-slot="card-title"] { letter-spacing: -0.018em; }
   .portal-main [data-slot="table-container"] { overscroll-behavior-inline: contain; scrollbar-width: thin; }
   .portal-main select { min-height: 2.75rem; border-radius: 0.75rem; border: 1px solid var(--input); background: var(--card); color: var(--foreground); padding-inline: 0.75rem; }
