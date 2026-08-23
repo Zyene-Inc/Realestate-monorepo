@@ -1,12 +1,16 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { basename } from "node:path";
+import { basename, dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { repositoryStandards } from "./repository-standards.config.mjs";
+
+const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const repositoryFiles = execFileSync(
   "git",
   ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
   {
+    cwd: repositoryRoot,
     encoding: "utf8",
   },
 )
@@ -29,7 +33,8 @@ const publicAssetName = /^[a-z0-9]+(?:-[a-z0-9]+)*\.[a-z0-9]+$/;
 const violations = [];
 
 for (const file of repositoryFiles) {
-  if (!existsSync(file)) continue;
+  const absolutePath = resolve(repositoryRoot, file);
+  if (!existsSync(absolutePath)) continue;
 
   if (/\s/.test(file)) {
     violations.push(`${file}: path contains whitespace`);
@@ -43,7 +48,7 @@ for (const file of repositoryFiles) {
   }
 
   if (productionSource.test(file)) {
-    const source = readFileSync(file, "utf8");
+    const source = readFileSync(absolutePath, "utf8");
     const relativeSourcePath = file.replace(/^(?:backend|frontend)\/src\//, "");
     const segments = relativeSourcePath.split("/");
     const fileName = basename(file)
@@ -77,7 +82,7 @@ for (const file of repositoryFiles) {
 for (const [file, allowance] of Object.entries(
   repositoryStandards.oversizedFileAllowances,
 )) {
-  if (!existsSync(file)) {
+  if (!existsSync(resolve(repositoryRoot, file))) {
     violations.push(`${file}: oversized-file allowance points to a missing file`);
   }
   if (allowance.reason.trim().length < 40) {
