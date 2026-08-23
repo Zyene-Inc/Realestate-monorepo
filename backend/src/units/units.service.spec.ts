@@ -162,6 +162,26 @@ describe('UnitsService', () => {
     });
   });
 
+  it('keeps occupied status under lease workflow control', async () => {
+    const findFirst = jest
+      .fn()
+      .mockResolvedValueOnce({ id: 'unit-1', status: 'vacant' })
+      .mockResolvedValueOnce({ id: 'unit-2', status: 'occupied' });
+    const prisma = {
+      unit: { findFirst },
+      $transaction: jest.fn(),
+    };
+    const service = serviceWith(prisma);
+
+    await expect(
+      service.update('admin-1', 'unit-1', { status: 'occupied' }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    await expect(
+      service.update('admin-1', 'unit-2', { status: 'vacant' }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('protects unit history from deletion', async () => {
     const prisma = {
       unit: {

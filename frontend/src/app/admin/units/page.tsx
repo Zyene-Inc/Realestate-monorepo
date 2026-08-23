@@ -251,6 +251,11 @@ export default function AdminUnits() {
                     <option value="occupied">Occupied</option>
                   ) : null}
                 </select>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {unit.status === "occupied"
+                    ? "Occupied is set by the active lease and cannot be changed here."
+                    : "Use this for availability only. Occupied is set automatically when a lease starts."}
+                </p>
               </CardContent>
             </Card>
           ))}

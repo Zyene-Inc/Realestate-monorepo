@@ -97,6 +97,14 @@ export class UnitsService {
   async update(userId: string, id: string, data: UpdateUnitDto) {
     const current = await this.findOne(id);
     if (data.propertyId) await this.rentalProperty(data.propertyId);
+    if (
+      data.status !== undefined &&
+      (current.status === 'occupied' || data.status === 'occupied')
+    ) {
+      throw new ConflictException(
+        'Occupied status is controlled automatically by the active lease',
+      );
+    }
     try {
       return await this.prisma.$transaction(async (tx) => {
         const unit = await tx.unit.update({
