@@ -8,6 +8,7 @@ import {
   Query,
   RawBody,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
@@ -16,7 +17,6 @@ import { timingSafeEqual } from 'node:crypto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
-import { UseGuards } from '@nestjs/common';
 import { EmailsService } from './emails.service';
 
 @Controller('webhooks/resend')

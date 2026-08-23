@@ -22,8 +22,7 @@ import {
   VoidSaleCommissionDto,
 } from './dto/commission.dto';
 import { SaleCommissionsService } from './sale-commissions.service';
-
-type RequiredAuthenticatedRequest = { user: { sub: string } };
+import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('admin/sale-commissions')
 @UseGuards(JwtAuthGuard, RolesGuard)

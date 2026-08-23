@@ -69,7 +69,13 @@ const portalHosts = Object.fromEntries(
 ) as Record<string, Portal>;
 
 function hostnameWithoutPort(hostname: string) {
-  return hostname.trim().toLowerCase().split(":")[0];
+  const normalized = hostname.trim().toLowerCase().split(",")[0].trim();
+  if (normalized === "::1") return normalized;
+  if (normalized.startsWith("[")) {
+    const closingBracket = normalized.indexOf("]");
+    if (closingBracket > 0) return normalized.slice(1, closingBracket);
+  }
+  return normalized.split(":")[0];
 }
 
 export function isLocalOrPreviewHostname(hostname: string) {

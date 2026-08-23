@@ -13,8 +13,7 @@ import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
 import { TenantsService } from './tenants.service';
-
-type AuthenticatedRequest = { user: { sub: string } };
+import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('admin/tenants')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -34,7 +33,7 @@ export class TenantsController {
 
   @Patch(':id')
   update(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: UpdateTenantDto,
   ) {

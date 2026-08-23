@@ -81,6 +81,26 @@ describe('AgentsService', () => {
     expect(order).toEqual(['database', 'storage']);
   });
 
+  it('returns the committed database result when best-effort Storage cleanup fails', async () => {
+    const updated = { ...agent, verificationDocuments: [] };
+    const tx = {
+      agent: { update: jest.fn().mockResolvedValue(updated) },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      agent: { findUnique: jest.fn().mockResolvedValue(agent) },
+      $transaction: jest.fn((callback: (transaction: typeof tx) => unknown) =>
+        Promise.resolve(callback(tx)),
+      ),
+    };
+    mockStorageRemove.mockResolvedValue({
+      error: { message: 'Storage unavailable' },
+    });
+    const service = serviceWith(prisma);
+
+    await expect(service.removeDocument('user-1', 0)).resolves.toEqual(updated);
+  });
+
   it('atomically returns a declined application to pending review and notifies both sides', async () => {
     const updated = {
       ...agent,

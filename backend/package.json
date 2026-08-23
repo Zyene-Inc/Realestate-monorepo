@@ -11,7 +11,7 @@
   "scripts": {
     "build": "nest build",
     "audit:dead-code": "knip",
-    "postinstall": "patch-package && prisma generate",
+    "postinstall": "prisma generate",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -21,10 +21,9 @@
     "lint:fix": "npm run lint -- --fix",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
+    "test:cov": "jest --coverage --runInBand",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "seed": "npx prisma db seed",
     "verify:listings": "ts-node scripts/verify-listing-workflow.ts",
     "verify:phase2": "ts-node scripts/verify-agent-onboarding.ts",
     "verify:phase6": "ts-node scripts/verify-rental-workflow.ts",
@@ -36,9 +35,6 @@
     "verdocs:bootstrap": "ts-node scripts/bootstrap-verdocs.ts",
     "verdocs:sync-env": "ts-node scripts/sync-verdocs-env.ts",
     "verify:workflows": "ts-node scripts/verify-listing-workflow.ts"
-  },
-  "prisma": {
-    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -57,16 +53,15 @@
     "helmet": "^8.3.0",
     "reflect-metadata": "^0.2.2",
     "resend": "6.21.0",
-    "rxjs": "^7.8.1",
-    "stripe": "^22.1.0"
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
-    "@types/express": "^5.0.0",
     "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
     "@types/supertest": "^7.0.0",
@@ -76,7 +71,6 @@
     "globals": "^17.0.0",
     "jest": "^30.0.0",
     "knip": "6.32.2",
-    "patch-package": "^8.0.0",
     "prettier": "^3.4.2",
     "prisma": "^6.2.1",
     "supertest": "^7.0.0",
@@ -101,6 +95,54 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
+    "coverageReporters": [
+      "text-summary",
+      "json-summary"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 30,
+        "branches": 29,
+        "functions": 26,
+        "lines": 31
+      },
+      "./src/auth/jwt-auth.guard.ts": {
+        "statements": 100,
+        "branches": 90,
+        "functions": 100,
+        "lines": 100
+      },
+      "./src/auth/roles.guard.ts": {
+        "statements": 100,
+        "branches": 85,
+        "functions": 100,
+        "lines": 100
+      },
+      "./src/common/filters/all-exceptions.filter.ts": {
+        "statements": 100,
+        "branches": 65,
+        "functions": 100,
+        "lines": 100
+      },
+      "./src/listings/sale-listings.service.ts": {
+        "statements": 60,
+        "branches": 40,
+        "functions": 65,
+        "lines": 60
+      },
+      "./src/tenants/tenants.service.ts": {
+        "statements": 100,
+        "branches": 80,
+        "functions": 100,
+        "lines": 100
+      },
+      "./src/units/units.service.ts": {
+        "statements": 85,
+        "branches": 60,
+        "functions": 100,
+        "lines": 85
+      }
+    },
     "testEnvironment": "node"
   },
   "knip": {
@@ -113,9 +155,6 @@
       "src/**/*.ts",
       "scripts/**/*.ts",
       "test/**/*.ts"
-    ],
-    "ignoreDependencies": [
-      "stripe"
     ]
   }
 }

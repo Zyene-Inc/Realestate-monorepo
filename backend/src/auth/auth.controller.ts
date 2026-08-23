@@ -19,8 +19,7 @@ import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { LoginDto } from './dto/login.dto';
 import { TenantInviteDto } from './dto/tenant-invite.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
-
-type AuthenticatedRequest = { user: { sub: string } };
+import type { RequiredAuthenticatedRequest } from './authenticated-request';
 
 @Controller('auth')
 export class AuthController {
@@ -52,14 +51,14 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   updatePassword(
     @Body() body: UpdatePasswordDto,
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
   ) {
     return this.authService.updatePassword(request.user.sub, body.password);
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async me(@Request() request: AuthenticatedRequest) {
+  async me(@Request() request: RequiredAuthenticatedRequest) {
     return this.authService.getCurrentUser(request.user.sub);
   }
 
@@ -69,7 +68,7 @@ export class AuthController {
   @Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN)
   async invite(
     @Body() body: TenantInviteDto,
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
   ) {
     return this.authService.inviteTenant(body, request.user.sub);
   }

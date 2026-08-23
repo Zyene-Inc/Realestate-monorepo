@@ -13,11 +13,11 @@ import type {
   OwnerReportRow,
   ReportOverview,
 } from "@/lib/reports";
+import { AuditTimeline } from "./_components/audit-timeline";
+import { OwnerReportTable } from "./_components/owner-report-table";
 import {
-  AuditTimeline,
   FinancialSummary,
   OperationsOverview,
-  OwnerTable,
   ReportHeader,
 } from "./_components/report-sections";
 
@@ -218,7 +218,7 @@ export default function AdminReportsPage() {
           <FinancialSummary overview={overview} />
           <OperationsOverview overview={overview} />
 
-          <OwnerTable
+          <OwnerReportTable
             owners={owners}
             cursor={ownerCursor}
             loadingMore={loadingOwners}

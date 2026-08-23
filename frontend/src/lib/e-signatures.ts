@@ -49,13 +49,13 @@ export type ESignatureEvent = {
 
 export type CursorPage<T> = { items: T[]; nextCursor: string | null };
 
-export const terminalSignatureStatuses: ESignatureStatus[] = [
+export const terminalSignatureStatuses = new Set<ESignatureStatus>([
   "COMPLETED",
   "DECLINED",
   "CANCELED",
   "EXPIRED",
   "FAILED",
-];
+]);
 
 export function signatureStatusLabel(status: ESignatureStatus) {
   return status.toLowerCase().replaceAll("_", " ");

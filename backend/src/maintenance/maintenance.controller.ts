@@ -21,8 +21,7 @@ import {
   UpdateMaintenanceRequestDto,
 } from './dto/maintenance.dto';
 import { MaintenanceService } from './maintenance.service';
-
-type AuthenticatedRequest = { user: { sub: string } };
+import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('admin/maintenance')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -42,7 +41,7 @@ export class MaintenanceController {
 
   @Patch(':id')
   update(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: UpdateMaintenanceRequestDto,
   ) {
@@ -57,13 +56,13 @@ export class TenantMaintenanceController {
   constructor(private readonly maintenance: MaintenanceService) {}
 
   @Get()
-  list(@Request() request: AuthenticatedRequest) {
+  list(@Request() request: RequiredAuthenticatedRequest) {
     return this.maintenance.listForTenant(request.user.sub);
   }
 
   @Post()
   create(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Body() body: CreateMaintenanceRequestDto,
   ) {
     return this.maintenance.create(request.user.sub, body);
@@ -71,7 +70,7 @@ export class TenantMaintenanceController {
 
   @Post(':id/photo-upload-url')
   photoUploadUrl(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: MaintenancePhotoUploadDto,
   ) {
@@ -80,7 +79,7 @@ export class TenantMaintenanceController {
 
   @Post(':id/photos')
   attachPhoto(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: AttachMaintenancePhotoDto,
   ) {
@@ -88,7 +87,10 @@ export class TenantMaintenanceController {
   }
 
   @Patch(':id/confirm')
-  confirm(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
+  confirm(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.maintenance.confirmCompletion(request.user.sub, id);
   }
 }

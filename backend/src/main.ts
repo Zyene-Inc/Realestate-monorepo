@@ -4,7 +4,10 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-import { getAllowedFrontendOrigins } from './common/config/portal-urls';
+import {
+  createCorsOriginValidator,
+  getAllowedFrontendOrigins,
+} from './common/config/portal-urls';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { randomUUID } from 'node:crypto';
@@ -35,16 +38,7 @@ async function bootstrap() {
 
   const frontendOrigins = getAllowedFrontendOrigins(configService);
   app.enableCors({
-    origin: (
-      origin: string | undefined,
-      callback: (error: Error | null, allow?: boolean) => void,
-    ) => {
-      if (!origin || frontendOrigins.has(origin.replace(/\/$/, ''))) {
-        callback(null, true);
-        return;
-      }
-      callback(new Error('Origin is not allowed by CORS'), false);
-    },
+    origin: createCorsOriginValidator(frontendOrigins),
     credentials: true,
   });
 

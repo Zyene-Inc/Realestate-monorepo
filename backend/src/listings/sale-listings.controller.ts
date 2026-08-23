@@ -24,8 +24,7 @@ import { RejectSaleListingDto } from './dto/reject-sale-listing.dto';
 import { UpdateSaleListingDto } from './dto/update-sale-listing.dto';
 import { UpdateListingAvailabilityDto } from './dto/update-listing-availability.dto';
 import { SaleListingsService } from './sale-listings.service';
-
-type AuthenticatedRequest = { user: { sub: string } };
+import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('agent/listings')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -34,26 +33,29 @@ export class AgentSaleListingsController {
   constructor(private readonly listings: SaleListingsService) {}
 
   @Get()
-  list(@Request() request: AuthenticatedRequest) {
+  list(@Request() request: RequiredAuthenticatedRequest) {
     return this.listings.listForAgent(request.user.sub);
   }
 
   @Post()
   create(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Body() body: CreateSaleListingDto,
   ) {
     return this.listings.createDraft(request.user.sub, body);
   }
 
   @Get(':id')
-  get(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
+  get(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.listings.getForAgent(request.user.sub, id);
   }
 
   @Patch(':id')
   update(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: UpdateSaleListingDto,
   ) {
@@ -61,13 +63,16 @@ export class AgentSaleListingsController {
   }
 
   @Post(':id/submit')
-  submit(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
+  submit(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.listings.submit(request.user.sub, id);
   }
 
   @Patch(':id/availability')
   availability(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: UpdateListingAvailabilityDto,
   ) {
@@ -76,7 +81,7 @@ export class AgentSaleListingsController {
 
   @Post(':id/upload-url')
   createUploadUrl(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: CreateListingUploadDto,
   ) {
@@ -85,7 +90,7 @@ export class AgentSaleListingsController {
 
   @Post(':id/assets')
   attachAsset(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: AttachListingAssetDto,
   ) {
@@ -94,7 +99,7 @@ export class AgentSaleListingsController {
 
   @Get(':id/documents/:index/url')
   documentUrl(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Param('index', ParseIntPipe) index: number,
   ) {
@@ -135,13 +140,16 @@ export class AdminSaleListingsController {
   }
 
   @Patch(':id/approve')
-  approve(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
+  approve(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.listings.approve(request.user.sub, id);
   }
 
   @Patch(':id/reject')
   reject(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Body() body: RejectSaleListingDto,
   ) {

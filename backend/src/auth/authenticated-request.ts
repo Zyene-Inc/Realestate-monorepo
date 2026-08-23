@@ -12,3 +12,7 @@ type AuthenticatedUser = {
 export type AuthenticatedRequest = Request & {
   user?: AuthenticatedUser;
 };
+
+export type RequiredAuthenticatedRequest = Request & {
+  user: AuthenticatedUser;
+};

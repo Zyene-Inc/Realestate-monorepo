@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { ESignatureTargetType, Role } from '@prisma/client';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
-import type { AuthenticatedRequest } from '../auth/authenticated-request';
+import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -29,8 +29,8 @@ import { ESignaturesService } from './e-signatures.service';
 export class AdminESignaturesController {
   constructor(private readonly signatures: ESignaturesService) {}
 
-  private user(request: AuthenticatedRequest) {
-    const user = request.user!;
+  private user(request: RequiredAuthenticatedRequest) {
+    const user = request.user;
     return { id: user.sub, role: user.role, email: user.email };
   }
 
@@ -46,7 +46,7 @@ export class AdminESignaturesController {
 
   @Get()
   list(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Query() query: ESignatureListQueryDto,
   ) {
     return this.signatures.listAdmin(this.user(request), query);
@@ -55,20 +55,23 @@ export class AdminESignaturesController {
   @Post()
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   create(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Body() body: CreateESignatureDto,
   ) {
     return this.signatures.create(this.user(request), body);
   }
 
   @Get(':id')
-  get(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
+  get(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.signatures.getAdmin(this.user(request), id);
   }
 
   @Get(':id/events')
   events(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Query() query: ESignatureEventListQueryDto,
   ) {
@@ -77,7 +80,7 @@ export class AdminESignaturesController {
 
   @Post(':id/synchronize')
   synchronize(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
   ) {
     return this.signatures.synchronizeAdmin(this.user(request), id);
@@ -85,18 +88,24 @@ export class AdminESignaturesController {
 
   @Post(':id/remind')
   @Throttle({ default: { ttl: 3_600_000, limit: 3 } })
-  remind(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
+  remind(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.signatures.remind(this.user(request), id);
   }
 
   @Post(':id/cancel')
-  cancel(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
+  cancel(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.signatures.cancel(this.user(request), id);
   }
 
   @Get(':id/documents/:documentId/url')
   documentUrl(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Param('documentId') documentId: string,
   ) {
@@ -109,39 +118,43 @@ abstract class PortalESignaturesController {
 
   constructor(protected readonly signatures: ESignaturesService) {}
 
-  list(request: AuthenticatedRequest, query: ESignatureListQueryDto) {
-    return this.signatures.listMine(request.user!.sub, this.targetType, query);
+  list(request: RequiredAuthenticatedRequest, query: ESignatureListQueryDto) {
+    return this.signatures.listMine(request.user.sub, this.targetType, query);
   }
 
-  get(request: AuthenticatedRequest, id: string) {
-    return this.signatures.getMine(request.user!.sub, this.targetType, id);
+  get(request: RequiredAuthenticatedRequest, id: string) {
+    return this.signatures.getMine(request.user.sub, this.targetType, id);
   }
 
   events(
-    request: AuthenticatedRequest,
+    request: RequiredAuthenticatedRequest,
     id: string,
     query: ESignatureEventListQueryDto,
   ) {
     return this.signatures.eventsMine(
-      request.user!.sub,
+      request.user.sub,
       this.targetType,
       id,
       query,
     );
   }
 
-  signingSession(request: AuthenticatedRequest, id: string) {
+  signingSession(request: RequiredAuthenticatedRequest, id: string) {
     return this.signatures.signingSession(
-      request.user!.sub,
+      request.user.sub,
       this.targetType,
       id,
-      request.user!.email,
+      request.user.email,
     );
   }
 
-  documentUrl(request: AuthenticatedRequest, id: string, documentId: string) {
+  documentUrl(
+    request: RequiredAuthenticatedRequest,
+    id: string,
+    documentId: string,
+  ) {
     return this.signatures.documentUrlMine(
-      request.user!.sub,
+      request.user.sub,
       this.targetType,
       id,
       documentId,
@@ -158,20 +171,23 @@ export class TenantESignaturesController extends PortalESignaturesController {
 
   @Get()
   listRoute(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Query() query: ESignatureListQueryDto,
   ) {
     return this.list(request, query);
   }
 
   @Get(':id')
-  getRoute(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
+  getRoute(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
     return this.get(request, id);
   }
 
   @Get(':id/events')
   eventsRoute(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Query() query: ESignatureEventListQueryDto,
   ) {
@@ -181,7 +197,7 @@ export class TenantESignaturesController extends PortalESignaturesController {
   @Post(':id/signing-session')
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   signingSessionRoute(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
   ) {
     return this.signingSession(request, id);
@@ -189,7 +205,7 @@ export class TenantESignaturesController extends PortalESignaturesController {
 
   @Get(':id/documents/:documentId/url')
   documentUrlRoute(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
     @Param('documentId') documentId: string,
   ) {

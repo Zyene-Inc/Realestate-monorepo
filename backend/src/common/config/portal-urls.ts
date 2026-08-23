@@ -1,5 +1,8 @@
+import { ForbiddenException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
+
+type CorsOriginCallback = (error: Error | null, allow?: boolean) => void;
 
 function normalizedUrl(value: string | undefined, fallback: string) {
   return (value || fallback).replace(/\/$/, '');
@@ -55,4 +58,15 @@ export function getAllowedFrontendOrigins(config: ConfigService) {
     .map((origin) => origin.trim().replace(/\/$/, ''))
     .filter(Boolean);
   return new Set([...Object.values(getPortalUrls(config)), ...configured]);
+}
+
+export function createCorsOriginValidator(allowedOrigins: ReadonlySet<string>) {
+  return (origin: string | undefined, callback: CorsOriginCallback) => {
+    if (!origin || allowedOrigins.has(origin.replace(/\/$/, ''))) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new ForbiddenException('Origin is not allowed by CORS'), false);
+  };
 }

@@ -1,6 +1,7 @@
 node_modules
 dist
 .next
+frontend/next-env.d.ts
 .turbo
 .vercel
 coverage

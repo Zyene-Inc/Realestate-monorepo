@@ -23,8 +23,7 @@ import {
   CreateAgentDocumentUploadDto,
 } from './dto/agent-document.dto';
 import { UpdateAgentProfileDto } from './dto/update-agent-profile.dto';
-
-type AuthenticatedRequest = { user: { sub: string } };
+import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('agents')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -33,14 +32,14 @@ export class AgentsController {
 
   @Get('me')
   @Roles(Role.AGENT)
-  getMe(@Request() request: AuthenticatedRequest) {
+  getMe(@Request() request: RequiredAuthenticatedRequest) {
     return this.agentsService.getForUser(request.user.sub);
   }
 
   @Patch('me')
   @Roles(Role.AGENT)
   updateMe(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Body() body: UpdateAgentProfileDto,
   ) {
     return this.agentsService.updateProfile(request.user.sub, body);
@@ -48,14 +47,14 @@ export class AgentsController {
 
   @Post('me/resubmit')
   @Roles(Role.AGENT)
-  resubmit(@Request() request: AuthenticatedRequest) {
+  resubmit(@Request() request: RequiredAuthenticatedRequest) {
     return this.agentsService.resubmit(request.user.sub);
   }
 
   @Post('me/document-upload-url')
   @Roles(Role.AGENT)
   createDocumentUploadUrl(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Body() body: CreateAgentDocumentUploadDto,
   ) {
     return this.agentsService.createDocumentUploadUrl(request.user.sub, body);
@@ -64,7 +63,7 @@ export class AgentsController {
   @Post('me/documents')
   @Roles(Role.AGENT)
   attachDocument(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Body() body: AttachAgentDocumentDto,
   ) {
     return this.agentsService.attachDocument(request.user.sub, body.path);
@@ -73,7 +72,7 @@ export class AgentsController {
   @Get('me/documents/:index/url')
   @Roles(Role.AGENT)
   getMyDocumentUrl(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('index', ParseIntPipe) index: number,
   ) {
     return this.agentsService.getAgentDocumentUrl(request.user.sub, index);
@@ -82,7 +81,7 @@ export class AgentsController {
   @Delete('me/documents/:index')
   @Roles(Role.AGENT)
   removeMyDocument(
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
     @Param('index', ParseIntPipe) index: number,
   ) {
     return this.agentsService.removeDocument(request.user.sub, index);
@@ -108,7 +107,10 @@ export class AgentsController {
 
   @Patch(':id/approve')
   @Roles(Role.SUPER_ADMIN, Role.SALES_ADMIN)
-  approve(@Param('id') id: string, @Request() request: AuthenticatedRequest) {
+  approve(
+    @Param('id') id: string,
+    @Request() request: RequiredAuthenticatedRequest,
+  ) {
     return this.agentsService.approve(id, request.user.sub);
   }
 
@@ -117,7 +119,7 @@ export class AgentsController {
   decline(
     @Param('id') id: string,
     @Body() body: DeclineAgentDto,
-    @Request() request: AuthenticatedRequest,
+    @Request() request: RequiredAuthenticatedRequest,
   ) {
     return this.agentsService.decline(id, request.user.sub, body.reason);
   }
