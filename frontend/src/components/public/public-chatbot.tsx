@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
-import { Bot, LoaderCircle, MessageCircle, Send, UserRound } from "lucide-react";
+import { Bot, LoaderCircle, MessageCircle, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PublicChatbotComposer } from "@/components/public/public-chatbot-composer";
 import { PublicChatbotMessageContent } from "@/components/public/public-chatbot-message-content";
 import { PublicChatbotWelcome } from "@/components/public/public-chatbot-welcome";
 import {
@@ -84,6 +85,7 @@ export function PublicChatbot() {
   const [leadError, setLeadError] = useState<string | null>(null);
   const messageEnd = useRef<HTMLDivElement>(null);
   const activeRequest = useRef<AbortController | null>(null);
+  const chatPausedForBooking = showLeadForm && !leadSubmitted;
 
   useEffect(() => {
     if (!publicChatAllowed(pathname)) return;
@@ -138,7 +140,7 @@ export function PublicChatbot() {
 
   async function sendMessage(message: string) {
     const value = message.trim();
-    if (!value || busy || activeRequest.current) return;
+    if (!value || busy || chatPausedForBooking || activeRequest.current) return;
     const now = new Date().toISOString();
     const userId = crypto.randomUUID();
     const assistantId = crypto.randomUUID();
@@ -457,39 +459,14 @@ export function PublicChatbot() {
           <div ref={messageEnd} />
         </div>
 
-        <form className="border-t bg-card p-3" onSubmit={submit}>
-          <div className="flex items-end gap-2">
-            <Textarea
-              aria-label="Message the property assistant"
-              className="max-h-28 min-h-11 resize-none py-2.5 text-sm"
-              disabled={busy}
-              maxLength={1000}
-              onChange={(event) => setInput(event.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask about a property or service…"
-              rows={1}
-              value={input}
-            />
-            <Button
-              aria-label="Send message"
-              className="size-11 shrink-0"
-              disabled={busy || input.trim().length === 0}
-              size="icon"
-              type="submit"
-            >
-              {busy ? (
-                <LoaderCircle className="size-4 animate-spin" />
-              ) : (
-                <Send className="size-4" />
-              )}
-            </Button>
-          </div>
-          <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
-            Coach Johnson Realty topics only. AI can make mistakes. Don’t share
-            financial or identity details. Chats expire after 30 days. For
-            decisions, speak with a licensed professional.
-          </p>
-        </form>
+        <PublicChatbotComposer
+          busy={busy}
+          chatPausedForBooking={chatPausedForBooking}
+          input={input}
+          onChange={setInput}
+          onKeyDown={handleKeyDown}
+          onSubmit={submit}
+        />
       </DialogContent>
     </Dialog>
   );
