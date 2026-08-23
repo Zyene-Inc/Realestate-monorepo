@@ -1,6 +1,6 @@
 import { IsIn, IsString, Length, Matches } from 'class-validator';
 
-export const LISTING_ASSET_KINDS = ['photo', 'document'] as const;
+const LISTING_ASSET_KINDS = ['photo', 'document'] as const;
 export type ListingAssetKind = (typeof LISTING_ASSET_KINDS)[number];
 
 export class CreateListingUploadDto {

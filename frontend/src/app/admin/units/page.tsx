@@ -1,158 +1,334 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Plus, Search, Building2, Filter } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Card } from "@/components/ui/card"
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { DoorOpen, Loader2, Plus, Search } from "lucide-react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { api } from "@/lib/api";
+import { getErrorMessage } from "@/lib/errors";
+
+type Property = { id: string; name: string };
+type Unit = {
+  id: string;
+  propertyId: string;
+  unitNumber: string;
+  bedrooms: number;
+  bathrooms: number;
+  squareFeet: number;
+  rentAmount: number;
+  depositAmount: number;
+  status: "vacant" | "occupied" | "under_maintenance" | "off_market";
+  property: Property;
+  tenants: Array<{ id: string; firstName: string; lastName: string }>;
+};
+
+const initialForm = {
+  propertyId: "",
+  unitNumber: "",
+  floor: "",
+  bedrooms: "1",
+  bathrooms: "1",
+  squareFeet: "",
+  rentAmount: "",
+  depositAmount: "",
+  availableDate: "",
+};
 
 export default function AdminUnits() {
-  const [units] = useState([
-    { id: "1", property: "Brookside Court", unitNumber: "1A", bedrooms: 2, bathrooms: 1, rent: 1200, status: "Occupied", tenant: "Marcus Bell" },
-    { id: "2", property: "Brookside Court", unitNumber: "1B", bedrooms: 1, bathrooms: 1, rent: 950, status: "Vacant", tenant: null },
-    { id: "3", property: "Juniper Row", unitNumber: "204", bedrooms: 2, bathrooms: 2, rent: 1450, status: "Occupied", tenant: "Elena Torres" },
-    { id: "4", property: "Juniper Row", unitNumber: "305", bedrooms: 3, bathrooms: 2, rent: 1800, status: "Maintenance", tenant: null },
-  ])
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const creatingRef = useRef(false);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [form, setForm] = useState(initialForm);
+
+  const load = async () => {
+    try {
+      const [unitRows, propertyRows] = await Promise.all([
+        api.get("/admin/units") as Promise<Unit[]>,
+        api.get("/admin/properties") as Promise<Property[]>,
+      ]);
+      setUnits(unitRows);
+      setProperties(propertyRows);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to load rental units"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    Promise.all([
+      api.get("/admin/units") as Promise<Unit[]>,
+      api.get("/admin/properties") as Promise<Property[]>,
+    ])
+      .then(([unitRows, propertyRows]) => {
+        setUnits(unitRows);
+        setProperties(propertyRows);
+      })
+      .catch((error: unknown) =>
+        toast.error(getErrorMessage(error, "Unable to load rental units")),
+      )
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return units;
+    return units.filter((unit) =>
+      `${unit.property.name} ${unit.unitNumber}`.toLowerCase().includes(term),
+    );
+  }, [query, units]);
+
+  const createUnit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (creatingRef.current) return;
+    creatingRef.current = true;
+    setCreating(true);
+    try {
+      await api.post("/admin/units", {
+        ...form,
+        floor: form.floor || undefined,
+        bedrooms: Number(form.bedrooms),
+        bathrooms: Number(form.bathrooms),
+        squareFeet: Number(form.squareFeet),
+        rentAmount: Number(form.rentAmount),
+        depositAmount: Number(form.depositAmount),
+        availableDate: form.availableDate
+          ? new Date(form.availableDate).toISOString()
+          : undefined,
+      });
+      toast.success("Rental unit created");
+      setForm(initialForm);
+      setOpen(false);
+      await load();
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to create unit"));
+    } finally {
+      creatingRef.current = false;
+      setCreating(false);
+    }
+  };
+
+  const updateStatus = async (unit: Unit, status: Unit["status"]) => {
+    try {
+      await api.patch(`/admin/units/${unit.id}`, { status });
+      toast.success("Unit status updated");
+      await load();
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to update unit"));
+    }
+  };
 
   return (
     <div className="space-y-8 sm:space-y-10">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">Units</h1>
-          <p className="text-muted-foreground mt-2 font-medium">Manage individual units across your portfolio.</p>
+          <p className="text-sm font-semibold text-primary">Rental inventory</p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+            Units
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Units connect published properties to invitations, leases, and
+            service requests.
+          </p>
         </div>
-        
-        <Dialog>
-          <DialogTrigger
-            render={
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl  transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading" />
-            }
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Unit
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px] rounded-[2rem] border-border bg-card p-5 sm:p-8">
-            <DialogHeader className="mb-6">
-              <DialogTitle className="text-3xl font-bold font-heading">Add New Unit</DialogTitle>
-              <DialogDescription className="text-muted-foreground font-medium mt-2">Assign a new unit to an existing property.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-6 py-2">
-              <div className="space-y-2">
-                <Label htmlFor="unit-property" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading">Select property</Label>
-                <Select>
-                  <SelectTrigger id="unit-property" className="h-12 rounded-xl bg-secondary/50 border-transparent focus:ring-primary/20 transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium">
-                    <SelectValue placeholder="Select a property" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl border-border">
-                    <SelectItem value="neyans">Brookside Court</SelectItem>
-                    <SelectItem value="oakwood">Juniper Row</SelectItem>
-                    <SelectItem value="sunset">Benton Duplex</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="unitNumber" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading">Unit Number</Label>
-                  <Input id="unitNumber" placeholder="e.g. 101" className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="rent" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading">Monthly Rent</Label>
-                  <Input id="rent" type="number" placeholder="$0.00" className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium tabular-nums" />
-                </div>
-              </div>
-              <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="bedrooms" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading">Bedrooms</Label>
-                  <Input id="bedrooms" type="number" className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bathrooms" className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading">Bathrooms</Label>
-                  <Input id="bathrooms" type="number" className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium" />
-                </div>
-              </div>
-            </div>
-            <DialogFooter className="mt-8">
-              <Button type="submit" className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-bold text-xs uppercase tracking-widest font-heading transition-[background-color,color,border-color,box-shadow,transform,opacity] shadow-lg shadow-primary/20">
-                Create Unit
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <div className="flex flex-col md:flex-row items-center gap-4">
-        <div className="relative flex-1 w-full max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input className="pl-12 h-12 rounded-2xl border-border bg-card shadow-sm font-medium" placeholder="Search units, properties, or tenants" />
-        </div>
-        <Button variant="outline" className="h-12 px-6 rounded-2xl border-border bg-card shadow-sm text-[10px] font-bold uppercase tracking-widest font-heading hover:bg-secondary transition-[background-color,color,border-color,box-shadow,transform,opacity] gap-2">
-          <Filter className="w-4 h-4" />
-          Filter Options
+        <Button
+          onClick={() => setOpen(true)}
+          disabled={properties.length === 0}
+        >
+          <Plus aria-hidden="true" /> Add unit
         </Button>
       </div>
 
-      <Card className="border-border bg-card shadow-sm rounded-[1.25rem] overflow-hidden">
-        <Table>
-          <TableHeader className="bg-secondary/50">
-            <TableRow className="border-border hover:bg-transparent">
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">Unit</TableHead>
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">Property</TableHead>
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">Layout</TableHead>
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">Rent</TableHead>
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">Status</TableHead>
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">Tenant</TableHead>
-              <TableHead className="text-right font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {units.map((unit) => (
-              <TableRow key={unit.id} className="hover:bg-secondary/30 transition-colors border-border">
-                <TableCell className="font-bold text-foreground font-heading py-4">{unit.unitNumber}</TableCell>
-                <TableCell className="py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-secondary rounded-lg">
-                      <Building2 className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                    <span className="text-sm font-bold text-foreground">{unit.property}</span>
+      <div className="relative max-w-md">
+        <Search
+          className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          aria-hidden="true"
+        />
+        <Input
+          aria-label="Search rental units"
+          className="pl-11"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search property or unit"
+        />
+      </div>
+
+      {loading ? (
+        <div className="flex min-h-64 items-center justify-center">
+          <Loader2 className="size-7 animate-spin text-primary" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card>
+          <CardContent className="py-16 text-center">
+            <DoorOpen
+              className="mx-auto size-10 text-primary"
+              aria-hidden="true"
+            />
+            <h2 className="mt-4 text-xl font-semibold">No units found</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Add a rental property first, then create its units here.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((unit) => (
+            <Card key={unit.id}>
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      {unit.property.name}
+                    </p>
+                    <h2 className="mt-1 text-xl font-semibold">
+                      Unit {unit.unitNumber}
+                    </h2>
                   </div>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground font-medium py-4">{unit.bedrooms}B / {unit.bathrooms}Ba</TableCell>
-                <TableCell className="font-bold text-accent font-heading tabular-nums py-4">${unit.rent}</TableCell>
-                <TableCell className="py-4">
-                  <Badge 
-                    className={cn(
-                      "font-bold text-[10px] uppercase tracking-widest border-transparent",
-                      unit.status === "Occupied" ? "bg-success/10 text-success hover:bg-success/20" :
-                      unit.status === "Vacant" ? "bg-accent/10 text-accent hover:bg-accent/20" :
-                      "bg-warning/10 text-warning hover:bg-warning/20"
-                    )}
+                  <Badge
+                    variant={unit.status === "vacant" ? "default" : "outline"}
                   >
-                    {unit.status}
+                    {unit.status.replaceAll("_", " ")}
                   </Badge>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground font-medium py-4">{unit.tenant || "Not assigned"}</TableCell>
-                <TableCell className="text-right py-4">
-                  <Button variant="outline" size="sm" className="rounded-lg border-border hover:bg-secondary text-[10px] font-bold uppercase tracking-widest font-heading transition-[background-color,color,border-color,box-shadow,transform,opacity]">Details</Button>
-                </TableCell>
-              </TableRow>
+                </div>
+                <dl className="mt-5 grid grid-cols-3 gap-3 border-y border-border py-4 text-sm">
+                  <div>
+                    <dt className="text-muted-foreground">Beds</dt>
+                    <dd className="mt-1 font-semibold">{unit.bedrooms}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Baths</dt>
+                    <dd className="mt-1 font-semibold">{unit.bathrooms}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted-foreground">Rent</dt>
+                    <dd className="mt-1 font-semibold">
+                      ${unit.rentAmount.toLocaleString()}
+                    </dd>
+                  </div>
+                </dl>
+                <p className="mt-4 text-sm text-muted-foreground">
+                  {unit.tenants[0]
+                    ? `${unit.tenants[0].firstName} ${unit.tenants[0].lastName}`
+                    : "No active resident"}
+                </p>
+                <Label
+                  htmlFor={`unit-status-${unit.id}`}
+                  className="mt-4 block"
+                >
+                  Operational status
+                </Label>
+                <select
+                  id={`unit-status-${unit.id}`}
+                  className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={unit.status}
+                  onChange={(event) =>
+                    void updateStatus(
+                      unit,
+                      event.target.value as Unit["status"],
+                    )
+                  }
+                  disabled={unit.status === "occupied"}
+                >
+                  <option value="vacant">Vacant</option>
+                  <option value="under_maintenance">Under maintenance</option>
+                  <option value="off_market">Off market</option>
+                  {unit.status === "occupied" ? (
+                    <option value="occupied">Occupied</option>
+                  ) : null}
+                </select>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Add rental unit</DialogTitle>
+            <DialogDescription>
+              The unit becomes available for tenant invitations immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={createUnit} className="grid gap-5 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <Label htmlFor="unit-property">Property</Label>
+              <select
+                id="unit-property"
+                className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={form.propertyId}
+                onChange={(event) =>
+                  setForm({ ...form, propertyId: event.target.value })
+                }
+                required
+              >
+                <option value="">Choose a rental property</option>
+                {properties.map((property) => (
+                  <option key={property.id} value={property.id}>
+                    {property.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {(
+              [
+                ["unitNumber", "Unit number", "text"],
+                ["floor", "Floor (optional)", "text"],
+                ["bedrooms", "Bedrooms", "number"],
+                ["bathrooms", "Bathrooms", "number"],
+                ["squareFeet", "Square feet", "number"],
+                ["rentAmount", "Monthly rent", "number"],
+                ["depositAmount", "Security deposit", "number"],
+                ["availableDate", "Available date", "date"],
+              ] as const
+            ).map(([field, label, type]) => (
+              <div key={field}>
+                <Label htmlFor={`unit-${field}`}>{label}</Label>
+                <Input
+                  id={`unit-${field}`}
+                  className="mt-2"
+                  type={type}
+                  min={type === "number" ? 0 : undefined}
+                  step={field === "bathrooms" ? "0.5" : undefined}
+                  value={form[field]}
+                  onChange={(event) =>
+                    setForm({ ...form, [field]: event.target.value })
+                  }
+                  required={!["floor", "availableDate"].includes(field)}
+                />
+              </div>
             ))}
-          </TableBody>
-        </Table>
-      </Card>
+            <div className="flex justify-end gap-3 border-t border-border pt-5 sm:col-span-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={creating}>
+                {creating ? <Loader2 className="animate-spin" /> : null} Create
+                unit
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
-  )
+  );
 }

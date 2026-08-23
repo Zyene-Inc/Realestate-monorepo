@@ -1,4 +1,4 @@
-export type InquiryMessage = {
+type InquiryMessage = {
   id: string;
   senderType: "BUYER" | "AGENT";
   body: string;

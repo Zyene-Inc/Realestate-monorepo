@@ -66,46 +66,108 @@ enum UserStatus {
   DISABLED
 }
 
+enum CommissionPaymentMethod {
+  ACH
+  CASH
+  CHECK
+  WIRE
+  OTHER
+}
+
+enum SaleCommissionStatus {
+  ACTIVE
+  VOIDED
+}
+
+enum SaleCommissionEventType {
+  CREATED
+  CORRECTED
+  VOIDED
+}
+
+enum ESignatureProvider {
+  VERDOCS
+}
+
+enum ESignatureDocumentType {
+  LEASE
+  DISCLOSURE
+  AGREEMENT
+}
+
+enum ESignatureTargetType {
+  TENANT
+  AGENT
+}
+
+enum ESignatureEnvelopeStatus {
+  CREATING
+  PENDING
+  IN_PROGRESS
+  FINALIZING
+  COMPLETED
+  DECLINED
+  CANCELED
+  EXPIRED
+  FAILED
+}
+
+enum ESignatureEventSource {
+  LOCAL
+  VERDOCS
+}
+
+enum ESignatureStoredDocumentType {
+  SIGNED_DOCUMENT
+  CERTIFICATE
+}
+
 model User {
-  id                 String         @id @default(cuid())
-  authUserId         String         @unique @db.Uuid
-  email              String         @unique
-  role               Role           @default(TENANT)
-  status             UserStatus     @default(INVITED)
-  failedLoginAttempts Int            @default(0)
-  lastFailedLoginAt  DateTime?
-  lockedUntil        DateTime?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-  tenantProfile      Tenant?
-  agentProfile       Agent?         @relation("AgentUser")
-  approvedAgents     Agent[]        @relation("AgentApprovedBy")
-  reviewedProperties Property[]     @relation("PropertyReviewedBy")
-  sentMessages       Message[]      @relation("SentMessages")
-  receivedMessages   Message[]      @relation("ReceivedMessages")
-  auditLogs          AuditLog[]
-  notifications      Notification[]
+  id                  String                @id @default(cuid())
+  authUserId          String                @unique @db.Uuid
+  email               String                @unique
+  role                Role                  @default(TENANT)
+  status              UserStatus            @default(INVITED)
+  failedLoginAttempts Int                   @default(0)
+  lastFailedLoginAt   DateTime?
+  lockedUntil         DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  tenantProfile       Tenant?
+  agentProfile        Agent?                @relation("AgentUser")
+  approvedAgents      Agent[]               @relation("AgentApprovedBy")
+  reviewedProperties  Property[]            @relation("PropertyReviewedBy")
+  sentMessages        Message[]             @relation("SentMessages")
+  receivedMessages    Message[]             @relation("ReceivedMessages")
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+  recordedCommissions SaleCommission[]      @relation("SaleCommissionRecordedBy")
+  voidedCommissions   SaleCommission[]      @relation("SaleCommissionVoidedBy")
+  commissionEvents    SaleCommissionEvent[] @relation("SaleCommissionEventActor")
+  createdESignatures  ESignatureEnvelope[]  @relation("ESignatureCreatedBy")
 }
 
 model Agent {
-  id                       String             @id @default(cuid())
-  userId                   String             @unique
-  user                     User               @relation("AgentUser", fields: [userId], references: [id])
+  id                       String               @id @default(cuid())
+  userId                   String               @unique
+  user                     User                 @relation("AgentUser", fields: [userId], references: [id])
   companyName              String
   contactName              String
-  email                    String             @unique
+  email                    String               @unique
   phone                    String?
-  accountStatus            AgentAccountStatus @default(PENDING)
-  stripeConnectedAccountId String?            @unique
+  accountStatus            AgentAccountStatus   @default(PENDING)
+  stripeConnectedAccountId String?              @unique
   verificationDocuments    String[]
   approvedAt               DateTime?
   approvedByUserId         String?
-  approvedBy               User?              @relation("AgentApprovedBy", fields: [approvedByUserId], references: [id])
+  approvedBy               User?                @relation("AgentApprovedBy", fields: [approvedByUserId], references: [id])
   declineReason            String?
-  createdAt                DateTime           @default(now())
-  updatedAt                DateTime           @updatedAt
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
   properties               Property[]
   listingInquiries         ListingInquiry[]
+  saleCommissions          SaleCommission[]
+  eSignatureEnvelopes      ESignatureEnvelope[]
 
   @@index([accountStatus])
   @@index([approvedByUserId])
@@ -124,6 +186,7 @@ model PropertyOwner {
   updatedAt                DateTime                  @updatedAt
   onboardedAt              DateTime?
   properties               Property[]
+  payments                 Payment[]
 
   @@index([payoutStatus])
 }
@@ -160,36 +223,40 @@ model Property {
   submittedAt         DateTime?
   reviewedAt          DateTime?
   rejectionReason     String?
+  publishedAt         DateTime?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   units               Unit[]
   maintenanceRequests MaintenanceRequest[]
   announcements       Announcement[]
   listingInquiries    ListingInquiry[]
+  saleCommissions     SaleCommission[]
+  eSignatureEnvelopes ESignatureEnvelope[]
 
   @@index([ownerId])
   @@index([agentId])
   @@index([reviewedByUserId])
   @@index([listingType, listingStatus])
-  @@index([listingType, publishStatus])
+  @@index([listingType, publishStatus, updatedAt(sort: Desc), id(sort: Desc)])
 }
 
 model ListingInquiry {
-  id                   String                  @id @default(cuid())
-  propertyId           String
-  property             Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  agentId              String
-  agent                Agent                   @relation(fields: [agentId], references: [id])
-  buyerName            String
-  buyerEmail           String
-  buyerPhone           String?
-  buyerAccessTokenHash String                  @unique
-  status               InquiryStatus           @default(OPEN)
-  agentLastReadAt      DateTime?
-  lastMessageAt        DateTime                @default(now())
-  createdAt            DateTime                @default(now())
-  updatedAt            DateTime                @updatedAt
-  messages             ListingInquiryMessage[]
+  id                        String                  @id @default(cuid())
+  propertyId                String
+  property                  Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  agentId                   String
+  agent                     Agent                   @relation(fields: [agentId], references: [id])
+  buyerName                 String
+  buyerEmail                String
+  buyerPhone                String?
+  buyerAccessTokenHash      String                  @unique
+  buyerAccessTokenExpiresAt DateTime
+  status                    InquiryStatus           @default(OPEN)
+  agentLastReadAt           DateTime?
+  lastMessageAt             DateTime                @default(now())
+  createdAt                 DateTime                @default(now())
+  updatedAt                 DateTime                @updatedAt
+  messages                  ListingInquiryMessage[]
 
   @@index([agentId, status, lastMessageAt])
   @@index([agentId, lastMessageAt(sort: Desc)])
@@ -229,6 +296,9 @@ model Unit {
   payments            Payment[]
   maintenanceRequests MaintenanceRequest[]
   announcements       Announcement[]
+
+  @@unique([propertyId, unitNumber])
+  @@index([propertyId, status])
 }
 
 model Tenant {
@@ -243,6 +313,7 @@ model Tenant {
   vehicleInfo           String?
   petInfo               String?
   status                String               @default("invited")
+  lastMessageAt         DateTime?
   userId                String?              @unique
   user                  User?                @relation(fields: [userId], references: [id])
   unitId                String?
@@ -255,26 +326,34 @@ model Tenant {
   messages              Message[]
   documents             Document[]
   autopay               AutoPay?
+  eSignatureEnvelopes   ESignatureEnvelope[]
+
+  @@index([unitId, status])
+  @@index([lastMessageAt(sort: Desc), id(sort: Desc)])
 }
 
 model Lease {
-  id              String    @id @default(cuid())
-  tenantId        String
-  tenant          Tenant    @relation(fields: [tenantId], references: [id])
-  unitId          String
-  unit            Unit      @relation(fields: [unitId], references: [id])
-  startDate       DateTime
-  endDate         DateTime
-  monthlyRent     Float
-  rentDueDay      Int       @default(1)
-  gracePeriodDays Int       @default(5)
-  lateFeeAmount   Float     @default(50)
-  securityDeposit Float
-  leasePdfUrl     String?
-  status          String    @default("active") // active, expiring, renewed, terminated
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  payments        Payment[]
+  id                  String               @id @default(cuid())
+  tenantId            String
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  unitId              String
+  unit                Unit                 @relation(fields: [unitId], references: [id])
+  startDate           DateTime
+  endDate             DateTime
+  monthlyRent         Float
+  rentDueDay          Int                  @default(1)
+  gracePeriodDays     Int                  @default(5)
+  lateFeeAmount       Float                @default(50)
+  securityDeposit     Float
+  leasePdfUrl         String?
+  status              String               @default("active") // active, expiring, renewed, terminated
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  payments            Payment[]
+  eSignatureEnvelopes ESignatureEnvelope[]
+
+  @@index([tenantId, status, endDate])
+  @@index([unitId, status])
 }
 
 enum PaymentStatus {
@@ -287,31 +366,45 @@ enum PaymentStatus {
 }
 
 model Payment {
-  id              String        @id @default(cuid())
-  tenantId        String
-  tenant          Tenant        @relation(fields: [tenantId], references: [id])
-  leaseId         String
-  lease           Lease         @relation(fields: [leaseId], references: [id])
-  unitId          String
-  unit            Unit          @relation(fields: [unitId], references: [id])
-  rentAmount      Float
-  lateFee         Float         @default(0)
-  totalAmount     Float
-  paidAmount      Float         @default(0)
-  balanceDue      Float
-  paymentMethod   String? // cash, check, Zelle, bank transfer, other
-  referenceNumber String?
-  status          PaymentStatus @default(PENDING)
-  paidAt          DateTime?
-  dueDate         DateTime
-  receiptUrl      String?
-  notes           String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                         String         @id @default(cuid())
+  tenantId                   String
+  tenant                     Tenant         @relation(fields: [tenantId], references: [id])
+  leaseId                    String
+  lease                      Lease          @relation(fields: [leaseId], references: [id])
+  unitId                     String
+  unit                       Unit           @relation(fields: [unitId], references: [id])
+  propertyOwnerId            String?
+  propertyOwner              PropertyOwner? @relation(fields: [propertyOwnerId], references: [id], onDelete: Restrict)
+  rentAmount                 Float
+  lateFee                    Float          @default(0)
+  totalAmount                Float
+  paidAmount                 Float          @default(0)
+  balanceDue                 Float
+  paymentMethod              String? // cash, check, Zelle, bank transfer, other
+  referenceNumber            String?        @unique
+  idempotencyKey             String         @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recordRequestFingerprint   String?        @db.VarChar(64)
+  lastStatusRequestId        String?        @unique @db.Uuid
+  status                     PaymentStatus  @default(PENDING)
+  paidAt                     DateTime?
+  ownerCommissionRate        Decimal?       @db.Decimal(5, 2)
+  managementCommissionAmount Decimal?       @db.Decimal(12, 2)
+  ownerProceedsAmount        Decimal?       @db.Decimal(12, 2)
+  dueDate                    DateTime
+  receiptUrl                 String?
+  notes                      String?
+  createdAt                  DateTime       @default(now())
+  updatedAt                  DateTime       @updatedAt
 
   // Future Stripe Integration Placeholders
   stripeCustomerId      String?
   stripePaymentIntentId String?
+
+  @@index([propertyOwnerId, paidAt(sort: Desc), id(sort: Desc)])
+  @@index([status, paidAt(sort: Desc), id(sort: Desc)])
+  @@index([tenantId])
+  @@index([leaseId])
+  @@index([unitId])
 }
 
 model PaymentMethod {
@@ -355,6 +448,12 @@ model MaintenanceRequest {
   tenantRating         Int?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
+
+  @@index([tenantId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([propertyId, status])
+  @@index([unitId])
+  @@index([assignedVendorId])
 }
 
 model Vendor {
@@ -371,17 +470,22 @@ model Vendor {
 }
 
 model Message {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   senderId   String
-  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  sender     User      @relation("SentMessages", fields: [senderId], references: [id])
   receiverId String
-  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  receiver   User      @relation("ReceivedMessages", fields: [receiverId], references: [id])
   tenantId   String?
-  tenant     Tenant?  @relation(fields: [tenantId], references: [id])
+  tenant     Tenant?   @relation(fields: [tenantId], references: [id])
   subject    String?
   body       String
-  isRead     Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  isRead     Boolean   @default(false)
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([tenantId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([receiverId, isRead, createdAt(sort: Desc)])
+  @@index([senderId])
 }
 
 model Announcement {
@@ -393,6 +497,9 @@ model Announcement {
   title      String
   content    String
   createdAt  DateTime  @default(now())
+
+  @@index([propertyId])
+  @@index([unitId])
 }
 
 model Document {
@@ -403,6 +510,8 @@ model Document {
   url       String
   type      String // Lease, ID, Income, Notice, etc.
   createdAt DateTime @default(now())
+
+  @@index([tenantId])
 }
 
 model Notification {
@@ -413,6 +522,142 @@ model Notification {
   message   String
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model SaleCommission {
+  id                 String                  @id @default(cuid())
+  idempotencyKey     String                  @unique @db.Uuid
+  requestFingerprint String?                 @db.VarChar(64)
+  propertyId         String
+  property           Property                @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  agentId            String
+  agent              Agent                   @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  salePrice          Decimal?                @db.Decimal(14, 2)
+  commissionAmount   Decimal                 @db.Decimal(14, 2)
+  currency           String                  @default("USD") @db.Char(3)
+  receivedAt         DateTime
+  paymentMethod      CommissionPaymentMethod
+  referenceNumber    String?
+  notes              String?
+  status             SaleCommissionStatus    @default(ACTIVE)
+  recordedByUserId   String
+  recordedBy         User                    @relation("SaleCommissionRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+  voidedAt           DateTime?
+  voidReason         String?
+  voidedByUserId     String?
+  voidedBy           User?                   @relation("SaleCommissionVoidedBy", fields: [voidedByUserId], references: [id], onDelete: Restrict)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  events             SaleCommissionEvent[]
+
+  @@index([receivedAt(sort: Desc), id(sort: Desc)])
+  @@index([status, receivedAt(sort: Desc), id(sort: Desc)])
+  @@index([propertyId])
+  @@index([agentId, receivedAt(sort: Desc), id(sort: Desc)])
+  @@index([recordedByUserId])
+  @@index([voidedByUserId])
+}
+
+model SaleCommissionEvent {
+  id           String                  @id @default(cuid())
+  commissionId String
+  commission   SaleCommission          @relation(fields: [commissionId], references: [id], onDelete: Cascade)
+  type         SaleCommissionEventType
+  actorUserId  String
+  actor        User                    @relation("SaleCommissionEventActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  oldValue     Json?
+  newValue     Json?
+  reason       String?
+  createdAt    DateTime                @default(now())
+
+  @@index([commissionId, createdAt, id])
+  @@index([actorUserId])
+}
+
+model ESignatureEnvelope {
+  id                 String                   @id @default(cuid())
+  clientRequestId    String                   @unique @db.Uuid
+  provider           ESignatureProvider       @default(VERDOCS)
+  providerEnvelopeId String?                  @unique @db.Uuid
+  templateId         String                   @db.Uuid
+  documentType       ESignatureDocumentType
+  targetType         ESignatureTargetType
+  status             ESignatureEnvelopeStatus @default(CREATING)
+  providerStatus     String?
+  title              String
+  tenantId           String?
+  tenant             Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  agentId            String?
+  agent              Agent?                   @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  leaseId            String?
+  lease              Lease?                   @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  propertyId         String?
+  property           Property?                @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  recipientRoleName  String
+  recipientEmail     String
+  recipientFirstName String
+  recipientLastName  String
+  recipientStatus    String?
+  createdByUserId    String
+  createdBy          User                     @relation("ESignatureCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  sentAt             DateTime?
+  openedAt           DateTime?
+  completedAt        DateTime?
+  declinedAt         DateTime?
+  canceledAt         DateTime?
+  expiredAt          DateTime?
+  expiresAt          DateTime?
+  archivedAt         DateTime?
+  lastSyncedAt       DateTime?
+  failureReason      String?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  events             ESignatureEvent[]
+  documents          ESignatureDocument[]
+
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([tenantId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([agentId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([leaseId])
+  @@index([propertyId])
+  @@index([createdByUserId])
+}
+
+model ESignatureEvent {
+  id              String                @id @default(cuid())
+  envelopeId      String
+  envelope        ESignatureEnvelope    @relation(fields: [envelopeId], references: [id], onDelete: Cascade)
+  providerEventId String                @unique
+  source          ESignatureEventSource
+  eventType       String
+  actor           String?
+  payload         Json?
+  occurredAt      DateTime
+  createdAt       DateTime              @default(now())
+
+  @@index([envelopeId, occurredAt, id])
+}
+
+model ESignatureDocument {
+  id                 String                       @id @default(cuid())
+  envelopeId         String
+  envelope           ESignatureEnvelope           @relation(fields: [envelopeId], references: [id], onDelete: Restrict)
+  providerDocumentId String                       @db.Uuid
+  documentType       ESignatureStoredDocumentType
+  name               String
+  mime               String
+  size               Int
+  storagePath        String                       @unique
+  sha256             String                       @db.Char(64)
+  providerCreatedAt  DateTime?
+  archivedAt         DateTime                     @default(now())
+  createdAt          DateTime                     @default(now())
+
+  @@unique([envelopeId, providerDocumentId])
+  @@index([envelopeId, archivedAt, id])
 }
 
 model AuditLog {
@@ -426,13 +671,55 @@ model AuditLog {
   newValue   String?
   ipAddress  String?
   createdAt  DateTime @default(now())
+
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([resource, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([action, createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model EmailLog {
-  id        String   @id @default(cuid())
-  to        String
-  subject   String
-  body      String?
-  status    String   @default("sent")
-  createdAt DateTime @default(now())
+  id                     String       @id @default(cuid())
+  to                     String
+  subject                String
+  body                   String?
+  templateKey            String
+  templateVersion        Int          @default(1)
+  status                 String       @default("PENDING")
+  critical               Boolean      @default(false)
+  idempotencyKey         String       @unique
+  providerIdempotencyKey String
+  resendEmailId          String?      @unique
+  attemptCount           Int          @default(0)
+  maxAttempts            Int          @default(1)
+  nextRetryAt            DateTime?
+  lastAttemptAt          DateTime?
+  lastError              String?
+  sentAt                 DateTime?
+  deliveredAt            DateTime?
+  openedAt               DateTime?
+  clickedAt              DateTime?
+  bouncedAt              DateTime?
+  complainedAt           DateTime?
+  failedAt               DateTime?
+  suppressedAt           DateTime?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  events                 EmailEvent[]
+
+  @@index([status, nextRetryAt])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+}
+
+model EmailEvent {
+  id                String   @id @default(cuid())
+  emailLogId        String
+  emailLog          EmailLog @relation(fields: [emailLogId], references: [id], onDelete: Cascade)
+  providerEventId   String   @unique
+  type              String
+  providerCreatedAt DateTime
+  payload           Json?
+  createdAt         DateTime @default(now())
+
+  @@index([emailLogId, providerCreatedAt])
 }

@@ -8,6 +8,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
+import { api, setAccessToken } from "@/lib/api";
+import { strongPasswordError } from "@/lib/password";
 import { toast } from "sonner";
 
 export default function ResetPassword() {
@@ -19,11 +21,16 @@ export default function ResetPassword() {
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (password !== confirmPassword) return void toast.error("Passwords do not match");
-    if (password.length < 12) return void toast.error("Password must be at least 12 characters");
+    const passwordError = strongPasswordError(password);
+    if (passwordError) return void toast.error(passwordError);
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) throw new Error("This recovery link is invalid or expired");
+      setAccessToken(data.session.access_token);
+      await api.post("/auth/password-reset-complete", { password });
+      await supabase.auth.signOut({ scope: "local" });
+      setAccessToken(null);
       setSuccess(true);
       toast.success("Password updated");
     } catch (error: unknown) {
@@ -34,7 +41,7 @@ export default function ResetPassword() {
   }
 
   return (
-    <AuthShell eyebrow="Account recovery" title={success ? "Password updated" : "Choose a new password"} description={success ? "Your account is ready for a secure sign in." : "Use at least 12 characters. A short phrase that only you know is easier to remember and harder to guess."}>
+    <AuthShell eyebrow="Account recovery" title={success ? "Password updated" : "Choose a new password"} description={success ? "Your account is ready for a secure sign in." : "Use at least 12 characters with uppercase, lowercase, a number, and a symbol. Known breached passwords are blocked."}>
       {success ? (
         <div className="border-y border-border py-8 text-center" aria-live="polite">
           <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-success/12 text-success"><CheckCircle2 className="size-7" aria-hidden="true" /></span>

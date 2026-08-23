@@ -11,7 +11,7 @@ import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { inquiryTime, type ListingInquiry } from "@/lib/inquiries";
 
-type StoredAccess = { inquiryId: string; accessToken: string };
+type StoredAccess = { inquiryId: string; expiresAt: string };
 
 export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
   const storageKey = `johnson-realty-inquiry-${listingId}`;
@@ -30,10 +30,12 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
     if (!raw) return;
     try {
       const saved = JSON.parse(raw) as StoredAccess;
+      if (new Date(saved.expiresAt) <= new Date()) {
+        localStorage.removeItem(storageKey);
+        return;
+      }
       api
-        .post(`/public/inquiries/${saved.inquiryId}/access`, {
-          accessToken: saved.accessToken,
-        })
+        .post(`/public/inquiries/${saved.inquiryId}/access`, {})
         .then((value: ListingInquiry) => {
           accessRef.current = saved;
           setInquiry(value);
@@ -50,7 +52,6 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
     setLoadingOlder(true);
     try {
       const older = (await api.post(`/public/inquiries/${inquiry.id}/access`, {
-        accessToken: access.accessToken,
         cursor: inquiry.nextMessageCursor,
       })) as ListingInquiry;
       setInquiry((current) =>
@@ -79,7 +80,7 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
       if (inquiry && access) {
         const updated = (await api.post(
           `/public/inquiries/${inquiry.id}/messages`,
-          { accessToken: access.accessToken, message },
+          { message },
         )) as ListingInquiry;
         setInquiry(updated);
         setMessage("");
@@ -88,10 +89,10 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
         const created = (await api.post(
           `/public/sale-listings/${listingId}/inquiries`,
           { buyerName, buyerEmail, buyerPhone, message, website: "" },
-        )) as { inquiry: ListingInquiry; accessToken: string };
+        )) as { inquiry: ListingInquiry; expiresAt: string };
         const saved = {
           inquiryId: created.inquiry.id,
-          accessToken: created.accessToken,
+          expiresAt: created.expiresAt,
         };
         localStorage.setItem(storageKey, JSON.stringify(saved));
         accessRef.current = saved;

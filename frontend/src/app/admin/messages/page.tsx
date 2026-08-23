@@ -1,153 +1,309 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
+import { Loader2, MessageSquare, Search, Send } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Search, Send, User } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { api } from "@/lib/api";
+import { getErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
-const conversations = [
-  {
-    id: "1",
-    tenant: "Marcus Bell",
-    lastMessage: "When will the AC be fixed?",
-    date: "10:30 AM",
-    unread: true,
-  },
-  {
-    id: "2",
-    tenant: "Elena Torres",
-    lastMessage: "Rent payment sent via ACH",
-    date: "Yesterday",
-    unread: false,
-  },
-  {
-    id: "3",
-    tenant: "Andre Lewis",
-    lastMessage: "I received the invite, thanks!",
-    date: "2 days ago",
-    unread: false,
-  },
-];
+type Message = {
+  id: string;
+  body: string;
+  readAt: string | null;
+  createdAt: string;
+  sender: { role: string; email: string };
+};
+type Conversation = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  status: string;
+  lastMessageAt: string;
+  unreadCount: number;
+  lastMessage: Message | null;
+  unit: { unitNumber: string; property: { name: string } } | null;
+};
+type InboxPage = { items: Conversation[]; nextCursor: string | null };
+type ThreadPage = {
+  tenant: Conversation;
+  items: Message[];
+  nextCursor: string | null;
+};
 
 export default function AdminMessages() {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [thread, setThread] = useState<ThreadPage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
+  const [query, setQuery] = useState("");
+  const [body, setBody] = useState("");
+
+  const loadInbox = async () => {
+    const page = (await api.get("/admin/messages")) as InboxPage;
+    setConversations(page.items);
+    return page.items;
+  };
+
+  const openThread = async (tenantId: string) => {
+    setSelectedId(tenantId);
+    try {
+      const page = (await api.get(`/admin/messages/${tenantId}`)) as ThreadPage;
+      setThread(page);
+      await api.post(`/admin/messages/${tenantId}/read`, {});
+      await loadInbox();
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to open conversation"));
+    }
+  };
+
+  useEffect(() => {
+    api
+      .get("/admin/messages")
+      .then(async (page: InboxPage) => {
+        setConversations(page.items);
+        const first = page.items[0];
+        if (first) {
+          setSelectedId(first.id);
+          const firstThread = (await api.get(
+            `/admin/messages/${first.id}`,
+          )) as ThreadPage;
+          setThread(firstThread);
+          await api.post(`/admin/messages/${first.id}/read`, {});
+        }
+      })
+      .catch((error: unknown) =>
+        toast.error(getErrorMessage(error, "Unable to load tenant messages")),
+      )
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return conversations;
+    return conversations.filter((conversation) =>
+      `${conversation.firstName} ${conversation.lastName} ${conversation.email}`
+        .toLowerCase()
+        .includes(term),
+    );
+  }, [conversations, query]);
+
+  const send = async (event: FormEvent) => {
+    event.preventDefault();
+    if (sendingRef.current || !selectedId || !body.trim()) return;
+    sendingRef.current = true;
+    setSending(true);
+    try {
+      const updated = (await api.post(`/admin/messages/${selectedId}`, {
+        body,
+      })) as ThreadPage;
+      setThread(updated);
+      setBody("");
+      await loadInbox();
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to send message"));
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
+  };
+
+  const loadOlder = async () => {
+    if (!selectedId || !thread?.nextCursor) return;
+    try {
+      const older = (await api.get(
+        `/admin/messages/${selectedId}?cursor=${encodeURIComponent(thread.nextCursor)}`,
+      )) as ThreadPage;
+      setThread({
+        ...older,
+        items: [...older.items, ...thread.items],
+      });
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to load older messages"));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60dvh] items-center justify-center">
+        <Loader2 className="size-7 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-[calc(100dvh-8rem)] flex-col gap-6 lg:h-[calc(100dvh-5.5rem)] lg:flex-row lg:gap-8">
-      <div className="flex w-full flex-col gap-5 lg:w-80 lg:flex-shrink-0">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">
-            Messages
-          </h1>
-          <p className="text-muted-foreground mt-2 font-medium">
-            Tenant communications
-          </p>
-        </div>
-        <div className="relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-          <Input
-            aria-label="Search conversations"
-            className="pl-12 h-12 rounded-2xl border-border bg-card shadow-sm focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium"
-            placeholder="Search conversations"
-          />
-        </div>
-        <div className="grid max-h-56 gap-2 overflow-y-auto pr-1 sm:grid-cols-3 lg:max-h-none lg:flex-1 lg:grid-cols-1 lg:pr-2">
-          {conversations.map((conv) => (
-            <button
-              type="button"
-              key={conv.id}
-              className={cn(
-                "rounded-2xl border p-4 text-left transition-[background-color,border-color] duration-150",
-                conv.unread
-                  ? "bg-primary/5 border-primary/20 shadow-sm"
-                  : "bg-card border-border hover:border-primary/30 hover:shadow-md",
-              )}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <span
-                  className={cn(
-                    "font-bold text-sm font-heading",
-                    conv.unread ? "text-primary" : "text-foreground",
-                  )}
-                >
-                  {conv.tenant}
-                </span>
-                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest font-heading">
-                  {conv.date}
-                </span>
-              </div>
-              <p
+    <div className="space-y-7">
+      <div>
+        <p className="text-sm font-semibold text-primary">Rental operations</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+          Tenant inbox
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Every resident message routes directly into this shared Rental Admin
+          inbox.
+        </p>
+      </div>
+      <div className="grid min-h-[42rem] gap-5 lg:grid-cols-[20rem_minmax(0,1fr)]">
+        <aside className="min-w-0">
+          <div className="relative mb-4">
+            <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              aria-label="Search tenant conversations"
+              className="pl-11"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search residents"
+            />
+          </div>
+          <div className="grid max-h-[36rem] gap-2 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="rounded-xl border border-border p-5 text-sm text-muted-foreground">
+                No tenant conversations yet.
+              </p>
+            ) : null}
+            {filtered.map((conversation) => (
+              <button
+                key={conversation.id}
+                type="button"
+                onClick={() => void openThread(conversation.id)}
                 className={cn(
-                  "text-[11px] truncate font-medium",
-                  conv.unread
-                    ? "text-foreground font-bold"
-                    : "text-muted-foreground",
+                  "rounded-xl border p-4 text-left transition-colors",
+                  selectedId === conversation.id
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-card hover:border-primary/30",
                 )}
               >
-                {conv.lastMessage}
+                <span className="flex items-center justify-between gap-3">
+                  <strong className="truncate text-sm">
+                    {conversation.firstName} {conversation.lastName}
+                  </strong>
+                  {conversation.unreadCount > 0 ? (
+                    <span className="flex size-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                      {conversation.unreadCount}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="mt-2 block truncate text-xs text-muted-foreground">
+                  {conversation.lastMessage?.body}
+                </span>
+                <span className="mt-2 block text-[11px] text-muted-foreground">
+                  {formatDistanceToNow(new Date(conversation.lastMessageAt), {
+                    addSuffix: true,
+                  })}
+                </span>
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <Card className="flex min-h-[38rem] min-w-0 flex-col overflow-hidden">
+          {thread ? (
+            <>
+              <header className="border-b border-border p-5">
+                <h2 className="font-semibold">
+                  {thread.tenant.firstName} {thread.tenant.lastName}
+                </h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {thread.tenant.unit
+                    ? `${thread.tenant.unit.property.name} · Unit ${thread.tenant.unit.unitNumber}`
+                    : "No current unit"}
+                </p>
+              </header>
+              <div
+                className="flex-1 space-y-5 overflow-y-auto bg-secondary/20 p-5"
+                aria-live="polite"
+              >
+                {thread.nextCursor ? (
+                  <div className="text-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void loadOlder()}
+                    >
+                      Load older messages
+                    </Button>
+                  </div>
+                ) : null}
+                {thread.items.map((message) => {
+                  const fromAdmin = message.sender.role !== "TENANT";
+                  return (
+                    <div
+                      key={message.id}
+                      className={cn(
+                        "flex",
+                        fromAdmin ? "justify-end" : "justify-start",
+                      )}
+                    >
+                      <div className="max-w-[82%]">
+                        <div
+                          className={cn(
+                            "rounded-2xl px-4 py-3 text-sm leading-6",
+                            fromAdmin
+                              ? "rounded-tr-sm bg-primary text-primary-foreground"
+                              : "rounded-tl-sm border border-border bg-card",
+                          )}
+                        >
+                          {message.body}
+                        </div>
+                        <p
+                          className={cn(
+                            "mt-1 text-[11px] text-muted-foreground",
+                            fromAdmin && "text-right",
+                          )}
+                        >
+                          {formatDistanceToNow(new Date(message.createdAt), {
+                            addSuffix: true,
+                          })}
+                          {fromAdmin
+                            ? ` · ${message.readAt ? "Seen" : "Sent"}`
+                            : ""}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <form
+                onSubmit={send}
+                className="flex gap-3 border-t border-border p-4"
+              >
+                <Input
+                  aria-label={`Message ${thread.tenant.firstName}`}
+                  value={body}
+                  onChange={(event) => setBody(event.target.value)}
+                  placeholder="Write a reply"
+                  maxLength={4000}
+                />
+                <Button
+                  type="submit"
+                  size="icon"
+                  disabled={sending || !body.trim()}
+                  aria-label="Send reply"
+                >
+                  {sending ? <Loader2 className="animate-spin" /> : <Send />}
+                </Button>
+              </form>
+            </>
+          ) : (
+            <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
+              <MessageSquare className="size-10 text-primary" />
+              <h2 className="mt-4 text-xl font-semibold">
+                Select a conversation
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Resident messages will appear here.
               </p>
-            </button>
-          ))}
-        </div>
+            </div>
+          )}
+        </Card>
       </div>
-
-      <Card className="min-h-[35rem] min-w-0 flex-1 overflow-hidden border-border bg-card shadow-sm rounded-[1.25rem] lg:min-h-0">
-        <div className="flex items-center gap-4 border-b border-border bg-secondary/30 p-4 sm:p-6">
-          <div className="w-12 h-12 bg-secondary rounded-xl flex items-center justify-center border border-border">
-            <User className="w-5 h-5 text-muted-foreground" />
-          </div>
-          <div>
-            <h3 className="font-bold text-foreground font-heading text-lg tracking-tight">
-              Marcus Bell
-            </h3>
-            <div className="flex items-center gap-2 mt-1">
-              <span
-                className="h-2 w-2 rounded-full bg-success"
-                aria-hidden="true"
-              />
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground font-heading">
-                Active tenant / Unit A1
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 space-y-6 overflow-y-auto bg-background/50 p-4 sm:p-8">
-          <div className="flex justify-start">
-            <div className="max-w-[88%] rounded-[1.25rem] rounded-tl-sm border border-border bg-secondary p-4 text-sm font-medium leading-relaxed text-foreground shadow-sm sm:max-w-[70%]">
-              Hello, the AC in my unit stopped working this morning. It is
-              making a loud rattling noise.
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <div className="max-w-[88%] rounded-[1.25rem] rounded-tr-sm bg-primary p-4 text-sm font-medium leading-relaxed text-primary-foreground shadow-sm sm:max-w-[70%]">
-              Hi Marcus, sorry to hear that. I have assigned Northline Heating
-              and Cooling to inspect it. They should arrive by 2 PM today.
-            </div>
-          </div>
-          <div className="flex justify-start">
-            <div className="max-w-[88%] rounded-[1.25rem] rounded-tl-sm border border-border bg-secondary p-4 text-sm font-medium leading-relaxed text-foreground shadow-sm sm:max-w-[70%]">
-              Great, thank you. I will be home.
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t border-border bg-card p-3 sm:p-5">
-          <div className="flex gap-3 bg-secondary/50 p-2 rounded-2xl border border-border focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 transition-[background-color,color,border-color,box-shadow,transform,opacity]">
-            <Input
-              aria-label="Message Marcus Bell"
-              placeholder="Write a message"
-              className="flex-1 bg-transparent border-none shadow-none focus-visible:ring-0 h-14 text-sm font-medium placeholder:text-muted-foreground/60"
-            />
-            <Button
-              aria-label="Send message"
-              size="icon-lg"
-              className="shrink-0"
-            >
-              <Send className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-      </Card>
     </div>
   );
 }

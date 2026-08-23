@@ -1,16 +1,18 @@
 import { Module } from '@nestjs/common';
 import {
   AdminListingInquiriesController,
+  AdminTenantMessagesController,
   AgentListingInquiriesController,
-  MessagesController,
   PublicListingInquiriesController,
+  TenantMessagesController,
 } from './messages.controller';
 import { MessagesService } from './messages.service';
 import { ListingInquiriesService } from './listing-inquiries.service';
 
 @Module({
   controllers: [
-    MessagesController,
+    TenantMessagesController,
+    AdminTenantMessagesController,
     PublicListingInquiriesController,
     AgentListingInquiriesController,
     AdminListingInquiriesController,

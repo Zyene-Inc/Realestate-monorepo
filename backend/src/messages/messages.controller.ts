@@ -7,8 +7,10 @@ import {
   Post,
   Query,
   Request,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Request as ExpressRequest, Response } from 'express';
 import { Role } from '@prisma/client';
 import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -22,12 +24,82 @@ import {
   CursorPageDto,
   UpdateInquiryStatusDto,
 } from './dto/listing-inquiry.dto';
-import { ListingInquiriesService } from './listing-inquiries.service';
+import {
+  buyerInquiryCookieName,
+  ListingInquiriesService,
+} from './listing-inquiries.service';
+import {
+  SendTenantMessageDto,
+  TenantMessagePageDto,
+} from './dto/tenant-message.dto';
+import { MessagesService } from './messages.service';
 
 type AuthenticatedRequest = { user: { sub: string } };
 
-@Controller('messages')
-export class MessagesController {}
+@Controller('tenant/portal/messages')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.TENANT)
+export class TenantMessagesController {
+  constructor(private readonly messages: MessagesService) {}
+
+  @Get()
+  get(
+    @Request() request: AuthenticatedRequest,
+    @Query() query: TenantMessagePageDto,
+  ) {
+    return this.messages.getForTenant(request.user.sub, query);
+  }
+
+  @Post()
+  send(
+    @Request() request: AuthenticatedRequest,
+    @Body() body: SendTenantMessageDto,
+  ) {
+    return this.messages.sendFromTenant(request.user.sub, body);
+  }
+
+  @Post('read')
+  read(@Request() request: AuthenticatedRequest) {
+    return this.messages.markReadForTenant(request.user.sub);
+  }
+}
+
+@Controller('admin/messages')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN)
+export class AdminTenantMessagesController {
+  constructor(private readonly messages: MessagesService) {}
+
+  @Get()
+  list(@Query() query: TenantMessagePageDto) {
+    return this.messages.listForAdmin(query);
+  }
+
+  @Get(':tenantId')
+  get(
+    @Param('tenantId') tenantId: string,
+    @Query() query: TenantMessagePageDto,
+  ) {
+    return this.messages.getForAdmin(tenantId, query);
+  }
+
+  @Post(':tenantId')
+  send(
+    @Request() request: AuthenticatedRequest,
+    @Param('tenantId') tenantId: string,
+    @Body() body: SendTenantMessageDto,
+  ) {
+    return this.messages.sendFromAdmin(request.user.sub, tenantId, body);
+  }
+
+  @Post(':tenantId/read')
+  read(
+    @Request() request: AuthenticatedRequest,
+    @Param('tenantId') tenantId: string,
+  ) {
+    return this.messages.markReadForAdmin(request.user.sub, tenantId);
+  }
+}
 
 @Controller('public')
 export class PublicListingInquiriesController {
@@ -35,23 +107,52 @@ export class PublicListingInquiriesController {
 
   @Post('sale-listings/:propertyId/inquiries')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
-  create(
+  async create(
     @Param('propertyId') propertyId: string,
     @Body() body: CreateListingInquiryDto,
+    @Res({ passthrough: true }) response: Response,
   ) {
-    return this.inquiries.create(propertyId, body);
+    const created = await this.inquiries.create(propertyId, body);
+    response.cookie(
+      buyerInquiryCookieName(created.inquiry.id),
+      created.accessToken,
+      {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        path: `/api/public/inquiries/${created.inquiry.id}`,
+        expires: created.expiresAt,
+      },
+    );
+    return { inquiry: created.inquiry, expiresAt: created.expiresAt };
   }
 
   @Post('inquiries/:id/access')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  access(@Param('id') id: string, @Body() body: BuyerInquiryAccessDto) {
-    return this.inquiries.getForBuyer(id, body.accessToken, body);
+  access(
+    @Param('id') id: string,
+    @Body() body: BuyerInquiryAccessDto,
+    @Request() request: ExpressRequest,
+  ) {
+    return this.inquiries.getForBuyer(
+      id,
+      request.cookies[buyerInquiryCookieName(id)] as string | undefined,
+      body,
+    );
   }
 
   @Post('inquiries/:id/messages')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  reply(@Param('id') id: string, @Body() body: BuyerInquiryReplyDto) {
-    return this.inquiries.buyerReply(id, body.accessToken, body.message);
+  reply(
+    @Param('id') id: string,
+    @Body() body: BuyerInquiryReplyDto,
+    @Request() request: ExpressRequest,
+  ) {
+    return this.inquiries.buyerReply(
+      id,
+      request.cookies[buyerInquiryCookieName(id)] as string | undefined,
+      body.message,
+    );
   }
 }
 

@@ -1,9 +1,20 @@
-import { Controller, Get, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
-import { TenantsService } from './tenants.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { Role } from '@prisma/client';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
+import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { TenantsService } from './tenants.service';
+
+type AuthenticatedRequest = { user: { sub: string } };
 
 @Controller('admin/tenants')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -22,12 +33,11 @@ export class TenantsController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateTenantDto: any) {
-    return this.tenantsService.update(id, updateTenantDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.tenantsService.remove(id);
+  update(
+    @Request() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: UpdateTenantDto,
+  ) {
+    return this.tenantsService.update(request.user.sub, id, body);
   }
 }

@@ -31,7 +31,12 @@ import { cn } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/errors";
 
 type LeaseTenant = { id: string; firstName: string; lastName: string };
-type LeaseUnit = { id: string; unitNumber: string; property: { name: string } };
+type LeaseUnit = {
+  id: string;
+  unitNumber: string;
+  status: string;
+  property: { name: string };
+};
 type Lease = {
   id: string;
   tenant: LeaseTenant;
@@ -41,6 +46,130 @@ type Lease = {
   monthlyRent: number;
   status: string;
 };
+type LeaseForm = {
+  tenantId: string;
+  unitId: string;
+  startDate: string;
+  endDate: string;
+  monthlyRent: string;
+  securityDeposit: string;
+};
+
+function LeaseCreateDialog({
+  open,
+  creating,
+  form,
+  tenants,
+  units,
+  onOpenChange,
+  onFormChange,
+  onSubmit,
+}: {
+  open: boolean;
+  creating: boolean;
+  form: LeaseForm;
+  tenants: LeaseTenant[];
+  units: LeaseUnit[];
+  onOpenChange: (open: boolean) => void;
+  onFormChange: (form: LeaseForm) => void;
+  onSubmit: (event: React.FormEvent) => Promise<void>;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger
+        render={
+          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group" />
+        }
+      >
+        <Plus className="mr-2 h-4 w-4 text-current transition-transform group-hover:rotate-90" />
+        Create Lease
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[600px] rounded-[2rem] border-border bg-card p-5 sm:p-8">
+        <form onSubmit={onSubmit}>
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-3xl font-bold font-heading">
+              Create New Lease
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground font-medium mt-2">
+              Define terms for a new tenant agreement.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="lease-tenant">Select resident</Label>
+              <select
+                id="lease-tenant"
+                className="w-full h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary focus:ring-1 focus:ring-primary px-4 outline-none font-medium text-foreground"
+                value={form.tenantId}
+                onChange={(event) =>
+                  onFormChange({ ...form, tenantId: event.target.value })
+                }
+                required
+              >
+                <option value="">Choose a tenant…</option>
+                {tenants.map((tenant) => (
+                  <option key={tenant.id} value={tenant.id}>
+                    {tenant.firstName} {tenant.lastName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lease-unit">Select unit</Label>
+              <select
+                id="lease-unit"
+                className="w-full h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary focus:ring-1 focus:ring-primary px-4 outline-none font-medium text-foreground"
+                value={form.unitId}
+                onChange={(event) =>
+                  onFormChange({ ...form, unitId: event.target.value })
+                }
+                required
+              >
+                <option value="">Choose a unit…</option>
+                {units.map((unit) => (
+                  <option key={unit.id} value={unit.id}>
+                    Unit {unit.unitNumber} - {unit.property.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
+              {(
+                [
+                  ["startDate", "Start date", "date"],
+                  ["endDate", "End date", "date"],
+                  ["monthlyRent", "Monthly rent", "number"],
+                  ["securityDeposit", "Security deposit", "number"],
+                ] as const
+              ).map(([field, label, type]) => (
+                <div key={field} className="space-y-2">
+                  <Label htmlFor={`lease-${field}`}>{label}</Label>
+                  <Input
+                    id={`lease-${field}`}
+                    type={type}
+                    min={type === "number" ? 0 : undefined}
+                    step={type === "number" ? "0.01" : undefined}
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary font-medium"
+                    value={form[field]}
+                    onChange={(event) =>
+                      onFormChange({ ...form, [field]: event.target.value })
+                    }
+                    required
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter className="mt-8">
+            <Button type="submit" className="w-full h-14" disabled={creating}>
+              {creating ? "Processing…" : "Sign & Create Lease"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function AdminLeases() {
   const [leases, setLeases] = useState<Lease[]>([]);
@@ -50,6 +179,7 @@ export default function AdminLeases() {
   const [creating, setCreating] = useState(false);
   const creatingRef = useRef(false);
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -119,6 +249,26 @@ export default function AdminLeases() {
     }
   };
 
+  const updateStatus = async (lease: Lease, status: string) => {
+    try {
+      await api.patch(`/admin/leases/${lease.id}`, { status });
+      toast.success("Lease status updated");
+      await fetchData();
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to update lease"));
+    }
+  };
+
+  const filteredLeases = leases.filter((lease) =>
+    `${lease.tenant.firstName} ${lease.tenant.lastName} ${lease.unit.property.name} ${lease.unit.unitNumber}`
+      .toLowerCase()
+      .includes(query.trim().toLowerCase()),
+  );
+  const vacantUnits = units.reduce<LeaseUnit[]>((available, unit) => {
+    if (unit.status === "vacant") available.push(unit);
+    return available;
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-200px)]">
@@ -139,177 +289,25 @@ export default function AdminLeases() {
           </p>
         </div>
 
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger
-            render={
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl  transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group" />
-            }
-          >
-            <Plus className="mr-2 h-4 w-4 text-current transition-transform group-hover:rotate-90" />
-            Create Lease
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] rounded-[2rem] border-border bg-card p-5 sm:p-8">
-            <form onSubmit={handleCreateLease}>
-              <DialogHeader className="mb-6">
-                <DialogTitle className="text-3xl font-bold font-heading">
-                  Create New Lease
-                </DialogTitle>
-                <DialogDescription className="text-muted-foreground font-medium mt-2">
-                  Define terms for a new tenant agreement.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-6 py-2">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="lease-tenant"
-                    className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
-                  >
-                    Select resident
-                  </Label>
-                  <select
-                    id="lease-tenant"
-                    className="w-full h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary focus:ring-1 focus:ring-primary px-4 outline-none font-medium text-foreground transition-[background-color,color,border-color,box-shadow,transform,opacity]"
-                    value={formData.tenantId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, tenantId: e.target.value })
-                    }
-                    required
-                  >
-                    <option value="">Choose a tenant…</option>
-                    {tenants.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.firstName} {t.lastName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="lease-unit"
-                    className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
-                  >
-                    Select unit
-                  </Label>
-                  <select
-                    id="lease-unit"
-                    className="w-full h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary focus:ring-1 focus:ring-primary px-4 outline-none font-medium text-foreground transition-[background-color,color,border-color,box-shadow,transform,opacity]"
-                    value={formData.unitId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, unitId: e.target.value })
-                    }
-                    required
-                  >
-                    <option value="">Choose a unit…</option>
-                    {units.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        Unit {u.unitNumber} - {u.property.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="lease-start"
-                      className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
-                    >
-                      Start date
-                    </Label>
-                    <Input
-                      id="lease-start"
-                      type="date"
-                      className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium"
-                      value={formData.startDate}
-                      onChange={(e) =>
-                        setFormData({ ...formData, startDate: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="lease-end"
-                      className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
-                    >
-                      End date
-                    </Label>
-                    <Input
-                      id="lease-end"
-                      type="date"
-                      className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium"
-                      value={formData.endDate}
-                      onChange={(e) =>
-                        setFormData({ ...formData, endDate: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="lease-rent"
-                      className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
-                    >
-                      Monthly rent
-                    </Label>
-                    <Input
-                      id="lease-rent"
-                      type="number"
-                      placeholder="0.00"
-                      className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium tabular-nums"
-                      value={formData.monthlyRent}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          monthlyRent: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="lease-deposit"
-                      className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
-                    >
-                      Security deposit
-                    </Label>
-                    <Input
-                      id="lease-deposit"
-                      type="number"
-                      placeholder="0.00"
-                      className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium tabular-nums"
-                      value={formData.securityDeposit}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          securityDeposit: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-              <DialogFooter className="mt-8">
-                <Button
-                  type="submit"
-                  className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading"
-                  disabled={creating}
-                >
-                  {creating ? "Processing…" : "Sign & Create Lease"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <LeaseCreateDialog
+          open={open}
+          creating={creating}
+          form={formData}
+          tenants={tenants}
+          units={vacantUnits}
+          onOpenChange={setOpen}
+          onFormChange={setFormData}
+          onSubmit={handleCreateLease}
+        />
       </div>
 
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <Input
+            aria-label="Search leases"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
             className="pl-12 h-12 rounded-2xl border-border bg-card shadow-sm focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium"
             placeholder="Search leases"
           />
@@ -341,7 +339,7 @@ export default function AdminLeases() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {leases.length === 0 ? (
+            {filteredLeases.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={6}
@@ -351,7 +349,7 @@ export default function AdminLeases() {
                 </TableCell>
               </TableRow>
             ) : (
-              leases.map((lease) => (
+              filteredLeases.map((lease) => (
                 <TableRow
                   key={lease.id}
                   className="hover:bg-secondary/30 transition-colors border-border"
@@ -392,22 +390,19 @@ export default function AdminLeases() {
                     </Badge>
                   </TableCell>
                   <TableCell className="py-4 text-right">
-                    <div className="flex justify-end gap-3">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground font-heading transition-[background-color,color,border-color,box-shadow,transform,opacity]"
-                      >
-                        View File
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-[10px] font-bold uppercase tracking-widest text-accent hover:text-accent hover:bg-accent/10 font-heading transition-[background-color,color,border-color,box-shadow,transform,opacity]"
-                      >
-                        Renew
-                      </Button>
-                    </div>
+                    <select
+                      aria-label={`Update lease status for ${lease.tenant.firstName} ${lease.tenant.lastName}`}
+                      className="h-10 rounded-md border border-input bg-background px-3 text-xs font-semibold"
+                      value={lease.status}
+                      onChange={(event) =>
+                        void updateStatus(lease, event.target.value)
+                      }
+                    >
+                      <option value="active">Active</option>
+                      <option value="expiring">Expiring</option>
+                      <option value="renewed">Renewed</option>
+                      <option value="terminated">Terminated</option>
+                    </select>
                   </TableCell>
                 </TableRow>
               ))

@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Building2, ClipboardCheck, Loader2, ShieldCheck } from "lucide-react";
+import {
+  Building2,
+  ClipboardCheck,
+  Loader2,
+  ReceiptText,
+  ShieldCheck,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -101,6 +107,12 @@ export default function SalesDashboardPage() {
       href: "/properties",
       icon: Building2,
     },
+    {
+      label: "Commission ledger",
+      value: "Open",
+      href: "/admin/sales/commissions",
+      icon: ReceiptText,
+    },
   ];
 
   return (
@@ -126,7 +138,9 @@ export default function SalesDashboardPage() {
                 <card.icon className="h-5 w-5 text-primary" />
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">{card.value}</p>
+                <p className="text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+                  {card.value}
+                </p>
               </CardContent>
             </Card>
           </Link>

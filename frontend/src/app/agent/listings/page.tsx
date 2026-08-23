@@ -64,22 +64,59 @@ export default function AgentListingsPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader eyebrow="Company workspace" title="Sale listings" description="Prepare each property carefully, submit it for review, and follow its path to publication." actions={<>
-          <Button variant="outline" onClick={load} disabled={loading}>
-            <RefreshCw className="mr-2 h-4 w-4" /> Refresh
-          </Button>
-          <Link href="/agent/listings/new" transitionTypes={["nav-forward"]} className={buttonVariants()}>
-            <Plus className="mr-2 h-4 w-4" /> New listing
-          </Link>
-        </>} />
+      <PageHeader
+        eyebrow="Company workspace"
+        title="Sale listings"
+        description="Prepare each property carefully, submit it for review, and follow its path to publication."
+        actions={
+          <>
+            <Button variant="outline" onClick={load} disabled={loading}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+            </Button>
+            <Link
+              href="/agent/listings/new"
+              transitionTypes={["nav-forward"]}
+              className={buttonVariants()}
+            >
+              <Plus className="mr-2 h-4 w-4" /> New listing
+            </Link>
+          </>
+        }
+      />
 
       {loading ? (
-        <div className="grid gap-6 lg:grid-cols-2" aria-label="Loading listings">{[0, 1].map((item) => <Card key={item}><Skeleton className="h-56 rounded-none" /><CardContent className="space-y-4 p-6"><Skeleton className="h-7 w-2/3" /><Skeleton className="h-12 w-full" /></CardContent></Card>)}</div>
+        <div
+          className="grid gap-6 lg:grid-cols-2"
+          aria-label="Loading listings"
+        >
+          {[0, 1].map((item) => (
+            <Card key={item}>
+              <Skeleton className="h-56 rounded-none" />
+              <CardContent className="space-y-4 p-6">
+                <Skeleton className="h-7 w-2/3" />
+                <Skeleton className="h-12 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : listings.length === 0 ? (
         <Card className="rounded-2xl">
           <CardContent className="py-20 text-center">
             <Building2 className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
-            <h2 className="text-xl font-semibold">Your first listing starts here</h2><p className="mt-2 text-muted-foreground">Add the property story, accurate details, photos, and review documents.</p><Link href="/agent/listings/new" transitionTypes={["nav-forward"]} className={buttonVariants({ className: "mt-6" })}>Create a listing</Link>
+            <h2 className="text-xl font-semibold">
+              Your first listing starts here
+            </h2>
+            <p className="mt-2 text-muted-foreground">
+              Add the property story, accurate details, photos, and review
+              documents.
+            </p>
+            <Link
+              href="/agent/listings/new"
+              transitionTypes={["nav-forward"]}
+              className={buttonVariants({ className: "mt-6" })}
+            >
+              Create a listing
+            </Link>
           </CardContent>
         </Card>
       ) : (
@@ -114,9 +151,12 @@ export default function AgentListingsPage() {
                         {formatCurrency(listing.price)}
                       </p>
                     </div>
-                    <Badge variant="outline">
-                      {listingStatusLabel(listing.listingStatus)}
-                    </Badge>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {listing.status === "sold" && <Badge>Sold</Badge>}
+                      <Badge variant="outline">
+                        {listingStatusLabel(listing.listingStatus)}
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">

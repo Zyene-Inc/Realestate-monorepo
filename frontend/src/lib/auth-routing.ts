@@ -10,7 +10,7 @@ type Router = {
   replace: (href: string) => void;
 };
 
-export function routeForUser(user: PortalUser) {
+function routeForUser(user: PortalUser) {
   if (
     typeof window === "undefined" ||
     isLocalOrPreviewHostname(window.location.hostname)

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
+import { strongPasswordError } from "@/lib/password";
 import { toast } from "sonner";
 
 const initialForm = { companyName: "", contactName: "", email: "", phone: "", password: "", confirmPassword: "" };
@@ -22,7 +23,8 @@ export default function AgentSignupPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (form.password !== form.confirmPassword) return void toast.error("Passwords do not match");
-    if (form.password.length < 12) return void toast.error("Password must be at least 12 characters");
+    const passwordError = strongPasswordError(form.password);
+    if (passwordError) return void toast.error(passwordError);
     setLoading(true);
     try {
       await api.post("/auth/agent-signup", { companyName: form.companyName, contactName: form.contactName, email: form.email, phone: form.phone || undefined, password: form.password });
@@ -49,7 +51,7 @@ export default function AgentSignupPage() {
           <Field id="contact-name" icon={UserRound} label="Primary contact"><Input id="contact-name" name="contactName" autoComplete="name" value={form.contactName} onChange={(event) => update("contactName", event.target.value)} required minLength={2} maxLength={120} /></Field>
           <Field id="business-email" icon={Mail} label="Business email"><Input id="business-email" name="email" type="email" autoComplete="email" value={form.email} onChange={(event) => update("email", event.target.value)} required maxLength={254} /></Field>
           <Field id="business-phone" icon={Phone} label="Phone" optional><Input id="business-phone" name="phone" type="tel" autoComplete="tel" value={form.phone} onChange={(event) => update("phone", event.target.value)} /></Field>
-          <Field id="application-password" label="Password"><Input id="application-password" name="password" type="password" autoComplete="new-password" placeholder="At least 12 characters" value={form.password} onChange={(event) => update("password", event.target.value)} required minLength={12} maxLength={72} /></Field>
+          <Field id="application-password" label="Password"><Input id="application-password" name="password" type="password" autoComplete="new-password" placeholder="12+ mixed characters" value={form.password} onChange={(event) => update("password", event.target.value)} required minLength={12} maxLength={72} /></Field>
           <Field id="application-confirm-password" label="Confirm password"><Input id="application-confirm-password" name="confirmPassword" type="password" autoComplete="new-password" placeholder="Enter it again" value={form.confirmPassword} onChange={(event) => update("confirmPassword", event.target.value)} required minLength={12} maxLength={72} /></Field>
           <div className="border-t border-border pt-5 sm:col-span-2"><Button className="w-full sm:w-auto" disabled={loading}>{loading ? <><Loader2 className="animate-spin" aria-hidden="true" />Submitting application</> : "Submit for review"}</Button><p className="mt-4 text-xs leading-5 text-muted-foreground">Applications remain pending until company details and verification documents are reviewed.</p></div>
         </form>

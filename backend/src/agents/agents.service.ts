@@ -260,14 +260,25 @@ export class AgentsService {
         where: { id: current.userId },
         data: { status: UserStatus.ACTIVE },
       });
-      const updated = await tx.agent.update({
-        where: { id: agentId },
+      const transition = await tx.agent.updateMany({
+        where: {
+          id: agentId,
+          accountStatus: AgentAccountStatus.PENDING,
+        },
         data: {
           accountStatus: AgentAccountStatus.APPROVED,
           approvedAt: new Date(),
           approvedByUserId: reviewerId,
           declineReason: null,
         },
+      });
+      if (transition.count !== 1) {
+        throw new BadRequestException(
+          'The agent application was already reviewed',
+        );
+      }
+      const updated = await tx.agent.findUniqueOrThrow({
+        where: { id: agentId },
       });
       await tx.auditLog.create({
         data: {
@@ -281,7 +292,11 @@ export class AgentsService {
       });
       return updated;
     });
-    await this.emails.sendAgentApproved(agent.email, agent.contactName);
+    await this.emails.sendAgentApproved(
+      agent.email,
+      agent.contactName,
+      agent.id,
+    );
     return agent;
   }
 
@@ -297,14 +312,25 @@ export class AgentsService {
     }
 
     const agent = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.agent.update({
-        where: { id: agentId },
+      const transition = await tx.agent.updateMany({
+        where: {
+          id: agentId,
+          accountStatus: AgentAccountStatus.PENDING,
+        },
         data: {
           accountStatus: AgentAccountStatus.DECLINED,
           approvedAt: null,
           approvedByUserId: reviewerId,
           declineReason: reason,
         },
+      });
+      if (transition.count !== 1) {
+        throw new BadRequestException(
+          'The agent application was already reviewed',
+        );
+      }
+      const updated = await tx.agent.findUniqueOrThrow({
+        where: { id: agentId },
       });
       await tx.auditLog.create({
         data: {
@@ -321,7 +347,12 @@ export class AgentsService {
       });
       return updated;
     });
-    await this.emails.sendAgentDeclined(agent.email, agent.contactName, reason);
+    await this.emails.sendAgentDeclined(
+      agent.email,
+      agent.contactName,
+      reason,
+      agent.id,
+    );
     return agent;
   }
 
@@ -380,7 +411,11 @@ export class AgentsService {
       select: { email: true },
     });
     await Promise.all([
-      this.emails.sendAgentResubmissionReceived(agent.email, agent.contactName),
+      this.emails.sendAgentResubmissionReceived(
+        agent.email,
+        agent.contactName,
+        agent.id,
+      ),
       ...reviewers.map(({ email }) =>
         this.emails.sendAgentResubmittedForReview(
           email,

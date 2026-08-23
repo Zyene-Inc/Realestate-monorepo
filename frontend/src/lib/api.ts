@@ -6,7 +6,7 @@ export const setAccessToken = (token: string | null) => {
   accessToken = token;
 };
 
-export async function apiFetch(endpoint: string, options: RequestInit = {}) {
+async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const headers = new Headers(options.headers);
   headers.set("Content-Type", "application/json");
 

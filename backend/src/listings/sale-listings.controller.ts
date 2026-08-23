@@ -22,6 +22,7 @@ import {
 } from './dto/listing-asset.dto';
 import { RejectSaleListingDto } from './dto/reject-sale-listing.dto';
 import { UpdateSaleListingDto } from './dto/update-sale-listing.dto';
+import { UpdateListingAvailabilityDto } from './dto/update-listing-availability.dto';
 import { SaleListingsService } from './sale-listings.service';
 
 type AuthenticatedRequest = { user: { sub: string } };
@@ -62,6 +63,15 @@ export class AgentSaleListingsController {
   @Post(':id/submit')
   submit(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
     return this.listings.submit(request.user.sub, id);
+  }
+
+  @Patch(':id/availability')
+  availability(
+    @Request() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: UpdateListingAvailabilityDto,
+  ) {
+    return this.listings.updateAvailability(request.user.sub, id, body.status);
   }
 
   @Post(':id/upload-url')

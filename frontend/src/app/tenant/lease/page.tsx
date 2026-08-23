@@ -1,30 +1,74 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { FileText, Download, Calendar, ShieldCheck, ArrowRight, Info, Loader2 } from "lucide-react"
-import { api } from "@/lib/api"
-import { toast } from "sonner"
-import { format, differenceInDays } from "date-fns"
-import { getErrorMessage } from "@/lib/errors"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  FileText,
+  Download,
+  Calendar,
+  ShieldCheck,
+  ArrowRight,
+  Info,
+  Loader2,
+} from "lucide-react";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
+import { format, differenceInDays } from "date-fns";
+import { getErrorMessage } from "@/lib/errors";
+import type { CursorPage, ESignatureEnvelope } from "@/lib/e-signatures";
+import { signatureStatusLabel } from "@/lib/e-signatures";
+import { useRouter } from "next/navigation";
 
-type ActiveLease = { id: string; startDate: string; endDate: string; createdAt: string; monthlyRent: number; securityDeposit: number; unit: { unitNumber: string; property: { name: string } } }
+type ActiveLease = {
+  id: string;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+  monthlyRent: number;
+  securityDeposit: number;
+  unit: { unitNumber: string; property: { name: string } };
+};
 
 export default function TenantLease() {
-  const [lease, setLease] = useState<ActiveLease | null>(null)
-  const [loading, setLoading] = useState(true)
+  const router = useRouter();
+  const [lease, setLease] = useState<ActiveLease | null>(null);
+  const [leaseEnvelope, setLeaseEnvelope] = useState<ESignatureEnvelope | null>(
+    null,
+  );
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/tenant/portal/lease").then((data: ActiveLease | null) => setLease(data)).catch((error: unknown) => toast.error(getErrorMessage(error, "Unable to load lease documentation"))).finally(() => setLoading(false))
-  }, [])
+    Promise.all([
+      api.get("/tenant/portal/lease") as Promise<ActiveLease | null>,
+      api.get("/tenant/e-signatures?documentType=LEASE&limit=1") as Promise<
+        CursorPage<ESignatureEnvelope>
+      >,
+    ])
+      .then(([activeLease, signatures]) => {
+        setLease(activeLease);
+        setLeaseEnvelope(signatures.items[0] ?? null);
+      })
+      .catch((error: unknown) =>
+        toast.error(
+          getErrorMessage(error, "Unable to load lease documentation"),
+        ),
+      )
+      .finally(() => setLoading(false));
+  }, []);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-200px)]">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
-    )
+    );
   }
 
   if (!lease) {
@@ -33,30 +77,52 @@ export default function TenantLease() {
         <div className="h-24 w-24 bg-secondary rounded-full flex items-center justify-center mb-6">
           <FileText className="w-10 h-10 text-muted-foreground" />
         </div>
-        <h2 className="text-3xl font-bold font-heading tracking-tight text-foreground">No Active Lease Found</h2>
-        <p className="text-muted-foreground font-medium mt-3 max-w-md">Please contact Coach Johnson Realty management if you believe this is an error or if your lease is currently under review.</p>
+        <h2 className="text-3xl font-bold font-heading tracking-tight text-foreground">
+          No Active Lease Found
+        </h2>
+        <p className="text-muted-foreground font-medium mt-3 max-w-md">
+          Please contact Coach Johnson Realty management if you believe this is
+          an error or if your lease is currently under review.
+        </p>
       </div>
-    )
+    );
   }
 
-  const daysRemaining = differenceInDays(new Date(lease.endDate), new Date())
-  const totalDays = differenceInDays(new Date(lease.endDate), new Date(lease.startDate))
-  const progress = totalDays > 0 ? Math.max(0, Math.min(100, ((totalDays - daysRemaining) / totalDays) * 100)) : 0
+  const daysRemaining = differenceInDays(new Date(lease.endDate), new Date());
+  const totalDays = differenceInDays(
+    new Date(lease.endDate),
+    new Date(lease.startDate),
+  );
+  const progress =
+    totalDays > 0
+      ? Math.max(
+          0,
+          Math.min(100, ((totalDays - daysRemaining) / totalDays) * 100),
+        )
+      : 0;
 
   return (
     <div className="space-y-8 sm:space-y-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">Lease Agreement</h1>
-          <p className="text-muted-foreground mt-2 font-medium">Review your current property contract terms and documentation.</p>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">
+            Lease Agreement
+          </h1>
+          <p className="text-muted-foreground mt-2 font-medium">
+            Review your current property contract terms and documentation.
+          </p>
         </div>
         <div className="flex items-center gap-3 px-4 py-2 bg-secondary border border-border rounded-2xl shadow-sm">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-premium/15">
             <ShieldCheck className="h-4 w-4 text-premium-text" />
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground font-heading leading-none">Status</p>
-            <p className="text-sm font-bold text-foreground font-heading">Verified Resident</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground font-heading leading-none">
+              Status
+            </p>
+            <p className="text-sm font-bold text-foreground font-heading">
+              Verified Resident
+            </p>
           </div>
         </div>
       </div>
@@ -67,58 +133,99 @@ export default function TenantLease() {
             <CardHeader className="p-8 border-b border-border bg-secondary/30">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-xl font-bold font-heading tracking-tight text-foreground">Active Lease - Unit {lease.unit.unitNumber}</CardTitle>
+                  <CardTitle className="text-xl font-bold font-heading tracking-tight text-foreground">
+                    Active Lease - Unit {lease.unit.unitNumber}
+                  </CardTitle>
                   <CardDescription className="text-[10px] font-bold uppercase tracking-widest mt-2">
-                    {lease.unit.property.name} / Lease ID: #{lease.id.slice(-6).toUpperCase()}
+                    {lease.unit.property.name} / Lease ID: #
+                    {lease.id.slice(-6).toUpperCase()}
                   </CardDescription>
                 </div>
                 <div className="rounded-md border border-premium/25 bg-premium/12 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-premium-text">
-                  Signed & Active
+                  {leaseEnvelope
+                    ? signatureStatusLabel(leaseEnvelope.status)
+                    : "Not issued for signature"}
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-8 space-y-10">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
                 <div className="space-y-2">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">Start Date</p>
-                  <p className="text-lg font-bold text-foreground">{format(new Date(lease.startDate), 'MMM dd, yyyy')}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">
+                    Start Date
+                  </p>
+                  <p className="text-lg font-bold text-foreground">
+                    {format(new Date(lease.startDate), "MMM dd, yyyy")}
+                  </p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">End Date</p>
-                  <p className="text-lg font-bold text-foreground">{format(new Date(lease.endDate), 'MMM dd, yyyy')}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">
+                    End Date
+                  </p>
+                  <p className="text-lg font-bold text-foreground">
+                    {format(new Date(lease.endDate), "MMM dd, yyyy")}
+                  </p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">Monthly Rent</p>
-                  <p className="text-lg font-bold text-accent tabular-nums">${lease.monthlyRent.toLocaleString()}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">
+                    Monthly Rent
+                  </p>
+                  <p className="text-lg font-bold text-accent tabular-nums">
+                    ${lease.monthlyRent.toLocaleString()}
+                  </p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">Deposit</p>
-                  <p className="text-lg font-bold text-foreground tabular-nums">${lease.securityDeposit.toLocaleString()}</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">
+                    Deposit
+                  </p>
+                  <p className="text-lg font-bold text-foreground tabular-nums">
+                    ${lease.securityDeposit.toLocaleString()}
+                  </p>
                 </div>
               </div>
-              
+
               <div className="p-8 border border-border rounded-[1.25rem] bg-secondary/30 flex flex-col md:flex-row items-center justify-between gap-6 group hover:border-primary/30 transition-[background-color,color,border-color,box-shadow,transform,opacity]">
                 <div className="flex items-center gap-6">
                   <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
                     <FileText className="h-7 w-7 text-primary-foreground" />
                   </div>
                   <div>
-                    <p className="font-bold text-foreground font-heading tracking-tight">Lease_Agreement_{lease.id.slice(-4)}.pdf</p>
-                    <p className="text-[11px] text-muted-foreground font-medium mt-1">Generated: {format(new Date(lease.createdAt), 'MMM dd, yyyy')} / 1.2 MB</p>
+                    <p className="font-bold text-foreground font-heading tracking-tight">
+                      {leaseEnvelope?.title || "Lease signing package"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground font-medium mt-1">
+                      {leaseEnvelope?.archivedAt
+                        ? `Securely archived ${format(new Date(leaseEnvelope.archivedAt), "MMM dd, yyyy")}`
+                        : "The signed PDF appears here after Verdocs finalizes it."}
+                    </p>
                   </div>
                 </div>
-                <Button variant="outline" className="w-full md:w-auto rounded-xl border-border hover:bg-primary hover:text-primary-foreground text-[10px] font-bold uppercase tracking-widest h-12 px-8 transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading">
-                  <Download className="w-4 h-4 mr-2" />
-                  Download
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/tenant/documents")}
+                  className="w-full md:w-auto rounded-xl border-border hover:bg-primary hover:text-primary-foreground text-[10px] font-bold uppercase tracking-widest h-12 px-8 transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading"
+                >
+                  {leaseEnvelope?.status === "COMPLETED" ? (
+                    <Download className="w-4 h-4 mr-2" />
+                  ) : (
+                    <FileText className="w-4 h-4 mr-2" />
+                  )}
+                  {leaseEnvelope?.status === "COMPLETED"
+                    ? "View signed files"
+                    : "Review documents"}
                 </Button>
               </div>
 
               <div className="p-6 bg-accent/5 rounded-2xl border border-accent/10 flex gap-4">
                 <Info className="h-5 w-5 text-accent shrink-0 mt-0.5" />
                 <div className="space-y-2">
-                  <p className="text-[11px] font-bold text-foreground uppercase tracking-widest font-heading">Lease Terms Notice</p>
+                  <p className="text-[11px] font-bold text-foreground uppercase tracking-widest font-heading">
+                    Lease Terms Notice
+                  </p>
                   <p className="text-[11px] text-muted-foreground font-medium leading-relaxed">
-                    This is a legally binding document. Any modifications to the lease must be requested in writing and approved by Coach Johnson Realty management.
+                    This is a legally binding document. Any modifications to the
+                    lease must be requested in writing and approved by Coach
+                    Johnson Realty management.
                   </p>
                 </div>
               </div>
@@ -132,18 +239,27 @@ export default function TenantLease() {
               <Calendar className="h-48 w-48 -mr-16 -mt-16" />
             </div>
             <CardHeader className="border-b border-white/10 pb-6 relative z-10">
-              <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-primary-foreground/70 font-heading">Time Remaining</CardTitle>
+              <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-primary-foreground/70 font-heading">
+                Time Remaining
+              </CardTitle>
             </CardHeader>
             <CardContent className="pt-10 pb-10 text-center relative z-10">
-              <div className="text-7xl font-bold font-heading mb-2 tabular-nums">{daysRemaining > 0 ? daysRemaining : 0}</div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-primary-foreground/75 font-heading">Days Left in Term</p>
-              
+              <div className="text-7xl font-bold font-heading mb-2 tabular-nums">
+                {daysRemaining > 0 ? daysRemaining : 0}
+              </div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-primary-foreground/75 font-heading">
+                Days Left in Term
+              </p>
+
               <div className="mt-12 w-full h-2 bg-secondary/20 rounded-full overflow-hidden">
-                <div className="h-full bg-primary-foreground" style={{ width: `${progress}%` }} />
+                <div
+                  className="h-full bg-primary-foreground"
+                  style={{ width: `${progress}%` }}
+                />
               </div>
               <div className="mt-4 flex justify-between text-[10px] font-bold uppercase tracking-widest text-primary-foreground/60 font-heading">
-                <span>{format(new Date(lease.startDate), 'MMM yyyy')}</span>
-                <span>{format(new Date(lease.endDate), 'MMM yyyy')}</span>
+                <span>{format(new Date(lease.startDate), "MMM yyyy")}</span>
+                <span>{format(new Date(lease.endDate), "MMM yyyy")}</span>
               </div>
 
               <Button className="w-full mt-10 bg-secondary/20 hover:bg-secondary/40 text-primary-foreground font-bold text-[10px] uppercase tracking-[0.2em] py-8 rounded-2xl transition-[background-color,color,border-color,box-shadow,transform,opacity] border border-white/10 group/btn font-heading backdrop-blur-sm">
@@ -154,22 +270,36 @@ export default function TenantLease() {
           </Card>
 
           <Card className="border-border bg-card shadow-sm rounded-[1.25rem] overflow-hidden">
-             <CardHeader className="bg-secondary/30 border-b border-border">
-              <CardTitle className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground font-heading">Lease Policy Summary</CardTitle>
+            <CardHeader className="bg-secondary/30 border-b border-border">
+              <CardTitle className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground font-heading">
+                Lease Policy Summary
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-4">
                 <div className="flex justify-between items-center py-3 border-b border-border">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">Late Fee</span>
-                  <span className="text-sm font-bold text-foreground tabular-nums">$35.00</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">
+                    Late Fee
+                  </span>
+                  <span className="text-sm font-bold text-foreground tabular-nums">
+                    $35.00
+                  </span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b border-border">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">Rent Due</span>
-                  <span className="text-sm font-bold text-foreground">1st of Month</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">
+                    Rent Due
+                  </span>
+                  <span className="text-sm font-bold text-foreground">
+                    1st of Month
+                  </span>
                 </div>
                 <div className="flex justify-between items-center py-3">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">Grace Period</span>
-                  <span className="text-sm font-bold text-foreground">3 Days</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">
+                    Grace Period
+                  </span>
+                  <span className="text-sm font-bold text-foreground">
+                    3 Days
+                  </span>
                 </div>
               </div>
             </CardContent>
@@ -177,5 +307,5 @@ export default function TenantLease() {
         </div>
       </div>
     </div>
-  )
+  );
 }

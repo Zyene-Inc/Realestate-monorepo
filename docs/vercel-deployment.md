@@ -45,7 +45,7 @@ Use Node.js `22.x`, as pinned in `backend/package.json`.
 
 Configure these production environment variables in Vercel:
 
-- `DATABASE_URL`: Supabase **Transaction pooler** connection string from **Connect**, using port `6543`. Use the copied value rather than constructing it manually.
+- `DATABASE_URL`: Supabase **Session pooler** connection string from **Connect**, using port `5432`, with `connection_limit=3`, `pool_timeout=30`, and TLS required. The Phase 11 20-way reliability gate verified this bounded configuration against the current 15-session pool. Do not use Prisma's unbounded default in Vercel.
 - `SUPABASE_URL`
 - `SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SECRET_KEY`: server-only; never use a `NEXT_PUBLIC_` prefix.
@@ -59,7 +59,19 @@ Configure these production environment variables in Vercel:
 - `CORS_ORIGINS`: comma-separated list of the six production origins. Add an exact preview origin only when it needs direct API access.
 - `RESEND_API_KEY`: server-only.
 - `RESEND_FROM_EMAIL`: `Coach Johnson Realty <noreply@coachjohnsonrealty.com>`.
-- Storage and Stripe variables when those modules are enabled.
+- `RESEND_WEBHOOK_SECRET`: server-only Resend endpoint signing secret.
+- `CRON_SECRET`: server-only random secret shared with the Supabase Vault entry `email_retry_cron_secret`.
+- `ESIGNATURES_ENABLED`: set to `true` only after the Verdocs API key, webhook, and legal-approved templates are ready.
+- `VERDOCS_API_BASE_URL`: `https://api.verdocs.com`.
+- `VERDOCS_CLIENT_ID`: server-only Verdocs API client ID.
+- `VERDOCS_CLIENT_SECRET`: server-only Verdocs API client secret.
+- `VERDOCS_WEBHOOK_SECRET`: server-only HMAC secret shown when Verdocs webhooks are configured.
+- `VERDOCS_LEASE_TEMPLATE_ID`: UUID of the legal-approved residential lease template.
+- `VERDOCS_DISCLOSURE_TEMPLATE_ID`: UUID of the legal-approved disclosure template.
+- `VERDOCS_AGREEMENT_TEMPLATE_ID`: UUID of the legal-approved agent/company agreement template.
+- `VERDOCS_SENDER_NAME`: `Coach Johnson Realty`.
+- `VERDOCS_SENDER_EMAIL`: `noreply@coachjohnsonrealty.com` (used in the envelope UI/certificate; Verdocs still sends notifications from its own delivery domain).
+- Stripe variables when that future module is enabled. Existing file workflows use the configured Supabase project and require no S3 credentials.
 
 Do not run Prisma migrations as part of every Vercel build. Apply reviewed migrations to Supabase separately, then deploy the generated application code.
 
@@ -88,7 +100,7 @@ Do not set `NEXT_PUBLIC_API_URL` in Vercel. The browser calls same-origin `/api`
 
 ## Vercel domains and DNS
 
-Assign all six domains in the **Domains** settings of the same web project after the apex domain is owned or DNS-verified in the Vercel team. As of August 20, 2026, Vercel rejects the assignment with `domain_not_owned` and public DNS has no A/CNAME records for these hosts. Configure the apex domain using the exact record Vercel displays. Configure each subdomain with the exact CNAME target Vercel displays:
+All six domains are assigned to the same web project and verified in production. If DNS is ever recreated, configure the apex using the exact record Vercel displays and configure each subdomain with the project-specific CNAME target Vercel displays:
 
 - `agents`
 - `properties-admin`
@@ -116,7 +128,22 @@ Current Supabase Auth URL Configuration:
 
 The browser client stores the Supabase session in chunked secure cookies scoped to `.coachjohnsonrealty.com`. This permits a role redirect between these controlled subdomains without exposing the secret/service-role key. Keep every subdomain on Johnson Realty-controlled deployments; a compromised subdomain would share the parent-domain session boundary.
 
-The Resend sender domain `coachjohnsonrealty.com` is verified and must remain verified. Keep the Resend key only in the API project's Vercel environment variables. On August 20, 2026, the official deterministic delivery address reached `delivered` state from the production sender. A separate message to `admin@coachjohnsonrealty.com` was `suppressed`; confirm that mailbox exists and clear its Resend suppression before relying on it as an operational reviewer inbox.
+The Resend sender domain `coachjohnsonrealty.com` is verified and must remain verified. Keep the API key and webhook signing secret only in the API project's encrypted Vercel environment variables. The enabled production webhook targets `https://coach-johnson-realty-api-nu.vercel.app/api/webhooks/resend`; requests are verified against the raw body and Svix signature headers before delivery state is written. On August 22, 2026, the Phase 7 deterministic delivery check recorded signed `email.sent` and `email.delivered` events and then removed its test rows. A separate earlier message to `admin@coachjohnsonrealty.com` was `suppressed`; confirm that mailbox exists and clear its Resend suppression before relying on it as an operational reviewer inbox.
+
+## Verdocs setup
+
+Use the Coach Johnson Realty Verdocs organization on the free plan (25 envelopes per month and up to five templates). Keep three legal-approved, sendable templates: residential lease, property disclosure, and agent/company agreement. Each Phase 9 template must contain exactly one actionable signer or approver role; the portal rejects an ambiguous template instead of sending it to the wrong person.
+
+Create a dedicated server API key in **Settings > API Keys**. Do not use a personal username/password in the application and do not expose the client secret to Next.js. In **Settings > Webhooks**, configure:
+
+- URL: `https://coach-johnson-realty-api-nu.vercel.app/api/webhooks/verdocs`
+- Active: enabled
+- Authentication: HMAC
+- Events: all envelope lifecycle and recipient lifecycle events used by the portal, including created, updated, completed, canceled, expired, invited, reminded, opened, submitted, disclosure accepted, invite failed, auth failed, and declined
+
+Store the generated HMAC secret as `VERDOCS_WEBHOOK_SECRET`. The endpoint validates the signature against the unmodified request body before it records or synchronizes anything, and duplicate provider deliveries are ignored by provider event ID.
+
+The completed package is not considered final merely because Verdocs reports `status=complete`. The API waits for `envelope.signed=true`, downloads both the signed attachment and Verdocs certificate, verifies PDF type and size, calculates SHA-256, and archives each object in the private `signed-documents` Supabase bucket. Portal downloads are five-minute signed URLs. Never persist the recipient in-app key in browser storage or logs; the API returns it only for an authenticated, rate-limited signing session.
 
 ## Vercel constraints applied
 
@@ -124,7 +151,9 @@ The Resend sender domain `coachjohnsonrealty.com` is verified and must remain ve
 - The health endpoint verifies the Supabase database connection.
 - Proxied uploads are capped at 4 MB to remain below Vercel's 4.5 MB request limit. Larger files should use direct-to-object-storage signed uploads.
 - The project does not depend on WebSockets or in-process background workers. Use Supabase Realtime for live updates and Supabase Cron/Queues or Vercel Cron for scheduled work.
-- In-memory throttling is only instance-local on serverless infrastructure. Configure production abuse protection in Vercel Firewall before launch.
+- The linked Vercel team is on Hobby, whose cron interval is limited to once daily. Phase 7 critical-email retries therefore use Supabase Cron every 10 minutes to call the protected Vercel API endpoint; the shared credential is encrypted in both Supabase Vault and Vercel, never in source control.
+- In-memory throttling is instance-local on serverless infrastructure. Vercel's automatic DDoS protection remains the network boundary; endpoint-specific API throttles protect signup, login, buyer inquiry, signing sessions, and webhook-adjacent paths.
+- Vercel Web Analytics and Speed Insights are rendered from the root layout. API responses include `x-request-id`, and structured exception records can be correlated in Vercel Runtime Logs without logging request bodies or secrets.
 
 ## Deployment verification
 

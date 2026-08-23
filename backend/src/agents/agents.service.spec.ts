@@ -138,6 +138,7 @@ describe('AgentsService', () => {
     expect(emails.sendAgentResubmissionReceived).toHaveBeenCalledWith(
       'agent@example.com',
       'Alex Agent',
+      'agent-1',
     );
     expect(emails.sendAgentResubmittedForReview).toHaveBeenCalledWith(
       'sales-admin@example.com',
@@ -186,5 +187,47 @@ describe('AgentsService', () => {
       'The agent must verify their email before approval',
     );
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects a stale approval transition atomically', async () => {
+    mockGetAuthUser.mockResolvedValue({
+      data: { user: { email_confirmed_at: '2026-08-22T12:00:00.000Z' } },
+      error: null,
+    });
+    const current = {
+      ...agent,
+      accountStatus: 'PENDING',
+      user: { authUserId: 'auth-user-1' },
+    };
+    const tx = {
+      user: { update: jest.fn().mockResolvedValue({}) },
+      agent: {
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        findUniqueOrThrow: jest.fn(),
+      },
+      auditLog: { create: jest.fn() },
+    };
+    const prisma = {
+      agent: { findUnique: jest.fn().mockResolvedValue(current) },
+      $transaction: jest.fn((callback: (transaction: typeof tx) => unknown) =>
+        Promise.resolve(callback(tx)),
+      ),
+    };
+    const emails = {
+      sendAgentApproved: jest.fn().mockResolvedValue(undefined),
+    };
+    const service = serviceWith(prisma, emails);
+
+    await expect(service.approve('agent-1', 'reviewer-1')).rejects.toThrow(
+      'The agent application was already reviewed',
+    );
+    expect(tx.agent.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'agent-1', accountStatus: 'PENDING' },
+      }),
+    );
+    expect(tx.agent.findUniqueOrThrow).not.toHaveBeenCalled();
+    expect(tx.auditLog.create).not.toHaveBeenCalled();
+    expect(emails.sendAgentApproved).not.toHaveBeenCalled();
   });
 });

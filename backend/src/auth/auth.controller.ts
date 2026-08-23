@@ -18,6 +18,7 @@ import { AgentSignupDto } from './dto/agent-signup.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { LoginDto } from './dto/login.dto';
 import { TenantInviteDto } from './dto/tenant-invite.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 type AuthenticatedRequest = { user: { sub: string } };
 
@@ -44,6 +45,16 @@ export class AuthController {
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   requestPasswordReset(@Body() body: PasswordResetRequestDto) {
     return this.authService.requestPasswordReset(body.email);
+  }
+
+  @Post('password-reset-complete')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @UseGuards(JwtAuthGuard)
+  updatePassword(
+    @Body() body: UpdatePasswordDto,
+    @Request() request: AuthenticatedRequest,
+  ) {
+    return this.authService.updatePassword(request.user.sub, body.password);
   }
 
   @Get('me')

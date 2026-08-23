@@ -4,6 +4,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   Building2,
+  ChartNoAxesCombined,
   CircleDollarSign,
   House,
   KeyRound,
@@ -11,6 +12,7 @@ import {
   MessageSquareText,
 } from "lucide-react";
 import { PropertySlideshow, type PropertySlide } from "@/components/public/property-slideshow";
+import { HomeInventory } from "@/components/public/home-inventory";
 import { SiteFooter } from "@/components/public/site-footer";
 import { SiteHeader } from "@/components/public/site-header";
 import { Button } from "@/components/ui/button";
@@ -109,6 +111,36 @@ export default function HomePage() {
             imageClassName="min-h-[27rem] sm:min-h-[34rem] lg:min-h-[calc(100dvh-15rem)] lg:max-h-[42rem]"
             label="Featured Missouri homes"
           />
+        </section>
+
+        <HomeInventory />
+
+        <section className="py-20 sm:py-28">
+          <div className="public-container grid gap-6 lg:grid-cols-[1.25fr_.75fr]">
+            <article className="rounded-[1.5rem] border border-border bg-card p-7 sm:p-10 lg:p-14">
+              <span className="flex size-12 items-center justify-center rounded-xl bg-secondary text-primary">
+                <CircleDollarSign className="size-5" strokeWidth={1.7} aria-hidden="true" />
+              </span>
+              <p className="mt-8 text-sm font-semibold text-primary">Thinking about selling?</p>
+              <h2 className="mt-4 max-w-3xl text-4xl font-semibold leading-[1.02] tracking-[-0.05em] sm:text-5xl">Get your home sold with a sharper plan.</h2>
+              <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">Pricing, preparation, and positioning designed to protect your time and strengthen every offer conversation.</p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Button nativeButton={false} variant="outline" render={<Link href="/contact?intent=sell" transitionTypes={["nav-forward"]} />}>Contact us <ArrowRight aria-hidden="true" /></Button>
+                <Link href="/about" transitionTypes={["nav-forward"]} className="focus-ring inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-foreground hover:text-primary">Learn more <ArrowUpRight className="size-4" aria-hidden="true" /></Link>
+              </div>
+            </article>
+
+            <aside className="flex flex-col justify-between rounded-[1.5rem] border border-border bg-secondary p-7 sm:p-10 lg:p-12">
+              <span className="flex size-12 items-center justify-center rounded-xl bg-card text-primary">
+                <ChartNoAxesCombined className="size-5" strokeWidth={1.7} aria-hidden="true" />
+              </span>
+              <div className="mt-12">
+                <h2 className="text-3xl font-semibold leading-tight tracking-[-0.04em]">Curious about your local market?</h2>
+                <p className="mt-4 text-sm leading-6 text-muted-foreground">Request a focused snapshot of nearby listings, pricing context, and current buyer activity.</p>
+                <Button nativeButton={false} variant="outline" className="mt-7" render={<Link href="/contact?intent=market-report" transitionTypes={["nav-forward"]} />}>Get my report <ArrowRight aria-hidden="true" /></Button>
+              </div>
+            </aside>
+          </div>
         </section>
 
         <section id="services" className="scroll-mt-24 border-y border-border bg-card py-20 sm:py-28">

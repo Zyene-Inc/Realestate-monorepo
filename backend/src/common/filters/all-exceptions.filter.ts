@@ -1,4 +1,11 @@
-import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  ExceptionFilter,
+  Catch,
+  ArgumentsHost,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { Request, Response } from 'express';
 
 @Catch()
@@ -20,18 +27,34 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getResponse()
         : { message: 'Internal server error' };
 
+    const requestId = request.requestId ?? 'unavailable';
     const errorResponse = {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
+      requestId,
       ...(typeof message === 'object' ? message : { message }),
     };
 
-    // Log the error
-    if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
-      this.logger.error(`[${request.method}] ${request.url} - ${status} - ${JSON.stringify(exception)}`);
+    const logContext = JSON.stringify({
+      requestId,
+      method: request.method,
+      path: request.url,
+      status,
+      message:
+        exception instanceof Error
+          ? exception.message
+          : typeof message === 'string'
+            ? message
+            : 'Request failed',
+    });
+    if (status === Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
+      this.logger.error(
+        logContext,
+        exception instanceof Error ? exception.stack : undefined,
+      );
     } else {
-      this.logger.warn(`[${request.method}] ${request.url} - ${status} - ${JSON.stringify(message)}`);
+      this.logger.warn(logContext);
     }
 
     response.status(status).json(errorResponse);

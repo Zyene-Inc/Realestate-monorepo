@@ -19,6 +19,11 @@ import { CreateListingInquiryDto } from './dto/listing-inquiry.dto';
 
 const DEFAULT_INQUIRY_PAGE_SIZE = 25;
 const DEFAULT_MESSAGE_PAGE_SIZE = 50;
+const BUYER_INQUIRY_ACCESS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+export function buyerInquiryCookieName(inquiryId: string) {
+  return `jr_inquiry_${inquiryId}`;
+}
 
 type CursorPage = { cursor?: string; limit?: number };
 
@@ -108,6 +113,7 @@ export class ListingInquiriesService {
         id: propertyId,
         listingType: ListingType.SALE,
         listingStatus: ListingStatus.APPROVED,
+        status: 'active',
         agent: { accountStatus: AgentAccountStatus.APPROVED },
       },
       include: { agent: true },
@@ -118,6 +124,7 @@ export class ListingInquiriesService {
 
     const accessToken = randomBytes(32).toString('base64url');
     const now = new Date();
+    const expiresAt = new Date(now.getTime() + BUYER_INQUIRY_ACCESS_TTL_MS);
     const inquiry = await this.prisma.$transaction(async (tx) => {
       const created = await tx.listingInquiry.create({
         data: {
@@ -127,6 +134,7 @@ export class ListingInquiriesService {
           buyerEmail: data.buyerEmail.trim().toLowerCase(),
           buyerPhone: data.buyerPhone?.trim() || null,
           buyerAccessTokenHash: this.hashToken(accessToken),
+          buyerAccessTokenExpiresAt: expiresAt,
           lastMessageAt: now,
         },
         include: inquiryBaseInclude,
@@ -171,14 +179,17 @@ export class ListingInquiriesService {
     return {
       inquiry: await this.withMessagePage(inquiry),
       accessToken,
+      expiresAt,
     };
   }
 
-  private async buyerInquiry(inquiryId: string, accessToken: string) {
+  private async buyerInquiry(inquiryId: string, accessToken?: string) {
+    if (!accessToken) throw new NotFoundException('Inquiry not found');
     const inquiry = await this.prisma.listingInquiry.findFirst({
       where: {
         id: inquiryId,
         buyerAccessTokenHash: this.hashToken(accessToken),
+        buyerAccessTokenExpiresAt: { gt: new Date() },
       },
       include: inquiryBaseInclude,
     });
@@ -188,7 +199,7 @@ export class ListingInquiriesService {
 
   async getForBuyer(
     inquiryId: string,
-    accessToken: string,
+    accessToken: string | undefined,
     page: CursorPage = {},
   ) {
     const inquiry = await this.buyerInquiry(inquiryId, accessToken);
@@ -215,12 +226,16 @@ export class ListingInquiriesService {
     return this.withMessagePage(inquiry, page);
   }
 
-  async buyerReply(inquiryId: string, accessToken: string, body: string) {
+  async buyerReply(
+    inquiryId: string,
+    accessToken: string | undefined,
+    body: string,
+  ) {
     const current = await this.buyerInquiry(inquiryId, accessToken);
     if (current.status !== InquiryStatus.OPEN) {
       throw new BadRequestException('This inquiry is closed');
     }
-    const updated = await this.addMessage(
+    const { inquiry: updated, messageId } = await this.addMessage(
       current,
       InquirySenderType.BUYER,
       body,
@@ -231,6 +246,7 @@ export class ListingInquiriesService {
       updated.property.name,
       updated.buyerName,
       updated.id,
+      messageId,
     );
     return this.withMessagePage(updated);
   }
@@ -310,7 +326,7 @@ export class ListingInquiriesService {
     if (current.status !== InquiryStatus.OPEN) {
       throw new BadRequestException('This inquiry is closed');
     }
-    const updated = await this.addMessage(
+    const { inquiry: updated, messageId } = await this.addMessage(
       current,
       InquirySenderType.AGENT,
       body,
@@ -321,6 +337,7 @@ export class ListingInquiriesService {
       updated.buyerName,
       updated.property.name,
       updated.agent.contactName,
+      messageId,
     );
     return this.withMessagePage(updated);
   }
@@ -354,7 +371,7 @@ export class ListingInquiriesService {
           newValue: JSON.stringify({ messageId: message.id }),
         },
       });
-      return updated;
+      return { inquiry: updated, messageId: message.id };
     });
   }
 

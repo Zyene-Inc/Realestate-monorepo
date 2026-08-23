@@ -1,9 +1,22 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
-import { LeasesService } from './leases.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { Role } from '@prisma/client';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
+import { CreateLeaseDto, UpdateLeaseDto } from './dto/lease.dto';
+import { LeasesService } from './leases.service';
+
+type AuthenticatedRequest = { user: { sub: string } };
 
 @Controller('admin/leases')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -12,8 +25,11 @@ export class LeasesController {
   constructor(private readonly leasesService: LeasesService) {}
 
   @Post()
-  create(@Body() createLeaseDto: any) {
-    return this.leasesService.create(createLeaseDto);
+  create(
+    @Request() request: AuthenticatedRequest,
+    @Body() body: CreateLeaseDto,
+  ) {
+    return this.leasesService.create(request.user.sub, body);
   }
 
   @Get()
@@ -27,12 +43,16 @@ export class LeasesController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateLeaseDto: any) {
-    return this.leasesService.update(id, updateLeaseDto);
+  update(
+    @Request() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: UpdateLeaseDto,
+  ) {
+    return this.leasesService.update(request.user.sub, id, body);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.leasesService.remove(id);
+  remove(@Request() request: AuthenticatedRequest, @Param('id') id: string) {
+    return this.leasesService.remove(request.user.sub, id);
   }
 }

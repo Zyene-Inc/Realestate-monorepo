@@ -1,39 +1,176 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { ListingType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateUnitDto, UpdateUnitDto } from './dto/unit.dto';
+
+const unitInclude = {
+  property: {
+    select: { id: true, name: true, publishStatus: true, status: true },
+  },
+  tenants: {
+    where: { status: { in: ['invited', 'active'] } },
+    select: { id: true, firstName: true, lastName: true, status: true },
+  },
+} satisfies Prisma.UnitInclude;
 
 @Injectable()
 export class UnitsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
+
+  private async rentalProperty(propertyId: string) {
+    const property = await this.prisma.property.findFirst({
+      where: { id: propertyId, listingType: ListingType.RENT },
+      select: { id: true },
+    });
+    if (!property) throw new BadRequestException('Rental property not found');
+  }
 
   async findAll() {
     return this.prisma.unit.findMany({
-      include: { property: true, tenants: true },
+      where: { property: { listingType: ListingType.RENT } },
+      include: unitInclude,
+      orderBy: [
+        { property: { name: 'asc' } },
+        { unitNumber: 'asc' },
+        { id: 'asc' },
+      ],
+      take: 250,
     });
   }
 
   async findOne(id: string) {
-    return this.prisma.unit.findUnique({
-      where: { id },
-      include: { property: true, tenants: true },
+    const unit = await this.prisma.unit.findFirst({
+      where: { id, property: { listingType: ListingType.RENT } },
+      include: unitInclude,
     });
+    if (!unit) throw new NotFoundException('Rental unit not found');
+    return unit;
   }
 
-  async create(data: any) {
-    return this.prisma.unit.create({
-      data,
-    });
+  async create(userId: string, data: CreateUnitDto) {
+    await this.rentalProperty(data.propertyId);
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const unit = await tx.unit.create({
+          data: {
+            ...data,
+            unitNumber: data.unitNumber.trim(),
+            floor: data.floor?.trim(),
+            availableDate: data.availableDate
+              ? new Date(data.availableDate)
+              : undefined,
+          },
+          include: unitInclude,
+        });
+        await tx.auditLog.create({
+          data: {
+            userId,
+            action: 'RENTAL_UNIT_CREATED',
+            resource: 'unit',
+            resourceId: unit.id,
+            newValue: JSON.stringify({
+              propertyId: unit.propertyId,
+              unitNumber: unit.unitNumber,
+            }),
+          },
+        });
+        return unit;
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'That unit number already exists at this property',
+        );
+      }
+      throw error;
+    }
   }
 
-  async update(id: string, data: any) {
-    return this.prisma.unit.update({
-      where: { id },
-      data,
-    });
+  async update(userId: string, id: string, data: UpdateUnitDto) {
+    const current = await this.findOne(id);
+    if (data.propertyId) await this.rentalProperty(data.propertyId);
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const unit = await tx.unit.update({
+          where: { id },
+          data: {
+            ...data,
+            unitNumber: data.unitNumber?.trim(),
+            floor: data.floor?.trim(),
+            availableDate: data.availableDate
+              ? new Date(data.availableDate)
+              : undefined,
+          },
+          include: unitInclude,
+        });
+        await tx.auditLog.create({
+          data: {
+            userId,
+            action: 'RENTAL_UNIT_UPDATED',
+            resource: 'unit',
+            resourceId: id,
+            oldValue: JSON.stringify({ status: current.status }),
+            newValue: JSON.stringify({ status: unit.status }),
+          },
+        });
+        return unit;
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'That unit number already exists at this property',
+        );
+      }
+      throw error;
+    }
   }
 
-  async remove(id: string) {
-    return this.prisma.unit.delete({
+  async remove(userId: string, id: string) {
+    const unit = await this.findOne(id);
+    const dependencies = await this.prisma.unit.findUniqueOrThrow({
       where: { id },
+      select: {
+        _count: {
+          select: {
+            tenants: true,
+            leases: true,
+            payments: true,
+            maintenanceRequests: true,
+          },
+        },
+      },
     });
+    if (Object.values(dependencies._count).some((count) => count > 0)) {
+      throw new ConflictException(
+        'This unit has tenant or lease history and cannot be deleted',
+      );
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'RENTAL_UNIT_DELETED',
+          resource: 'unit',
+          resourceId: id,
+          oldValue: JSON.stringify({
+            propertyId: unit.propertyId,
+            unitNumber: unit.unitNumber,
+          }),
+        },
+      });
+      await tx.unit.delete({ where: { id } });
+    });
+    return { deleted: true };
   }
 }

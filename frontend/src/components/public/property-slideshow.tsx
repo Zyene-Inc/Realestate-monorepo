@@ -30,7 +30,6 @@ export function PropertySlideshow({
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [paused, setPaused] = useState(false);
-  const [interacting, setInteracting] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(true);
 
   useEffect(() => {
@@ -42,12 +41,12 @@ export function PropertySlideshow({
   }, []);
 
   useEffect(() => {
-    if (paused || interacting || reducedMotion || slides.length < 2) return;
+    if (paused || reducedMotion || slides.length < 2) return;
     const timer = window.setInterval(() => {
       setActiveIndex((current) => (current + 1) % slides.length);
-    }, 6500);
+    }, 4800);
     return () => window.clearInterval(timer);
-  }, [interacting, paused, reducedMotion, slides.length]);
+  }, [paused, reducedMotion, slides.length]);
 
   function showPrevious() {
     setActiveIndex((current) => (current - 1 + slides.length) % slides.length);
@@ -64,10 +63,6 @@ export function PropertySlideshow({
       aria-label={label}
       aria-roledescription="carousel"
       className={cn("overflow-hidden", className)}
-      onMouseEnter={() => setInteracting(true)}
-      onMouseLeave={() => setInteracting(false)}
-      onFocusCapture={() => setInteracting(true)}
-      onBlurCapture={() => setInteracting(false)}
     >
       <div className={cn("relative min-h-[24rem] bg-secondary", imageClassName)}>
         {slides.map((slide, index) => (

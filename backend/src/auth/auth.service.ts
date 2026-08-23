@@ -12,6 +12,7 @@ import { AuditLogsService } from '../audit-logs/audit-logs.service';
 import { EmailsService } from '../emails/emails.service';
 import { AgentSignupDto } from './dto/agent-signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { PasswordSecurityService } from './password-security.service';
 import {
   getPortalUrlForRole,
   getPortalUrls,
@@ -28,6 +29,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly auditLogs: AuditLogsService,
     private readonly emails: EmailsService,
+    private readonly passwordSecurity: PasswordSecurityService,
   ) {}
 
   private adminClient() {
@@ -187,6 +189,7 @@ export class AuthService {
     const phone = data.phone?.trim() || undefined;
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) return this.agentSignupResponse();
+    await this.passwordSecurity.assertNotCompromised(data.password);
 
     const redirectTo = `${getPortalUrls(this.configService).agent}/agent/status`;
     const { data: generated, error } =
@@ -210,8 +213,9 @@ export class AuthService {
       throw new BadRequestException('Unable to submit agent application');
     }
 
+    let applicationId: string;
     try {
-      await this.prisma.$transaction(async (tx) => {
+      applicationId = await this.prisma.$transaction(async (tx) => {
         const created = await tx.user.create({
           data: {
             authUserId: generated.user.id,
@@ -239,7 +243,7 @@ export class AuthService {
             newValue: JSON.stringify({ email, companyName }),
           },
         });
-        return created;
+        return created.agentProfile!.id;
       });
     } catch (databaseError) {
       await this.adminClient().auth.admin.deleteUser(generated.user.id);
@@ -250,6 +254,7 @@ export class AuthService {
       email,
       contactName,
       generated.properties.action_link,
+      applicationId,
     );
 
     return this.agentSignupResponse();
@@ -317,6 +322,30 @@ export class AuthService {
     };
   }
 
+  async updatePassword(userId: string, password: string) {
+    await this.passwordSecurity.assertNotCompromised(password);
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { authUserId: true },
+    });
+    if (!user) throw new BadRequestException('Application user not found');
+
+    const { error } = await this.adminClient().auth.admin.updateUserById(
+      user.authUserId,
+      { password },
+    );
+    if (error) throw new BadRequestException('Unable to update password');
+
+    await this.auditLogs.log({
+      userId,
+      action: 'PASSWORD_UPDATED',
+      resource: 'user',
+      resourceId: userId,
+      newValue: { source: 'recovery' },
+    });
+    return { success: true };
+  }
+
   async inviteTenant(
     data: {
       email: string;
@@ -335,6 +364,26 @@ export class AuthService {
     if (existingUser)
       throw new BadRequestException('User with this email already exists');
 
+    const unit = await this.prisma.unit.findFirst({
+      where: {
+        id: data.unitId,
+        property: { listingType: 'RENT' },
+      },
+      include: {
+        tenants: {
+          where: { status: { in: ['invited', 'active'] } },
+          select: { id: true },
+          take: 1,
+        },
+      },
+    });
+    if (!unit) throw new BadRequestException('Rental unit not found');
+    if (unit.status !== 'vacant' || unit.tenants.length > 0) {
+      throw new BadRequestException(
+        'This unit is not available for a tenant invitation',
+      );
+    }
+
     const redirectTo = `${getPortalUrls(this.configService).tenant}/auth/reset-password`;
     const { data: invited, error } =
       await this.adminClient().auth.admin.generateLink({
@@ -351,32 +400,62 @@ export class AuthService {
       );
 
     try {
-      const user = await this.prisma.user.create({
-        data: {
-          authUserId: invited.user.id,
-          email,
-          role: Role.TENANT,
-          status: UserStatus.INVITED,
-        },
+      const tenant = await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "Unit" WHERE "id" = ${data.unitId} FOR UPDATE`;
+        const availableUnit = await tx.unit.findUnique({
+          where: { id: data.unitId },
+          include: {
+            tenants: {
+              where: { status: { in: ['invited', 'active'] } },
+              select: { id: true },
+              take: 1,
+            },
+          },
+        });
+        if (
+          !availableUnit ||
+          availableUnit.status !== 'vacant' ||
+          availableUnit.tenants.length > 0
+        ) {
+          throw new BadRequestException(
+            'This unit is not available for a tenant invitation',
+          );
+        }
+        const user = await tx.user.create({
+          data: {
+            authUserId: invited.user.id,
+            email,
+            role: Role.TENANT,
+            status: UserStatus.INVITED,
+          },
+        });
+        const tenant = await tx.tenant.create({
+          data: {
+            email,
+            firstName,
+            lastName,
+            userId: user.id,
+            unitId: data.unitId,
+            status: 'invited',
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            userId: adminId,
+            action: 'TENANT_INVITED',
+            resource: 'tenant',
+            resourceId: tenant.id,
+            newValue: JSON.stringify({ email, unitId: data.unitId }),
+          },
+        });
+        return tenant;
       });
-      const tenant = await this.prisma.tenant.create({
-        data: {
-          email,
-          firstName,
-          lastName,
-          userId: user.id,
-          unitId: data.unitId,
-          status: 'invited',
-        },
-      });
-      await this.auditLogs.log({
-        userId: adminId,
-        action: 'TENANT_INVITED',
-        resource: 'tenant',
-        resourceId: tenant.id,
-        newValue: JSON.stringify({ email, unitId: data.unitId }),
-      });
-      await this.emails.sendInvite(email, invited.properties.action_link);
+      await this.emails.sendInvite(
+        email,
+        invited.properties.action_link,
+        `${firstName} ${lastName}`,
+        tenant.id,
+      );
       return { success: true, message: 'Invitation sent' };
     } catch (error) {
       await this.adminClient().auth.admin.deleteUser(invited.user.id);

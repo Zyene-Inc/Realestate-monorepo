@@ -240,6 +240,40 @@ async function main() {
     'Password reset request failed',
   );
 
+  const compromisedPassword = await request(
+    '/auth/password-reset-complete',
+    {
+      method: 'POST',
+      body: JSON.stringify({ password: 'Password123!' }),
+    },
+    agentToken,
+  );
+  assert(
+    compromisedPassword.response.status === 400,
+    'Known breached password was accepted',
+  );
+  const replacementPassword = `Replacement-${randomUUID()}!9aA`;
+  const completedReset = await request<{ success: boolean }>(
+    '/auth/password-reset-complete',
+    {
+      method: 'POST',
+      body: JSON.stringify({ password: replacementPassword }),
+    },
+    agentToken,
+  );
+  assert(
+    completedReset.response.status === 201 && completedReset.body.success,
+    'Protected password reset completion failed',
+  );
+  const replacementSignIn = await agentSignIn.client.auth.signInWithPassword({
+    email: agentEmail,
+    password: replacementPassword,
+  });
+  assert(
+    !replacementSignIn.error && Boolean(replacementSignIn.data.session),
+    'Replacement password did not create a Supabase session',
+  );
+
   const { error: agentSignOutError } = await agentSignIn.client.auth.signOut();
   if (agentSignOutError) throw agentSignOutError;
   const sessionAfterSignOut = await agentSignIn.client.auth.getSession();

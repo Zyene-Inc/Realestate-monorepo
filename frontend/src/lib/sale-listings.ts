@@ -1,7 +1,7 @@
 export type ListingStatus =
   "DRAFT" | "PENDING_REVIEW" | "APPROVED" | "REJECTED";
 
-export type ListingAgent = {
+type ListingAgent = {
   id?: string;
   companyName: string;
   contactName: string;
@@ -24,6 +24,7 @@ export type SaleListing = {
   squareFeet?: number | null;
   amenities: string[];
   photos: string[];
+  status?: string;
   documents?: string[];
   listingStatus?: ListingStatus | null;
   rejectionReason?: string | null;

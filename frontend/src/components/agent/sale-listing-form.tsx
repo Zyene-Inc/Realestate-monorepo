@@ -15,28 +15,15 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { listingStatusLabel, type SaleListing } from "@/lib/sale-listings";
 import { supabase } from "@/lib/supabase";
-
-type ListingFormState = {
-  name: string;
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-  propertyType: string;
-  description: string;
-  price: string;
-  bedrooms: string;
-  bathrooms: string;
-  squareFeet: string;
-  amenities: string;
-};
+import { ListingAvailabilityControl } from "@/components/agent/listing-availability-control";
+import {
+  SaleListingDetailsFields,
+  type ListingFormState,
+} from "@/components/agent/sale-listing-details-fields";
 
 function initialState(listing?: SaleListing): ListingFormState {
   return {
@@ -221,126 +208,15 @@ export function SaleListingForm({ listing }: { listing?: SaleListing }) {
           locked until a decision is made.
         </div>
       )}
+      {current?.listingStatus === "APPROVED" && (
+        <ListingAvailabilityControl listing={current} onChange={setCurrent} />
+      )}
 
-      <Card className="rounded-2xl">
-        <CardHeader>
-          <CardTitle>Property details</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-5 md:grid-cols-2">
-          <Field label="Listing title">
-            <Input
-              value={form.name}
-              onChange={(e) => update("name", e.target.value)}
-              required
-              disabled={locked}
-            />
-          </Field>
-          <Field label="Property type">
-            <select
-              value={form.propertyType}
-              onChange={(e) => update("propertyType", e.target.value)}
-              disabled={locked}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option>Single Family</option>
-              <option>Condo</option>
-              <option>Townhome</option>
-              <option>Multi-Family</option>
-              <option>Land</option>
-              <option>Commercial</option>
-            </select>
-          </Field>
-          <Field label="Street address" className="md:col-span-2">
-            <Input
-              value={form.address}
-              onChange={(e) => update("address", e.target.value)}
-              required
-              disabled={locked}
-            />
-          </Field>
-          <Field label="City">
-            <Input
-              value={form.city}
-              onChange={(e) => update("city", e.target.value)}
-              required
-              disabled={locked}
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="State">
-              <Input
-                value={form.state}
-                onChange={(e) => update("state", e.target.value)}
-                required
-                disabled={locked}
-              />
-            </Field>
-            <Field label="ZIP">
-              <Input
-                value={form.zip}
-                onChange={(e) => update("zip", e.target.value)}
-                required
-                disabled={locked}
-              />
-            </Field>
-          </div>
-          <Field label="Sale price">
-            <Input
-              type="number"
-              min="1"
-              step="0.01"
-              value={form.price}
-              onChange={(e) => update("price", e.target.value)}
-              required
-              disabled={locked}
-            />
-          </Field>
-          <Field label="Square feet">
-            <Input
-              type="number"
-              min="1"
-              value={form.squareFeet}
-              onChange={(e) => update("squareFeet", e.target.value)}
-              disabled={locked}
-            />
-          </Field>
-          <Field label="Bedrooms">
-            <Input
-              type="number"
-              min="0"
-              value={form.bedrooms}
-              onChange={(e) => update("bedrooms", e.target.value)}
-              disabled={locked}
-            />
-          </Field>
-          <Field label="Bathrooms">
-            <Input
-              type="number"
-              min="0"
-              step="0.5"
-              value={form.bathrooms}
-              onChange={(e) => update("bathrooms", e.target.value)}
-              disabled={locked}
-            />
-          </Field>
-          <Field label="Amenities (comma separated)" className="md:col-span-2">
-            <Input
-              value={form.amenities}
-              onChange={(e) => update("amenities", e.target.value)}
-              disabled={locked}
-            />
-          </Field>
-          <Field label="Description" className="md:col-span-2">
-            <Textarea
-              value={form.description}
-              onChange={(e) => update("description", e.target.value)}
-              rows={7}
-              required
-              disabled={locked}
-            />
-          </Field>
-        </CardContent>
-      </Card>
+      <SaleListingDetailsFields
+        form={form}
+        disabled={locked}
+        onChange={update}
+      />
 
       {current && (
         <Card className="rounded-2xl">
@@ -381,7 +257,20 @@ export function SaleListingForm({ listing }: { listing?: SaleListing }) {
               </label>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {current.photos.map((photo, index) => <div key={photo} className="relative h-40 overflow-hidden rounded-xl bg-secondary"><Image src={photo} alt={`${current.name} view ${index + 1}`} fill sizes="(min-width: 1024px) 28vw, (min-width: 640px) 45vw, 100vw" className="object-cover" /></div>)}
+              {current.photos.map((photo, index) => (
+                <div
+                  key={photo}
+                  className="relative h-40 overflow-hidden rounded-xl bg-secondary"
+                >
+                  <Image
+                    src={photo}
+                    alt={`${current.name} view ${index + 1}`}
+                    fill
+                    sizes="(min-width: 1024px) 28vw, (min-width: 640px) 45vw, 100vw"
+                    className="object-cover"
+                  />
+                </div>
+              ))}
             </div>
             {current.documents?.length ? (
               <div className="flex flex-wrap gap-2">
@@ -425,22 +314,5 @@ export function SaleListingForm({ listing }: { listing?: SaleListing }) {
           </div>
         )}
     </form>
-  );
-}
-
-function Field({
-  label,
-  className,
-  children,
-}: {
-  label: string;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Label className={`grid gap-2 ${className ?? ""}`}>
-      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
-      {children}
-    </Label>
   );
 }

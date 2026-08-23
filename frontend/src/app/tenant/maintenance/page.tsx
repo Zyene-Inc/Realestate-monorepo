@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Plus,
   Wrench,
-  CheckCircle2,
   AlertCircle,
   ArrowRight,
   Camera,
   Loader2,
-  Calendar,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
@@ -27,8 +27,9 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 import { getErrorMessage } from "@/lib/errors";
+import { supabase } from "@/lib/supabase";
 
 type ResidentRequest = {
   id: string;
@@ -37,13 +38,218 @@ type ResidentRequest = {
   description: string;
   status: string;
   createdAt: string;
+  photoUrls: string[];
 };
+type RequestForm = { category: string; priority: string; description: string };
+
+function MaintenanceRequestDialog({
+  open,
+  submitting,
+  form,
+  photos,
+  onOpenChange,
+  onFormChange,
+  onPhotosChange,
+  onSubmit,
+}: {
+  open: boolean;
+  submitting: boolean;
+  form: RequestForm;
+  photos: File[];
+  onOpenChange: (open: boolean) => void;
+  onFormChange: (form: RequestForm) => void;
+  onPhotosChange: (photos: File[]) => void;
+  onSubmit: (event: React.FormEvent) => Promise<void>;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger
+        render={
+          <Button className="px-8 py-6 rounded-2xl group">
+            <Plus className="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
+            New Service Request
+          </Button>
+        }
+      />
+      <DialogContent className="sm:max-w-[500px] rounded-[1.25rem] p-5 sm:p-8">
+        <form onSubmit={onSubmit}>
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">
+              New Service Request
+            </DialogTitle>
+            <DialogDescription>
+              Describe the issue in detail so we can assign the right
+              specialist.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-8">
+            <div className="space-y-2">
+              <Label htmlFor="request-category">Category</Label>
+              <select
+                id="request-category"
+                className="w-full h-12 rounded-xl border border-border bg-secondary/50 px-4"
+                value={form.category}
+                onChange={(event) =>
+                  onFormChange({ ...form, category: event.target.value })
+                }
+                required
+              >
+                <option value="">Select category…</option>
+                <option value="plumbing">Plumbing</option>
+                <option value="electrical">Electrical</option>
+                <option value="hvac">HVAC</option>
+                <option value="appliance">Appliance</option>
+                <option value="pest">Pest Control</option>
+                <option value="structural">Structural</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="request-priority">Priority level</Label>
+              <select
+                id="request-priority"
+                className="w-full h-12 rounded-xl border border-border bg-secondary/50 px-4"
+                value={form.priority}
+                onChange={(event) =>
+                  onFormChange({ ...form, priority: event.target.value })
+                }
+                required
+              >
+                <option value="low">Low - General Maintenance</option>
+                <option value="medium">Medium - Needs Attention</option>
+                <option value="high">High - Urgent Issue</option>
+                <option value="emergency">Emergency - Critical Service</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="request-description">Issue description</Label>
+              <Textarea
+                id="request-description"
+                className="min-h-[120px] rounded-xl"
+                value={form.description}
+                onChange={(event) =>
+                  onFormChange({ ...form, description: event.target.value })
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="request-photos">Photos (up to 5)</Label>
+              <Input
+                id="request-photos"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
+                onChange={(event) =>
+                  onPhotosChange(
+                    Array.from(event.target.files ?? []).slice(0, 5),
+                  )
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                {photos.length
+                  ? `${photos.length} photo${photos.length === 1 ? "" : "s"} selected`
+                  : "Clear photos help the service team arrive prepared."}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="submit" className="w-full h-14" disabled={submitting}>
+              {submitting ? "Submitting…" : "Submit Request"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MaintenanceRequestList({
+  requests,
+  onConfirm,
+}: {
+  requests: ResidentRequest[];
+  onConfirm: (id: string) => Promise<void>;
+}) {
+  if (requests.length === 0) {
+    return (
+      <Card className="border-2 border-dashed p-16 text-center">
+        <Wrench className="mx-auto h-8 w-8 text-muted-foreground" />
+        <p className="mt-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          No active maintenance records
+        </p>
+      </Card>
+    );
+  }
+  return (
+    <div className="grid gap-6">
+      {requests.map((request) => (
+        <Card key={request.id} className="overflow-hidden">
+          <CardContent className="p-6 sm:p-8">
+            <div className="flex flex-col justify-between gap-6 md:flex-row">
+              <div className="flex gap-5">
+                <span className="h-fit rounded-2xl bg-primary p-4 text-primary-foreground">
+                  <Wrench className="size-6" />
+                </span>
+                <div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <h3 className="text-xl font-bold capitalize">
+                      {request.category}
+                    </h3>
+                    <Badge variant="outline">{request.priority} priority</Badge>
+                  </div>
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+                    {request.description}
+                  </p>
+                  {request.photoUrls.length ? (
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {request.photoUrls.map((url, index) => (
+                        <div
+                          key={url}
+                          className="relative size-20 overflow-hidden rounded-xl border"
+                        >
+                          <Image
+                            src={url}
+                            alt={`${request.category} request photo ${index + 1}`}
+                            fill
+                            sizes="80px"
+                            className="object-cover"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <p className="mt-5 text-xs text-muted-foreground">
+                    {format(new Date(request.createdAt), "MMM dd, yyyy")} · REQ-
+                    {request.id.slice(-6).toUpperCase()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex min-w-40 flex-col items-end gap-4">
+                <Badge>{request.status.replaceAll("_", " ")}</Badge>
+                {request.status === "completed" ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => void onConfirm(request.id)}
+                  >
+                    Confirm complete <ArrowRight className="ml-2 size-3" />
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 export default function TenantMaintenance() {
   const [requests, setRequests] = useState<ResidentRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [photos, setPhotos] = useState<File[]>([]);
 
   const [formData, setFormData] = useState({
     category: "",
@@ -74,17 +280,49 @@ export default function TenantMaintenance() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     setSubmitting(true);
     try {
-      await api.post("/tenant/portal/maintenance", formData);
+      const created = (await api.post(
+        "/tenant/portal/maintenance",
+        formData,
+      )) as ResidentRequest;
+      await Promise.all(
+        photos.map(async (photo) => {
+          const signed = (await api.post(
+            `/tenant/portal/maintenance/${created.id}/photo-upload-url`,
+            { fileName: photo.name, contentType: photo.type },
+          )) as { bucket: string; path: string; token: string };
+          const { error } = await supabase.storage
+            .from(signed.bucket)
+            .uploadToSignedUrl(signed.path, signed.token, photo, {
+              contentType: photo.type,
+            });
+          if (error) throw error;
+          await api.post(`/tenant/portal/maintenance/${created.id}/photos`, {
+            path: signed.path,
+          });
+        }),
+      );
       toast.success("Request submitted successfully");
       setOpen(false);
       setFormData({ category: "", priority: "low", description: "" });
+      setPhotos([]);
       void fetchRequests();
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Unable to submit request"));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const confirmCompletion = async (id: string) => {
+    try {
+      await api.patch(`/tenant/portal/maintenance/${id}/confirm`, {});
+      toast.success("Completion confirmed");
+      await fetchRequests();
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to confirm completion"));
     }
   };
 
@@ -108,221 +346,24 @@ export default function TenantMaintenance() {
           </p>
         </div>
 
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger
-            render={
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs uppercase tracking-widest px-8 py-6 rounded-2xl  group transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading">
-                <Plus className="mr-2 h-4 w-4 text-current transition-transform group-hover:rotate-90" />
-                New Service Request
-              </Button>
-            }
-          />
-          <DialogContent className="sm:max-w-[500px] rounded-[1.25rem] border-border bg-card p-5 sm:p-8 shadow-2xl">
-            <form onSubmit={handleSubmit}>
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold font-heading tracking-tight">
-                  New Service Request
-                </DialogTitle>
-                <DialogDescription className="font-medium text-muted-foreground">
-                  Describe the issue in detail so we can assign the right
-                  specialist.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-6 py-8">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="request-category"
-                    className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground font-heading ml-1"
-                  >
-                    Category
-                  </Label>
-                  <select
-                    id="request-category"
-                    className="w-full h-12 rounded-xl border border-border bg-secondary/50 px-4 focus:ring-2 focus:ring-primary/5 outline-none font-medium transition-[background-color,color,border-color,box-shadow,transform,opacity]"
-                    value={formData.category}
-                    onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value })
-                    }
-                    required
-                  >
-                    <option value="">Select category…</option>
-                    <option value="plumbing">Plumbing</option>
-                    <option value="electrical">Electrical</option>
-                    <option value="hvac">HVAC</option>
-                    <option value="appliance">Appliance</option>
-                    <option value="pest">Pest Control</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="request-priority"
-                    className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground font-heading ml-1"
-                  >
-                    Priority level
-                  </Label>
-                  <select
-                    id="request-priority"
-                    className="w-full h-12 rounded-xl border border-border bg-secondary/50 px-4 focus:ring-2 focus:ring-primary/5 outline-none font-medium transition-[background-color,color,border-color,box-shadow,transform,opacity]"
-                    value={formData.priority}
-                    onChange={(e) =>
-                      setFormData({ ...formData, priority: e.target.value })
-                    }
-                    required
-                  >
-                    <option value="low">Low - General Maintenance</option>
-                    <option value="medium">Medium - Needs Attention</option>
-                    <option value="high">High - Urgent Issue</option>
-                    <option value="emergency">
-                      Emergency - Critical Service
-                    </option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="request-description"
-                    className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground font-heading ml-1"
-                  >
-                    Issue description
-                  </Label>
-                  <Textarea
-                    id="request-description"
-                    placeholder="Provide a detailed description of the problem"
-                    className="rounded-xl border-border bg-secondary/50 min-h-[120px] p-4 focus-visible:ring-primary/10"
-                    value={formData.description}
-                    onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  type="submit"
-                  className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-bold uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading"
-                  disabled={submitting}
-                >
-                  {submitting ? "Submitting…" : "Submit Request"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <MaintenanceRequestDialog
+          open={open}
+          submitting={submitting}
+          form={formData}
+          photos={photos}
+          onOpenChange={setOpen}
+          onFormChange={setFormData}
+          onPhotosChange={setPhotos}
+          onSubmit={handleSubmit}
+        />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="grid gap-6">
-            {requests.length === 0 ? (
-              <Card className="border-2 border-dashed border-border bg-card/50 rounded-[1.25rem] p-16 text-center">
-                <div className="h-16 w-16 bg-secondary rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Wrench className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <p className="text-muted-foreground font-bold uppercase tracking-widest text-xs font-heading">
-                  No active maintenance records
-                </p>
-                <p className="text-[11px] text-muted-foreground/60 mt-1">
-                  Your property history will appear here.
-                </p>
-              </Card>
-            ) : (
-              requests.map((req) => (
-                <Card
-                  key={req.id}
-                  className="border-border bg-card shadow-sm hover:shadow-md transition-[background-color,color,border-color,box-shadow,transform,opacity] rounded-[1.25rem] overflow-hidden group"
-                >
-                  <div className="flex flex-col md:flex-row">
-                    <div
-                      className={cn(
-                        "w-full md:w-2 transition-colors",
-                        req.status === "completed"
-                          ? "bg-success"
-                          : "bg-accent",
-                      )}
-                    />
-                    <CardContent className="p-8 flex-1">
-                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-                        <div className="flex gap-6">
-                          <div
-                            className={cn(
-                              "p-4 rounded-2xl h-fit transition-[background-color,color,border-color,box-shadow,transform,opacity] duration-300",
-                              req.status === "completed"
-                                ? "bg-secondary text-muted-foreground"
-                                : "bg-primary text-primary-foreground shadow-lg shadow-primary/20",
-                            )}
-                          >
-                            <Wrench className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="font-bold text-xl text-foreground font-heading tracking-tight capitalize">
-                                {req.category}
-                              </h3>
-                              <span
-                                className={cn(
-                                  "text-[9px] font-bold uppercase tracking-[0.2em] px-2.5 py-1 rounded-md",
-                                  req.priority === "emergency" ||
-                                    req.priority === "high"
-                                    ? "bg-destructive/10 text-destructive"
-                                    : "bg-secondary text-muted-foreground",
-                                )}
-                              >
-                                {req.priority} Priority
-                              </span>
-                            </div>
-                            <p className="text-muted-foreground font-medium leading-relaxed max-w-md">
-                              {req.description}
-                            </p>
-                            <div className="flex items-center gap-6 mt-6">
-                              <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">
-                                <Calendar className="h-3.5 w-3.5" />{" "}
-                                {format(
-                                  new Date(req.createdAt),
-                                  "MMM dd, yyyy",
-                                )}
-                              </span>
-                              <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">
-                                <CheckCircle2 className="h-3.5 w-3.5" /> ID:
-                                REQ-{req.id.slice(-6).toUpperCase()}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-4 min-w-[150px]">
-                          <span
-                            className={cn(
-                              "inline-flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest",
-                              req.status === "completed"
-                                ? "bg-success/10 text-success"
-                                : "bg-accent/10 text-accent",
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                "h-1.5 w-1.5 rounded-full",
-                                req.status === "completed"
-                                  ? "bg-success"
-                                  : "bg-accent",
-                              )}
-                            />
-                            {req.status}
-                          </span>
-                          <Button
-                            variant="outline"
-                            className="w-full rounded-xl border-border hover:bg-secondary text-[10px] font-bold uppercase tracking-widest h-11 group/btn font-heading transition-[background-color,color,border-color,box-shadow,transform,opacity]"
-                          >
-                            Manage Request
-                            <ArrowRight className="ml-2 h-3 w-3 group-hover/btn:translate-x-1 transition-transform" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </div>
-                </Card>
-              ))
-            )}
-          </div>
+          <MaintenanceRequestList
+            requests={requests}
+            onConfirm={confirmCompletion}
+          />
         </div>
 
         <div className="space-y-8">

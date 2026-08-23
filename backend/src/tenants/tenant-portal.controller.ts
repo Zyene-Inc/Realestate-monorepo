@@ -1,33 +1,25 @@
-import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common';
-import { TenantsService } from './tenants.service';
+import { Controller, Get, Request, UseGuards } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../auth/roles.decorator';
+import { RolesGuard } from '../auth/roles.guard';
+import { TenantsService } from './tenants.service';
+
+type AuthenticatedRequest = { user: { sub: string } };
 
 @Controller('tenant/portal')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.TENANT)
 export class TenantPortalController {
   constructor(private readonly tenantsService: TenantsService) {}
 
   @Get('dashboard')
-  async getDashboard(@Request() req: any) {
-    const userId = req.user.sub;
-    return this.tenantsService.getDashboardData(userId);
-  }
-
-  @Get('maintenance')
-  async getMaintenance(@Request() req: any) {
-    const userId = req.user.sub;
-    return this.tenantsService.getMaintenanceRequests(userId);
-  }
-
-  @Post('maintenance')
-  async createMaintenance(@Request() req: any, @Body() data: any) {
-    const userId = req.user.sub;
-    return this.tenantsService.createMaintenanceRequest(userId, data);
+  getDashboard(@Request() request: AuthenticatedRequest) {
+    return this.tenantsService.getDashboardData(request.user.sub);
   }
 
   @Get('lease')
-  async getLease(@Request() req: any) {
-    const userId = req.user.sub;
-    return this.tenantsService.getActiveLease(userId);
+  getLease(@Request() request: AuthenticatedRequest) {
+    return this.tenantsService.getActiveLease(request.user.sub);
   }
 }

@@ -21,26 +21,44 @@ const rootDomain = (
   .toLowerCase()
   .replace(/^\./, "");
 
-export const ROOT_DOMAIN = rootDomain;
+const ROOT_DOMAIN = rootDomain;
+
+function verifiedPortalOrigin(value: string | undefined, expectedHost: string) {
+  const fallback = `https://${expectedHost}`;
+  if (!value) return fallback;
+  try {
+    const configured = new URL(value);
+    return configured.protocol === "https:" &&
+      configured.hostname.toLowerCase() === expectedHost
+      ? configured.origin
+      : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 export const PORTAL_ORIGINS: Record<Portal, string> = {
-  public:
-    process.env.NEXT_PUBLIC_SITE_URL || `https://${rootDomain}`,
-  agent:
-    process.env.NEXT_PUBLIC_AGENT_PORTAL_URL ||
-    `https://agents.${rootDomain}`,
-  propertiesAdmin:
-    process.env.NEXT_PUBLIC_PROPERTIES_ADMIN_URL ||
-    `https://properties-admin.${rootDomain}`,
-  rentalAdmin:
-    process.env.NEXT_PUBLIC_RENTAL_ADMIN_URL ||
-    `https://rental-admin.${rootDomain}`,
-  tenant:
-    process.env.NEXT_PUBLIC_TENANT_PORTAL_URL ||
-    `https://tenant.${rootDomain}`,
-  superAdmin:
-    process.env.NEXT_PUBLIC_SUPER_ADMIN_URL ||
-    `https://admin.${rootDomain}`,
+  public: verifiedPortalOrigin(process.env.NEXT_PUBLIC_SITE_URL, rootDomain),
+  agent: verifiedPortalOrigin(
+    process.env.NEXT_PUBLIC_AGENT_PORTAL_URL,
+    `agents.${rootDomain}`,
+  ),
+  propertiesAdmin: verifiedPortalOrigin(
+    process.env.NEXT_PUBLIC_PROPERTIES_ADMIN_URL,
+    `properties-admin.${rootDomain}`,
+  ),
+  rentalAdmin: verifiedPortalOrigin(
+    process.env.NEXT_PUBLIC_RENTAL_ADMIN_URL,
+    `rental-admin.${rootDomain}`,
+  ),
+  tenant: verifiedPortalOrigin(
+    process.env.NEXT_PUBLIC_TENANT_PORTAL_URL,
+    `tenant.${rootDomain}`,
+  ),
+  superAdmin: verifiedPortalOrigin(
+    process.env.NEXT_PUBLIC_SUPER_ADMIN_URL,
+    `admin.${rootDomain}`,
+  ),
 };
 
 const portalHosts = Object.fromEntries(
@@ -50,7 +68,7 @@ const portalHosts = Object.fromEntries(
   ]),
 ) as Record<string, Portal>;
 
-export function hostnameWithoutPort(hostname: string) {
+function hostnameWithoutPort(hostname: string) {
   return hostname.trim().toLowerCase().split(":")[0];
 }
 
@@ -69,7 +87,20 @@ export function portalForHostname(hostname: string): Portal | null {
   return portalHosts[hostnameWithoutPort(hostname)] ?? null;
 }
 
-export function portalForRole(role?: string): Portal {
+export function entryPathForPortal(portal: Portal) {
+  if (portal === "agent") return "/agent/login";
+  if (portal === "tenant") return "/tenant/login";
+  if (
+    portal === "propertiesAdmin" ||
+    portal === "rentalAdmin" ||
+    portal === "superAdmin"
+  ) {
+    return "/admin/login";
+  }
+  return "/";
+}
+
+function portalForRole(role?: string): Portal {
   if (role === "AGENT") return "agent";
   if (role === "SALES_ADMIN") return "propertiesAdmin";
   if (role === "TENANT_ADMIN") return "rentalAdmin";
@@ -88,7 +119,7 @@ export function pathForUser(user: PortalUser) {
   return "/admin/dashboard";
 }
 
-export function portalUrl(portal: Portal, path = "/") {
+function portalUrl(portal: Portal, path = "/") {
   return new URL(path, `${PORTAL_ORIGINS[portal]}/`).toString();
 }
 

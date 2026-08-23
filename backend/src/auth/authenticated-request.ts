@@ -1,7 +1,7 @@
 import { Role, UserStatus } from '@prisma/client';
 import type { Request } from 'express';
 
-export type AuthenticatedUser = {
+type AuthenticatedUser = {
   sub: string;
   authUserId: string;
   email: string;

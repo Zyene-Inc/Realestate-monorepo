@@ -1,14 +1,19 @@
-import { IsString, IsNumber, IsOptional, IsEnum, IsDateString, IsNotEmpty, Min } from 'class-validator';
-export enum PaymentStatus {
-  PENDING = 'PENDING',
-  PAID = 'PAID',
-  OVERDUE = 'OVERDUE',
-  PARTIAL = 'PARTIAL',
-  WAIVED = 'WAIVED',
-  REFUNDED = 'REFUNDED',
-}
+import { PaymentStatus } from '@prisma/client';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsEnum,
+  IsDateString,
+  IsNotEmpty,
+  Min,
+  IsUUID,
+} from 'class-validator';
 
 export class RecordPaymentDto {
+  @IsUUID()
+  clientRequestId: string;
+
   @IsString()
   @IsNotEmpty()
   tenantId: string;
@@ -60,6 +65,9 @@ export class RecordPaymentDto {
 }
 
 export class UpdatePaymentStatusDto {
+  @IsUUID()
+  clientRequestId: string;
+
   @IsEnum(PaymentStatus)
   status: PaymentStatus;
 

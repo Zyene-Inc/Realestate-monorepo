@@ -25,9 +25,21 @@ export function validateEnvironment(config: Record<string, unknown>) {
     'SUPABASE_SECRET_KEY',
     'RESEND_API_KEY',
     'RESEND_FROM_EMAIL',
+    'RESEND_WEBHOOK_SECRET',
+    'CRON_SECRET',
     'CORS_ORIGINS',
     ...productionPortalVariables,
   ];
+  if (value(config, 'ESIGNATURES_ENABLED').toLowerCase() === 'true') {
+    required.push(
+      'VERDOCS_CLIENT_ID',
+      'VERDOCS_CLIENT_SECRET',
+      'VERDOCS_WEBHOOK_SECRET',
+      'VERDOCS_LEASE_TEMPLATE_ID',
+      'VERDOCS_DISCLOSURE_TEMPLATE_ID',
+      'VERDOCS_AGREEMENT_TEMPLATE_ID',
+    );
+  }
   const missing = required.filter((key) => !value(config, key));
   if (missing.length > 0) {
     throw new Error(
@@ -36,14 +48,38 @@ export function validateEnvironment(config: Record<string, unknown>) {
   }
 
   const databaseUrl = new URL(value(config, 'DATABASE_URL'));
+  const connectionLimit = Number(
+    databaseUrl.searchParams.get('connection_limit'),
+  );
   if (
     !databaseUrl.hostname.endsWith('.pooler.supabase.com') ||
-    databaseUrl.port !== '6543' ||
-    databaseUrl.searchParams.get('pgbouncer') !== 'true'
+    databaseUrl.port !== '5432' ||
+    !Number.isInteger(connectionLimit) ||
+    connectionLimit < 1 ||
+    connectionLimit > 3
   ) {
     throw new Error(
-      'DATABASE_URL must use the Supabase transaction pooler on port 6543 with pgbouncer=true in production',
+      'DATABASE_URL must use the Supabase session pooler on port 5432 with connection_limit between 1 and 3 in production',
     );
+  }
+
+  const verdocsApiBaseUrl =
+    value(config, 'VERDOCS_API_BASE_URL') || 'https://api.verdocs.com';
+  if (new URL(verdocsApiBaseUrl).protocol !== 'https:') {
+    throw new Error('VERDOCS_API_BASE_URL must use HTTPS in production');
+  }
+  if (value(config, 'ESIGNATURES_ENABLED').toLowerCase() === 'true') {
+    const uuidPattern =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    for (const key of [
+      'VERDOCS_LEASE_TEMPLATE_ID',
+      'VERDOCS_DISCLOSURE_TEMPLATE_ID',
+      'VERDOCS_AGREEMENT_TEMPLATE_ID',
+    ]) {
+      if (!uuidPattern.test(value(config, key))) {
+        throw new Error(`${key} must be a Verdocs template UUID`);
+      }
+    }
   }
 
   for (const key of productionPortalVariables) {

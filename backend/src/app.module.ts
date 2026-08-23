@@ -21,6 +21,9 @@ import { HealthController } from './health/health.controller';
 import { AgentsModule } from './agents/agents.module';
 import { ListingsModule } from './listings/listings.module';
 import { validateEnvironment } from './common/config/environment';
+import { CommissionsModule } from './commissions/commissions.module';
+import { ESignaturesModule } from './e-signatures/e-signatures.module';
+import { ReportsModule } from './reports/reports.module';
 
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -31,7 +34,7 @@ import { APP_GUARD } from '@nestjs/core';
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 10,
+        limit: 120,
       },
     ]),
     PrismaModule,
@@ -51,6 +54,9 @@ import { APP_GUARD } from '@nestjs/core';
     EmailsModule,
     AgentsModule,
     ListingsModule,
+    CommissionsModule,
+    ESignaturesModule,
+    ReportsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

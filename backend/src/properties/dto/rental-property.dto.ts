@@ -4,6 +4,7 @@ import {
   IsArray,
   IsDateString,
   IsInt,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -93,23 +94,8 @@ export class RentalPropertyDto {
   utilityInfo?: string;
 
   @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(50)
-  @IsString({ each: true })
-  @MaxLength(2048, { each: true })
-  photos?: string[];
-
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(50)
-  @IsString({ each: true })
-  @MaxLength(2048, { each: true })
-  documents?: string[];
-
-  @IsOptional()
-  @IsString()
-  @Length(2, 40)
-  status?: string;
+  @IsIn(['active', 'rented', 'inactive'])
+  status?: 'active' | 'rented' | 'inactive';
 }
 
 export class UpdateRentalPropertyDto {
@@ -154,16 +140,22 @@ export class UpdateRentalPropertyDto {
   amenities?: string[];
   @IsOptional() @IsString() @MaxLength(2000) utilityInfo?: string;
   @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(50)
-  @IsString({ each: true })
-  @MaxLength(2048, { each: true })
-  photos?: string[];
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(50)
-  @IsString({ each: true })
-  @MaxLength(2048, { each: true })
-  documents?: string[];
-  @IsOptional() @IsString() @Length(2, 40) status?: string;
+  @IsIn(['active', 'rented', 'inactive'])
+  status?: 'active' | 'rented' | 'inactive';
+}
+
+export class CreateRentalPhotoUploadDto {
+  @IsString()
+  @Length(1, 180)
+  fileName!: string;
+
+  @IsString()
+  @IsIn(['image/jpeg', 'image/png', 'image/webp'])
+  contentType!: string;
+}
+
+export class AttachRentalPhotoDto {
+  @IsString()
+  @Length(10, 500)
+  path!: string;
 }

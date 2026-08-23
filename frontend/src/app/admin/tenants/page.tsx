@@ -10,7 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Search, Mail, Loader2, UserPlus, MoreHorizontal } from "lucide-react";
+import { Search, Mail, Loader2, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
@@ -32,6 +32,8 @@ import { getErrorMessage } from "@/lib/errors";
 type TenantUnit = {
   id: string;
   unitNumber: string;
+  status: string;
+  tenants: Array<{ id: string }>;
   property: { name: string };
 };
 type TenantRecord = {
@@ -42,6 +44,138 @@ type TenantRecord = {
   status: string;
   unit?: TenantUnit | null;
 };
+type InviteForm = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  unitId: string;
+};
+
+function TenantInviteDialog({
+  open,
+  inviting,
+  form,
+  availableUnits,
+  onOpenChange,
+  onFormChange,
+  onSubmit,
+}: {
+  open: boolean;
+  inviting: boolean;
+  form: InviteForm;
+  availableUnits: TenantUnit[];
+  onOpenChange: (open: boolean) => void;
+  onFormChange: (form: InviteForm) => void;
+  onSubmit: (event: React.FormEvent) => Promise<void>;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger
+        render={
+          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group" />
+        }
+      >
+        <UserPlus className="mr-2 h-4 w-4 text-current transition-transform group-hover:scale-110" />
+        Invite Tenant
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[500px] rounded-[2rem] border-border bg-card p-5 sm:p-8">
+        <form onSubmit={onSubmit}>
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-3xl font-bold font-heading">
+              Invite Resident
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground font-medium mt-2">
+              Send an invitation to a new resident.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-2">
+            <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
+              {(
+                [
+                  ["firstName", "First name", "given-name"],
+                  ["lastName", "Last name", "family-name"],
+                ] as const
+              ).map(([field, label, autoComplete]) => (
+                <div key={field} className="space-y-2">
+                  <Label
+                    htmlFor={`invite-${field}`}
+                    className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
+                  >
+                    {label}
+                  </Label>
+                  <Input
+                    id={`invite-${field}`}
+                    name={field}
+                    autoComplete={autoComplete}
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium"
+                    value={form[field]}
+                    onChange={(event) =>
+                      onFormChange({ ...form, [field]: event.target.value })
+                    }
+                    required
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2">
+              <Label
+                htmlFor="invite-email"
+                className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
+              >
+                Email address
+              </Label>
+              <Input
+                id="invite-email"
+                name="email"
+                autoComplete="email"
+                type="email"
+                className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium"
+                value={form.email}
+                onChange={(event) =>
+                  onFormChange({ ...form, email: event.target.value })
+                }
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label
+                htmlFor="invite-unit"
+                className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
+              >
+                Assign unit
+              </Label>
+              <select
+                id="invite-unit"
+                className="w-full h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary focus:ring-1 focus:ring-primary px-4 outline-none font-medium text-foreground transition-[background-color,color,border-color,box-shadow,transform,opacity]"
+                value={form.unitId}
+                onChange={(event) =>
+                  onFormChange({ ...form, unitId: event.target.value })
+                }
+                required
+              >
+                <option value="">Select a unit…</option>
+                {availableUnits.map((unit) => (
+                  <option key={unit.id} value={unit.id}>
+                    Unit {unit.unitNumber} - {unit.property.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <DialogFooter className="mt-8">
+            <Button
+              type="submit"
+              className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading"
+              disabled={inviting}
+            >
+              {inviting ? "Sending…" : "Send Invitation"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function AdminTenants() {
   const [tenants, setTenants] = useState<TenantRecord[]>([]);
@@ -49,6 +183,7 @@ export default function AdminTenants() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [query, setQuery] = useState("");
   const invitingRef = useRef(false);
 
   const [formData, setFormData] = useState({
@@ -104,6 +239,18 @@ export default function AdminTenants() {
     }
   };
 
+  const filteredTenants = tenants.filter((tenant) =>
+    `${tenant.firstName} ${tenant.lastName} ${tenant.email} ${tenant.unit?.property?.name ?? ""}`
+      .toLowerCase()
+      .includes(query.trim().toLowerCase()),
+  );
+  const availableUnits = units.reduce<TenantUnit[]>((available, unit) => {
+    if (unit.status === "vacant" && unit.tenants.length === 0) {
+      available.push(unit);
+    }
+    return available;
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-200px)]">
@@ -124,129 +271,24 @@ export default function AdminTenants() {
           </p>
         </div>
 
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger
-            render={
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl  transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group" />
-            }
-          >
-            <UserPlus className="mr-2 h-4 w-4 text-current transition-transform group-hover:scale-110" />
-            Invite Tenant
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px] rounded-[2rem] border-border bg-card p-5 sm:p-8">
-            <form onSubmit={handleInvite}>
-              <DialogHeader className="mb-6">
-                <DialogTitle className="text-3xl font-bold font-heading">
-                  Invite Resident
-                </DialogTitle>
-                <DialogDescription className="text-muted-foreground font-medium mt-2">
-                  Send an invitation to a new resident.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-6 py-2">
-                <div className="grid gap-5 sm:grid-cols-2 sm:gap-6">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="invite-first-name"
-                      className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
-                    >
-                      First name
-                    </Label>
-                    <Input
-                      id="invite-first-name"
-                      name="firstName"
-                      autoComplete="given-name"
-                      className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium"
-                      value={formData.firstName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, firstName: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="invite-last-name"
-                      className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
-                    >
-                      Last name
-                    </Label>
-                    <Input
-                      id="invite-last-name"
-                      name="lastName"
-                      autoComplete="family-name"
-                      className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium"
-                      value={formData.lastName}
-                      onChange={(e) =>
-                        setFormData({ ...formData, lastName: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="invite-email"
-                    className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
-                  >
-                    Email address
-                  </Label>
-                  <Input
-                    id="invite-email"
-                    name="email"
-                    autoComplete="email"
-                    type="email"
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFormData({ ...formData, email: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="invite-unit"
-                    className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
-                  >
-                    Assign unit
-                  </Label>
-                  <select
-                    id="invite-unit"
-                    className="w-full h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary focus:ring-1 focus:ring-primary px-4 outline-none font-medium text-foreground transition-[background-color,color,border-color,box-shadow,transform,opacity]"
-                    value={formData.unitId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, unitId: e.target.value })
-                    }
-                    required
-                  >
-                    <option value="">Select a unit…</option>
-                    {units.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        Unit {u.unitNumber} - {u.property.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <DialogFooter className="mt-8">
-                <Button
-                  type="submit"
-                  className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-primary/20 transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading"
-                  disabled={inviting}
-                >
-                  {inviting ? "Sending…" : "Send Invitation"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <TenantInviteDialog
+          open={open}
+          inviting={inviting}
+          form={formData}
+          availableUnits={availableUnits}
+          onOpenChange={setOpen}
+          onFormChange={setFormData}
+          onSubmit={handleInvite}
+        />
       </div>
 
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <Input
+            aria-label="Search tenants"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
             className="pl-12 h-12 rounded-2xl border-border bg-card shadow-sm font-medium focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity]"
             placeholder="Search tenants"
           />
@@ -270,12 +312,12 @@ export default function AdminTenants() {
                 Status
               </TableHead>
               <TableHead className="text-right font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">
-                Actions
+                Account
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tenants.length === 0 ? (
+            {filteredTenants.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={5}
@@ -285,7 +327,7 @@ export default function AdminTenants() {
                 </TableCell>
               </TableRow>
             ) : (
-              tenants.map((tenant) => (
+              filteredTenants.map((tenant) => (
                 <TableRow
                   key={tenant.id}
                   className="hover:bg-secondary/30 transition-colors border-border"
@@ -329,13 +371,11 @@ export default function AdminTenants() {
                     </Badge>
                   </TableCell>
                   <TableCell className="py-4 text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Open actions for ${tenant.firstName} ${tenant.lastName}`}
-                    >
-                      <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      {tenant.status === "invited"
+                        ? "Invitation pending"
+                        : "Portal enabled"}
+                    </span>
                   </TableCell>
                 </TableRow>
               ))

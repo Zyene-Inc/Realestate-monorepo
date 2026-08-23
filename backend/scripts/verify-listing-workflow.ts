@@ -23,10 +23,10 @@ const admin = createClient(supabaseUrl, secretKey, {
 });
 const suffix = randomUUID().slice(0, 8);
 const password = `Verify-${randomUUID()}!`;
-const agentEmail = `listing-agent-${suffix}@example.com`;
-const reviewerEmail = `listing-reviewer-${suffix}@example.com`;
-const tenantAdminEmail = `listing-tenant-admin-${suffix}@example.com`;
-const otherAgentEmail = `listing-other-agent-${suffix}@example.com`;
+const agentEmail = `delivered+listing-agent-${suffix}@resend.dev`;
+const reviewerEmail = `delivered+listing-reviewer-${suffix}@resend.dev`;
+const tenantAdminEmail = `delivered+listing-tenant-admin-${suffix}@resend.dev`;
+const otherAgentEmail = `delivered+listing-other-agent-${suffix}@resend.dev`;
 const authUserIds: string[] = [];
 const appUserIds: string[] = [];
 const listingIds: string[] = [];
@@ -486,12 +486,12 @@ async function main() {
 
   const inquiryCreated = await request<{
     inquiry: { id: string; messages: Array<{ senderType: string }> };
-    accessToken: string;
+    expiresAt: string;
   }>(`/public/sale-listings/${created.body.id}/inquiries`, {
     method: 'POST',
     body: JSON.stringify({
       buyerName: 'Phase Five Buyer',
-      buyerEmail: `buyer-${suffix}@example.com`,
+      buyerEmail: `delivered+buyer-${suffix}@resend.dev`,
       buyerPhone: '816-555-0101',
       message: 'I would like to schedule a showing for this home.',
       website: '',
@@ -502,6 +502,20 @@ async function main() {
     'Buyer inquiry creation failed',
   );
   inquiryIds.push(inquiryCreated.body.inquiry.id);
+  const buyerCookie = inquiryCreated.response.headers
+    .get('set-cookie')
+    ?.split(';', 1)[0];
+  assert(
+    typeof buyerCookie === 'string' &&
+      buyerCookie.startsWith(
+      `jr_inquiry_${inquiryCreated.body.inquiry.id}=`,
+      ),
+    'Buyer inquiry access cookie was not issued',
+  );
+  assert(
+    !JSON.stringify(inquiryCreated.body).includes('accessToken'),
+    'Buyer access token was exposed in the response body',
+  );
   assert(
     inquiryCreated.body.inquiry.messages[0]?.senderType === 'BUYER',
     'Initial buyer message was not created',
@@ -512,7 +526,7 @@ async function main() {
     method: 'POST',
     body: JSON.stringify({
       buyerName: 'Pagination Buyer',
-      buyerEmail: `pagination-buyer-${suffix}@example.com`,
+      buyerEmail: `delivered+pagination-buyer-${suffix}@resend.dev`,
       message: 'I am interested in learning more about this property.',
       website: '',
     }),
@@ -526,9 +540,10 @@ async function main() {
     `/public/inquiries/${inquiryCreated.body.inquiry.id}/access`,
     {
       method: 'POST',
-      body: JSON.stringify({
-        accessToken: `${inquiryCreated.body.accessToken}x`,
-      }),
+      body: '{}',
+      headers: {
+        Cookie: `jr_inquiry_${inquiryCreated.body.inquiry.id}=invalid-token`,
+      },
     },
   );
   assert(
@@ -609,9 +624,9 @@ async function main() {
   }>(`/public/inquiries/${inquiryCreated.body.inquiry.id}/access`, {
     method: 'POST',
     body: JSON.stringify({
-      accessToken: inquiryCreated.body.accessToken,
       limit: 1,
     }),
+    headers: { Cookie: buyerCookie },
   });
   assert(
     buyerAccess.body.messages.some(
@@ -629,9 +644,9 @@ async function main() {
   }>(`/public/inquiries/${inquiryCreated.body.inquiry.id}/messages`, {
     method: 'POST',
     body: JSON.stringify({
-      accessToken: inquiryCreated.body.accessToken,
       message: 'Tomorrow afternoon works for me.',
     }),
+    headers: { Cookie: buyerCookie },
   });
   assert(
     buyerReply.body.messages.at(-1)?.senderType === 'BUYER',
@@ -698,9 +713,9 @@ async function main() {
     {
       method: 'POST',
       body: JSON.stringify({
-        accessToken: inquiryCreated.body.accessToken,
         message: 'This should not be accepted.',
       }),
+      headers: { Cookie: buyerCookie },
     },
   );
   assert(

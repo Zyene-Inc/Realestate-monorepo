@@ -50,11 +50,7 @@ export class CreateListingInquiryDto {
   website?: string;
 }
 
-export class BuyerInquiryAccessDto extends CursorPageDto {
-  @IsString()
-  @Length(32, 200)
-  accessToken!: string;
-}
+export class BuyerInquiryAccessDto extends CursorPageDto {}
 
 export class BuyerInquiryReplyDto extends BuyerInquiryAccessDto {
   @IsString()

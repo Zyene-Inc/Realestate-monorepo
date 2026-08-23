@@ -285,6 +285,54 @@ export class SaleListingsService {
     return updated;
   }
 
+  async updateAvailability(
+    userId: string,
+    listingId: string,
+    status: 'active' | 'sold',
+  ) {
+    const { listing } = await this.ownedListing(userId, listingId);
+    if (listing.listingStatus !== ListingStatus.APPROVED) {
+      throw new ConflictException(
+        'Only approved listings can change public availability',
+      );
+    }
+    if (listing.status === status) return listing;
+
+    return this.prisma.$transaction(async (tx) => {
+      const changed = await tx.property.updateMany({
+        where: {
+          id: listing.id,
+          listingStatus: ListingStatus.APPROVED,
+          status: listing.status,
+        },
+        data: { status },
+      });
+      if (changed.count !== 1) {
+        throw new ConflictException(
+          'Listing availability changed; refresh and retry',
+        );
+      }
+      const updated = await tx.property.findUniqueOrThrow({
+        where: { id: listing.id },
+        include: listingInclude,
+      });
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action:
+            status === 'sold'
+              ? 'SALE_LISTING_MARKED_SOLD'
+              : 'SALE_LISTING_REOPENED',
+          resource: 'property',
+          resourceId: updated.id,
+          oldValue: JSON.stringify({ status: listing.status }),
+          newValue: JSON.stringify({ status }),
+        },
+      });
+      return updated;
+    });
+  }
+
   async listForReview(status?: ListingStatus) {
     return this.prisma.property.findMany({
       where: {
@@ -353,6 +401,7 @@ export class SaleListingsService {
         updated.agent.email,
         updated.agent.contactName,
         updated.name,
+        updated.id,
       );
     }
     return updated;
@@ -375,6 +424,7 @@ export class SaleListingsService {
         updated.agent.contactName,
         updated.name,
         reason.trim(),
+        updated.id,
       );
     }
     return updated;
@@ -446,6 +496,8 @@ export class SaleListingsService {
         squareFeet: true,
         amenities: true,
         photos: true,
+        status: true,
+        reviewedAt: true,
         updatedAt: true,
         agent: {
           select: {
@@ -482,6 +534,8 @@ export class SaleListingsService {
         squareFeet: true,
         amenities: true,
         photos: true,
+        status: true,
+        reviewedAt: true,
         updatedAt: true,
         agent: {
           select: {

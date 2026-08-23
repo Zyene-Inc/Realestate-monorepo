@@ -1,114 +1,107 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { UpdateTenantDto } from './dto/update-tenant.dto';
+
+const tenantInclude = {
+  user: { select: { id: true, email: true, status: true } },
+  unit: {
+    include: { property: { select: { id: true, name: true } } },
+  },
+  leases: { orderBy: { endDate: 'desc' as const }, take: 5 },
+} satisfies Prisma.TenantInclude;
 
 @Injectable()
 export class TenantsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async findAll() {
     return this.prisma.tenant.findMany({
-      include: { user: true, unit: true, leases: true },
+      include: tenantInclude,
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }, { id: 'asc' }],
+      take: 250,
     });
   }
 
   async findOne(id: string) {
-    return this.prisma.tenant.findUnique({
+    const tenant = await this.prisma.tenant.findUnique({
       where: { id },
-      include: { user: true, unit: true, leases: true, payments: true, maintenanceRequests: true },
+      include: {
+        ...tenantInclude,
+        payments: { orderBy: { dueDate: 'desc' }, take: 24 },
+        maintenanceRequests: {
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: 50,
+        },
+      },
     });
+    if (!tenant) throw new NotFoundException('Tenant not found');
+    return tenant;
   }
 
-  async create(data: any) {
-    return this.prisma.tenant.create({
-      data,
-    });
-  }
-
-  async update(id: string, data: any) {
-    return this.prisma.tenant.update({
-      where: { id },
-      data,
-    });
-  }
-
-  async remove(id: string) {
-    return this.prisma.tenant.delete({
-      where: { id },
+  async update(userId: string, id: string, data: UpdateTenantDto) {
+    const current = await this.findOne(id);
+    return this.prisma.$transaction(async (tx) => {
+      const tenant = await tx.tenant.update({
+        where: { id },
+        data: {
+          ...data,
+          firstName: data.firstName?.trim(),
+          lastName: data.lastName?.trim(),
+          dateOfBirth: data.dateOfBirth
+            ? new Date(data.dateOfBirth)
+            : undefined,
+        },
+        include: tenantInclude,
+      });
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'TENANT_PROFILE_UPDATED',
+          resource: 'tenant',
+          resourceId: id,
+          oldValue: JSON.stringify({ status: current.status }),
+          newValue: JSON.stringify({ status: tenant.status }),
+        },
+      });
+      return tenant;
     });
   }
 
   async getDashboardData(userId: string) {
-    return this.prisma.tenant.findUnique({
+    const tenant = await this.prisma.tenant.findUnique({
       where: { userId },
       include: {
-        unit: {
-          include: { property: true },
-        },
+        unit: { include: { property: true } },
         leases: {
-          where: { status: 'active' },
+          where: { status: { in: ['active', 'expiring', 'renewed'] } },
+          orderBy: { endDate: 'desc' },
           take: 1,
         },
         maintenanceRequests: {
-          orderBy: { createdAt: 'desc' },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
           take: 5,
         },
-        payments: {
-          orderBy: { createdAt: 'desc' },
-          take: 5,
-        },
+        payments: { orderBy: { createdAt: 'desc' }, take: 5 },
       },
     });
-  }
-
-  async getMaintenanceRequests(userId: string) {
-    const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
-    if (!tenant) return [];
-    return this.prisma.maintenanceRequest.findMany({
-      where: { tenantId: tenant.id },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  async createMaintenanceRequest(userId: string, data: any) {
-    const tenant = await this.prisma.tenant.findUnique({ 
-      where: { userId },
-      include: { unit: true }
-    });
-    
-    if (!tenant) {
-      throw new NotFoundException('Tenant profile not found');
-    }
-
-    if (!tenant.unitId || !tenant.unit) {
-      throw new NotFoundException('No active unit assignment found. Please contact management.');
-    }
-    
-    return this.prisma.maintenanceRequest.create({
-      data: {
-        category: data.category,
-        priority: data.priority,
-        description: data.description,
-        tenantId: tenant.id,
-        unitId: tenant.unitId,
-        propertyId: tenant.unit.propertyId,
-        status: 'submitted',
-      },
-    });
+    if (!tenant) throw new NotFoundException('Tenant profile not found');
+    return tenant;
   }
 
   async getActiveLease(userId: string) {
-    const tenant = await this.prisma.tenant.findUnique({ where: { userId } });
-    if (!tenant) return null;
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!tenant) throw new NotFoundException('Tenant profile not found');
     return this.prisma.lease.findFirst({
-      where: { 
+      where: {
         tenantId: tenant.id,
-        status: 'active'
+        status: { in: ['active', 'expiring', 'renewed'] },
       },
-      include: {
-        unit: {
-          include: { property: true }
-        }
-      }
+      include: { unit: { include: { property: true } } },
+      orderBy: { endDate: 'desc' },
     });
   }
 }

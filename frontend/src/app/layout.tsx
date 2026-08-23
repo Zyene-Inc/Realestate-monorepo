@@ -1,9 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
 import "./globals.css";
+import "@verdocs/web-sdk-react/dist/globals.css";
+import "@verdocs/web-sdk-react/dist/overrides.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/auth-context";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -16,7 +20,8 @@ export const metadata: Metadata = {
     default: "Coach Johnson Realty",
     template: "%s | Coach Johnson Realty",
   },
-  description: "Missouri homes, local real estate representation, attentive property management, and clear client portals.",
+  description:
+    "Missouri homes, local real estate representation, attentive property management, and clear client portals.",
 };
 
 export const viewport: Viewport = {
@@ -46,6 +51,8 @@ export default function RootLayout({
             </a>
             {children}
             <Toaster />
+            <Analytics />
+            <SpeedInsights />
           </ThemeProvider>
         </AuthProvider>
       </body>

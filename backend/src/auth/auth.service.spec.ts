@@ -39,6 +39,7 @@ describe('AuthService login protection', () => {
       } as never,
       {} as never,
       {} as never,
+      { assertNotCompromised: jest.fn() },
     );
   }
 

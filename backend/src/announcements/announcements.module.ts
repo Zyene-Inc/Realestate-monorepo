@@ -4,6 +4,6 @@ import { AnnouncementsService } from './announcements.service';
 
 @Module({
   controllers: [AnnouncementsController],
-  providers: [AnnouncementsService]
+  providers: [AnnouncementsService],
 })
 export class AnnouncementsModule {}

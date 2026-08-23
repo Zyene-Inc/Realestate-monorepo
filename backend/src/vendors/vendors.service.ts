@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class VendorsService {
@@ -9,7 +10,7 @@ export class VendorsService {
     return this.prisma.vendor.findMany();
   }
 
-  async create(data: any) {
+  async create(data: Prisma.VendorCreateInput) {
     return this.prisma.vendor.create({ data });
   }
 }

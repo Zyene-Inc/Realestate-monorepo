@@ -1,170 +1,193 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Send, User, Clock, Megaphone } from "lucide-react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { formatDistanceToNow } from "date-fns";
+import { Loader2, MessageSquare, Send } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { api } from "@/lib/api";
+import { getErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
-const messages = [
-  {
-    id: 1,
-    sender: "Property Manager",
-    body: "Hello, just confirming that the heating and cooling technician is on the way.",
-    time: "10:30 AM",
-    isMe: false,
-  },
-  {
-    id: 2,
-    sender: "Marcus Bell",
-    body: "Great, thank you! I will be home to let them in.",
-    time: "10:35 AM",
-    isMe: true,
-  },
-  {
-    id: 3,
-    sender: "Property Manager",
-    body: "Perfect. They should arrive within the next 30 minutes.",
-    time: "10:40 AM",
-    isMe: false,
-  },
-];
+type Message = {
+  id: string;
+  body: string;
+  readAt: string | null;
+  createdAt: string;
+  sender: { role: string };
+};
+type ThreadPage = {
+  tenant: {
+    firstName: string;
+    unit: { unitNumber: string; property: { name: string } } | null;
+  };
+  items: Message[];
+  nextCursor: string | null;
+};
 
 export default function TenantMessages() {
-  return (
-    <div className="flex min-h-[calc(100dvh-8rem)] flex-col space-y-8 sm:space-y-10 lg:h-[calc(100dvh-5.5rem)]">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 flex-shrink-0">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">
-            Messages
-          </h1>
-          <p className="text-muted-foreground mt-2 font-medium">
-            Direct communication with Coach Johnson Realty.
-          </p>
-        </div>
+  const [thread, setThread] = useState<ThreadPage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
+  const [body, setBody] = useState("");
+
+  useEffect(() => {
+    api
+      .get("/tenant/portal/messages")
+      .then(async (page: ThreadPage) => {
+        setThread(page);
+        await api.post("/tenant/portal/messages/read", {});
+      })
+      .catch((error: unknown) =>
+        toast.error(getErrorMessage(error, "Unable to load messages")),
+      )
+      .finally(() => setLoading(false));
+  }, []);
+
+  const send = async (event: FormEvent) => {
+    event.preventDefault();
+    if (sendingRef.current || !body.trim()) return;
+    sendingRef.current = true;
+    setSending(true);
+    try {
+      setThread(
+        (await api.post("/tenant/portal/messages", { body })) as ThreadPage,
+      );
+      setBody("");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to send message"));
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
+  };
+
+  const loadOlder = async () => {
+    if (!thread?.nextCursor) return;
+    try {
+      const older = (await api.get(
+        `/tenant/portal/messages?cursor=${encodeURIComponent(thread.nextCursor)}`,
+      )) as ThreadPage;
+      setThread({ ...older, items: [...older.items, ...thread.items] });
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to load older messages"));
+    }
+  };
+
+  if (loading)
+    return (
+      <div className="flex min-h-[60dvh] items-center justify-center">
+        <Loader2 className="size-7 animate-spin text-primary" />
       </div>
+    );
 
-      <div className="flex-1 flex gap-8 min-h-0">
-        <Card className="flex-1 flex flex-col overflow-hidden border-border bg-card shadow-sm rounded-[1.25rem] h-full">
-          <div className="p-6 border-b border-border flex items-center justify-between bg-secondary/30">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground font-bold text-2xl font-heading shadow-md shadow-primary/20">
-                M
-              </div>
-              <div>
-                <h3 className="font-bold text-foreground tracking-tight text-lg font-heading">
-                  Management Support
-                </h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <span
-                    className="h-2 w-2 rounded-full bg-success"
-                    aria-hidden="true"
-                  />
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">
-                    Online
-                  </span>
-                </div>
-              </div>
-            </div>
+  return (
+    <div className="space-y-7">
+      <div>
+        <p className="text-sm font-semibold text-primary">Resident support</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+          Messages
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Write directly to the Coach Johnson Realty rental team.
+        </p>
+      </div>
+      <Card className="flex min-h-[42rem] flex-col overflow-hidden">
+        <header className="flex items-center gap-3 border-b border-border p-5">
+          <span className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <MessageSquare />
+          </span>
+          <div>
+            <h2 className="font-semibold">Rental management</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {thread?.tenant.unit
+                ? `${thread.tenant.unit.property.name} · Unit ${thread.tenant.unit.unitNumber}`
+                : "Coach Johnson Realty support"}
+            </p>
           </div>
-
-          <div className="flex-1 space-y-6 overflow-y-auto bg-background/50 p-4 sm:p-8">
-            {messages.map((msg) => (
+        </header>
+        <div
+          className="flex-1 space-y-5 overflow-y-auto bg-secondary/20 p-5"
+          aria-live="polite"
+        >
+          {thread?.nextCursor ? (
+            <div className="text-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void loadOlder()}
+              >
+                Load older messages
+              </Button>
+            </div>
+          ) : null}
+          {thread?.items.length === 0 ? (
+            <div className="py-20 text-center">
+              <p className="font-semibold">Start a conversation</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Questions about your home, lease, or account all route to Rental
+                Admin.
+              </p>
+            </div>
+          ) : null}
+          {thread?.items.map((message) => {
+            const fromTenant = message.sender.role === "TENANT";
+            return (
               <div
-                key={msg.id}
+                key={message.id}
                 className={cn(
                   "flex",
-                  msg.isMe ? "justify-end" : "justify-start",
+                  fromTenant ? "justify-end" : "justify-start",
                 )}
               >
-                <div className="flex max-w-[88%] flex-col gap-1.5 sm:max-w-[70%]">
+                <div className="max-w-[82%]">
                   <div
                     className={cn(
-                      "p-5 shadow-sm font-medium leading-relaxed text-sm",
-                      msg.isMe
-                        ? "bg-primary text-primary-foreground rounded-[1.25rem] rounded-tr-sm shadow-primary/10"
-                        : "bg-secondary text-foreground border border-border rounded-[1.25rem] rounded-tl-sm",
+                      "rounded-2xl px-4 py-3 text-sm leading-6",
+                      fromTenant
+                        ? "rounded-tr-sm bg-primary text-primary-foreground"
+                        : "rounded-tl-sm border border-border bg-card",
                     )}
                   >
-                    <p>{msg.body}</p>
+                    {message.body}
                   </div>
-                  <span
+                  <p
                     className={cn(
-                      "text-[10px] font-bold uppercase tracking-widest text-muted-foreground font-heading",
-                      msg.isMe ? "text-right" : "text-left",
+                      "mt-1 text-[11px] text-muted-foreground",
+                      fromTenant && "text-right",
                     )}
                   >
-                    {msg.time}
-                  </span>
+                    {formatDistanceToNow(new Date(message.createdAt), {
+                      addSuffix: true,
+                    })}
+                    {fromTenant ? ` · ${message.readAt ? "Seen" : "Sent"}` : ""}
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <div className="border-t border-border bg-card p-3 sm:p-5">
-            <div className="flex gap-3 bg-secondary/50 p-2 rounded-2xl border border-border focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10 transition-[background-color,color,border-color,box-shadow,transform,opacity]">
-              <Input
-                aria-label="Message property support"
-                placeholder="Write a message"
-                className="flex-1 bg-transparent border-none shadow-none focus-visible:ring-0 h-14 text-sm font-medium placeholder:text-muted-foreground/60"
-              />
-              <Button
-                aria-label="Send message"
-                size="icon-lg"
-                className="shrink-0"
-              >
-                <Send className="w-5 h-5" />
-              </Button>
-            </div>
-          </div>
-        </Card>
-
-        <div className="w-80 space-y-8 hidden lg:block overflow-y-auto pr-2">
-          <Card className="border-border bg-card shadow-sm rounded-[1.25rem] overflow-hidden">
-            <CardHeader className="bg-secondary/30 border-b border-border py-6 px-8">
-              <CardTitle className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground font-heading">
-                Quick Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-3">
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-3 rounded-xl border-border hover:bg-secondary text-xs font-bold uppercase tracking-widest h-12 font-heading transition-[background-color,color,border-color,box-shadow,transform,opacity]"
-              >
-                <Clock className="w-4 h-4 text-muted-foreground" /> Message
-                History
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-3 rounded-xl border-border hover:bg-secondary text-xs font-bold uppercase tracking-widest h-12 font-heading transition-[background-color,color,border-color,box-shadow,transform,opacity]"
-              >
-                <User className="w-4 h-4 text-muted-foreground" /> Contact Info
-              </Button>
-            </CardContent>
-          </Card>
-
-          <div className="p-8 bg-primary rounded-[1.25rem]  text-primary-foreground relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 group-hover:-rotate-12 transition-[background-color,color,border-color,box-shadow,transform,opacity] duration-700">
-              <Megaphone className="h-24 w-24 -mr-8 -mt-8" />
-            </div>
-            <h4 className="font-bold font-heading tracking-tight text-xl mb-4 relative z-10">
-              Emergency Help?
-            </h4>
-            <p className="text-[10px] text-primary-foreground/80 font-medium uppercase tracking-[0.1em] leading-relaxed relative z-10">
-              For immediate maintenance emergencies after hours, please call our
-              24/7 hotline directly.
-            </p>
-            <a
-              href="tel:+18165550147"
-              className={buttonVariants({
-                className: "relative z-10 mt-8 w-full",
-              })}
-            >
-              Call hotline
-            </a>
-          </div>
+            );
+          })}
         </div>
-      </div>
+        <form onSubmit={send} className="flex gap-3 border-t border-border p-4">
+          <Input
+            aria-label="Message rental management"
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            placeholder="Write a message"
+            maxLength={4000}
+          />
+          <Button
+            type="submit"
+            size="icon"
+            disabled={sending || !body.trim()}
+            aria-label="Send message"
+          >
+            {sending ? <Loader2 className="animate-spin" /> : <Send />}
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 }
