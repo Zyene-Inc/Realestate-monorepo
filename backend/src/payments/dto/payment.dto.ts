@@ -31,11 +31,6 @@ export class RecordPaymentDto {
   rentAmount: number;
 
   @IsNumber()
-  @IsOptional()
-  @Min(0)
-  lateFee?: number;
-
-  @IsNumber()
   @Min(0)
   totalAmount: number;
 
@@ -43,6 +38,11 @@ export class RecordPaymentDto {
   @IsOptional()
   @Min(0)
   paidAmount?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  lateFee?: number;
 
   @IsString()
   @IsOptional()
@@ -76,6 +76,11 @@ export class UpdatePaymentStatusDto {
   @Min(0)
   paidAmount?: number;
 
+  @IsNumber()
+  @IsOptional()
+  @Min(0)
+  lateFee?: number;
+
   @IsString()
   @IsOptional()
   paymentMethod?: string;
@@ -91,4 +96,8 @@ export class UpdatePaymentStatusDto {
   @IsString()
   @IsOptional()
   receiptUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  adjustmentReason?: string;
 }

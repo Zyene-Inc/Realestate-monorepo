@@ -12,7 +12,8 @@ The platform records rent receipts and sale commissions manually. It does not mo
 2. Review Vercel Runtime Errors for both projects and inspect API logs by `x-request-id` when a user reports a failure.
 3. Review the Super Admin email-operations page for failed or exhausted deliveries.
 4. Review pending agent, sale-listing, maintenance, and e-signature queues appropriate to the enabled features.
-5. Review Supabase Security and Performance Advisors after every schema migration. RLS-with-no-policy informational notices are intentional because browser database access is denied and all application access goes through the role-protected API.
+5. Review the Rental Admin payment ledger for overdue balances, billing-cycle failures, and any staff-entered late-fee adjustments.
+6. Review Supabase Security and Performance Advisors after every schema migration. RLS-with-no-policy informational notices are intentional because browser database access is denied and all application access goes through the role-protected API.
 
 Vercel Web Analytics and Speed Insights are installed in the root web layout. They provide traffic and performance telemetry without adding a separate analytics secret. Do not place passwords, access tokens, message bodies, or signed file URLs in logs or analytics events.
 
@@ -58,9 +59,11 @@ Resend events are signature-verified and stored against durable `EmailLog` recor
 
 The deterministic delivery address is only for verification. Before launch communications rely on a Johnson Realty operations mailbox, confirm that mailbox exists and is not suppressed in Resend.
 
-## Financial corrections
+## Financial corrections and rental billing
 
 Every manual rent receipt and sale commission requires a client request UUID. Retrying the same request returns one record; reusing the UUID with different values is rejected. Reference numbers are unique for rent receipts. Corrections must use the supported status/correction/void workflows so audit history remains intact. Never delete financial records to correct them, and never represent a manual record as proof that a bank, owner, escrow agent, or closing party moved funds.
+
+The daily rental-billing callback is idempotent: it creates at most one payment record per lease/month and transitions an unpaid record to overdue only once. A five-day grace period on rent due the first applies a late fee on the sixth; a zero-day period applies it the next day. Staff may run **Rental payments → Run billing check** after a deployment, then confirm the returned created/overdue counts. Staff can adjust a late fee only with an audit reason. Lease-term changes apply to future payment cycles; do not edit an issued payment to make it match a new lease term. Automatic tenant debits are prohibited—every Stripe checkout requires an explicit tenant action.
 
 ## Severity and escalation
 

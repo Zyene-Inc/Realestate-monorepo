@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/errors";
+import { LeaseRentPolicyDialog } from "./_components/lease-rent-policy-dialog";
 
 type LeaseTenant = { id: string; firstName: string; lastName: string };
 type LeaseUnit = {
@@ -44,6 +45,10 @@ type Lease = {
   startDate: string;
   endDate: string;
   monthlyRent: number;
+  securityDeposit: number;
+  rentDueDay: number;
+  gracePeriodDays: number;
+  lateFeeAmount: number;
   status: string;
 };
 type LeaseForm = {
@@ -53,6 +58,9 @@ type LeaseForm = {
   endDate: string;
   monthlyRent: string;
   securityDeposit: string;
+  rentDueDay: string;
+  gracePeriodDays: string;
+  lateFeeAmount: string;
 };
 
 function LeaseCreateDialog({
@@ -159,6 +167,32 @@ function LeaseCreateDialog({
                 </div>
               ))}
             </div>
+            <div className="grid gap-5 sm:grid-cols-3 sm:gap-6">
+              {(
+                [
+                  ["rentDueDay", "Rent due day", "1", "28", "1"],
+                  ["gracePeriodDays", "Grace period (days)", "0", "30", "1"],
+                  ["lateFeeAmount", "Late fee", "0", undefined, "0.01"],
+                ] as const
+              ).map(([field, label, min, max, step]) => (
+                <div key={field} className="space-y-2">
+                  <Label htmlFor={`lease-${field}`}>{label}</Label>
+                  <Input
+                    id={`lease-${field}`}
+                    type="number"
+                    min={min}
+                    max={max}
+                    step={step}
+                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary font-medium"
+                    value={form[field]}
+                    onChange={(event) =>
+                      onFormChange({ ...form, [field]: event.target.value })
+                    }
+                    required
+                  />
+                </div>
+              ))}
+            </div>
           </div>
           <DialogFooter className="mt-8">
             <Button type="submit" className="w-full h-14" disabled={creating}>
@@ -181,7 +215,6 @@ export default function AdminLeases() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
-  // Form state
   const [formData, setFormData] = useState({
     tenantId: "",
     unitId: "",
@@ -189,6 +222,9 @@ export default function AdminLeases() {
     endDate: "",
     monthlyRent: "",
     securityDeposit: "",
+    rentDueDay: "1",
+    gracePeriodDays: "5",
+    lateFeeAmount: "50",
   });
 
   async function fetchData() {
@@ -235,6 +271,9 @@ export default function AdminLeases() {
         ...formData,
         monthlyRent: parseFloat(formData.monthlyRent),
         securityDeposit: parseFloat(formData.securityDeposit),
+        rentDueDay: parseInt(formData.rentDueDay, 10),
+        gracePeriodDays: parseInt(formData.gracePeriodDays, 10),
+        lateFeeAmount: parseFloat(formData.lateFeeAmount),
         startDate: new Date(formData.startDate).toISOString(),
         endDate: new Date(formData.endDate).toISOString(),
       });
@@ -331,6 +370,9 @@ export default function AdminLeases() {
                 Rent
               </TableHead>
               <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">
+                Billing policy
+              </TableHead>
+              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">
                 Status
               </TableHead>
               <TableHead className="text-right font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">
@@ -342,7 +384,7 @@ export default function AdminLeases() {
             {filteredLeases.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="h-32 text-center text-muted-foreground font-medium uppercase tracking-widest text-[10px] font-heading"
                 >
                   No leases found.
@@ -377,6 +419,12 @@ export default function AdminLeases() {
                   <TableCell className="py-4 font-bold text-foreground font-heading text-lg tabular-nums">
                     ${lease.monthlyRent.toLocaleString()}
                   </TableCell>
+                  <TableCell className="py-4 text-xs text-muted-foreground">
+                    <p>Due on day {lease.rentDueDay}</p>
+                    <p className="mt-1">
+                      {lease.gracePeriodDays}-day grace · ${lease.lateFeeAmount.toFixed(2)} fee
+                    </p>
+                  </TableCell>
                   <TableCell className="py-4">
                     <Badge
                       className={cn(
@@ -390,6 +438,8 @@ export default function AdminLeases() {
                     </Badge>
                   </TableCell>
                   <TableCell className="py-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                    <LeaseRentPolicyDialog lease={lease} onSaved={fetchData} />
                     <select
                       aria-label={`Update lease status for ${lease.tenant.firstName} ${lease.tenant.lastName}`}
                       className="h-10 rounded-md border border-input bg-background px-3 text-xs font-semibold"
@@ -403,6 +453,7 @@ export default function AdminLeases() {
                       <option value="renewed">Renewed</option>
                       <option value="terminated">Terminated</option>
                     </select>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

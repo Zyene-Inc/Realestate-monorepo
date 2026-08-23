@@ -35,6 +35,12 @@
       "name": "add_tenant_initiated_stripe_rent_payments",
       "sources": ["supabase/migrations/20260823183000_add_tenant_initiated_stripe_rent_payments.sql", "backend/prisma/migrations/20260823183000_add_tenant_initiated_stripe_rent_payments/migration.sql"],
       "reason": "Stripe Connect implementation is validated locally; production application awaits an explicit migration approval and sensitive Vercel configuration."
+    },
+    {
+      "version": "20260823193000",
+      "name": "complete_rental_billing_workflow",
+      "sources": ["supabase/migrations/20260823193000_complete_rental_billing_workflow.sql", "backend/prisma/migrations/20260823193000_complete_rental_billing_workflow/migration.sql"],
+      "reason": "Idempotent monthly rent charges and the protected daily late-fee job are validated locally; production application requires the reviewed Supabase migration before activation."
     }
   ],
   "legacyExceptions": [

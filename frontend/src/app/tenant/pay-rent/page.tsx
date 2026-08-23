@@ -11,6 +11,8 @@ import { toast } from "sonner";
 type Payment = {
   id: string;
   status: "PENDING" | "OVERDUE" | "PARTIAL" | "PAID" | "WAIVED" | "REFUNDED";
+  rentAmount: number;
+  lateFee: number;
   totalAmount: number;
   paidAmount: number;
   balanceDue: number;
@@ -116,6 +118,16 @@ export default function TenantPayRent() {
                   <Calendar className="size-4" />
                   Due {new Date(payment.dueDate).toLocaleDateString()}
                 </p>
+                <div className="space-y-1 rounded-lg bg-secondary/45 p-3 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">Base rent</span>
+                    <span className="tabular-nums">${payment.rentAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">Late fee</span>
+                    <span className="tabular-nums">${payment.lateFee.toFixed(2)}</span>
+                  </div>
+                </div>
                 {payment.paidAmount > 0 ? (
                   <p className="text-sm text-muted-foreground">
                     ${payment.paidAmount.toFixed(2)} already recorded; the

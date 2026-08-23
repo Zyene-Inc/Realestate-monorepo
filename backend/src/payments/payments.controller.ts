@@ -65,6 +65,15 @@ export class PaymentsController {
     return this.paymentsService.findByUser(userId);
   }
 
+  @Get('my/:id')
+  @Roles(Role.TENANT)
+  async getMyPayment(
+    @Param('id') id: string,
+    @Request() req: RequiredAuthenticatedRequest,
+  ) {
+    return this.paymentsService.findOneForUser(req.user.sub, id);
+  }
+
   @Post(':id/checkout')
   @Roles(Role.TENANT)
   startTenantCheckout(

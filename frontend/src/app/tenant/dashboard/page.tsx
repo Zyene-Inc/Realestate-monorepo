@@ -13,11 +13,12 @@ import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { rentDueLabel } from "@/lib/rent-policy";
 
 type DashboardData = {
   firstName?: string;
   unit?: { unitNumber: string; property: { name: string } } | null;
-  leases: { monthlyRent: number; endDate: string }[];
+  leases: { monthlyRent: number; endDate: string; rentDueDay: number }[];
   maintenanceRequests: { id: string; description: string; priority: string; status: string; createdAt: string }[];
   payments: { id: string; dueDate: string; totalAmount: number; paymentMethod?: string | null; status: string }[];
 };
@@ -44,7 +45,7 @@ export default function TenantDashboard() {
       <PageHeader eyebrow={location} title={`Welcome back, ${data?.firstName || "resident"}`} description="Your rent, lease, documents, service requests, and property messages are gathered here." actions={<div className="inline-flex min-h-11 items-center gap-3 rounded-full border border-border bg-card px-4 text-sm"><span className="size-2 rounded-full bg-success" aria-hidden="true" /><span className="font-semibold">Account verified</span></div>} />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Resident overview">
-        <Card className="border-primary/20 bg-primary text-primary-foreground"><CardContent className="p-5 sm:p-6"><div className="flex items-start justify-between"><p className="text-xs text-primary-foreground/70">Monthly rent</p><CreditCard className="size-5 text-primary-foreground/70" aria-hidden="true" /></div><p className="mt-4 text-3xl font-semibold tracking-[-0.04em] tabular-nums">${rentDue.toLocaleString()}</p><p className="mt-2 text-xs text-primary-foreground/65">Due on the first of each month</p><Button nativeButton={false} className="mt-6 w-full" render={<Link href="/tenant/pay-rent" />}>Make a payment<ArrowUpRight aria-hidden="true" /></Button></CardContent></Card>
+        <Card className="border-primary/20 bg-primary text-primary-foreground"><CardContent className="p-5 sm:p-6"><div className="flex items-start justify-between"><p className="text-xs text-primary-foreground/70">Monthly rent</p><CreditCard className="size-5 text-primary-foreground/70" aria-hidden="true" /></div><p className="mt-4 text-3xl font-semibold tracking-[-0.04em] tabular-nums">${rentDue.toLocaleString()}</p><p className="mt-2 text-xs text-primary-foreground/65">Due {activeLease ? rentDueLabel(activeLease.rentDueDay) : "per your lease"}</p><Button nativeButton={false} className="mt-6 w-full" render={<Link href="/tenant/pay-rent" />}>Make a payment<ArrowUpRight aria-hidden="true" /></Button></CardContent></Card>
         <PortalMetric label="Open service requests" value={String(requests.length)} detail={requests[0]?.description || "No active requests"} icon={Wrench} />
         <PortalMetric label="Lease remaining" value={`${daysUntilRenewal}`} detail={activeLease ? "Days until the current term ends" : "No active lease on file"} icon={FileText} />
         <PortalMetric label="Unread notices" value="0" detail="You are up to date" icon={Megaphone} />

@@ -13,12 +13,17 @@ import {
   StripeCheckoutStatus,
   StripeWebhookEventStatus,
 } from '@prisma/client';
-import { createHash } from 'node:crypto';
 import {
   StripeClient,
   StripeEvent,
   StripeThinEvent,
 } from '../stripe/stripe-client.service';
+import {
+  isSamePaymentRecordRequest,
+  paymentRecordFingerprint,
+  resolvedPaymentStatus,
+  type PaymentRecordInput,
+} from './payment-record.utils';
 
 const paymentWithTenantInclude = {
   tenant: true,
@@ -118,97 +123,6 @@ export class PaymentsService {
     }).format(value);
   }
 
-  private resolvedStatus(data: {
-    totalAmount: number;
-    paidAmount?: number;
-    status?: PaymentStatus;
-  }) {
-    const paidAmount = data.paidAmount ?? 0;
-    if (paidAmount >= data.totalAmount) return PaymentStatus.PAID;
-    if (paidAmount > 0) return PaymentStatus.PARTIAL;
-    return data.status ?? PaymentStatus.PENDING;
-  }
-
-  private sameRecordRequest(
-    payment: {
-      tenantId: string;
-      leaseId: string;
-      unitId: string;
-      rentAmount: number;
-      lateFee: number;
-      totalAmount: number;
-      paidAmount: number;
-      paymentMethod: string | null;
-      referenceNumber: string | null;
-      dueDate: Date;
-      status: PaymentStatus;
-      notes: string | null;
-    },
-    data: {
-      tenantId: string;
-      leaseId: string;
-      unitId: string;
-      rentAmount: number;
-      lateFee?: number;
-      totalAmount: number;
-      paidAmount?: number;
-      paymentMethod?: string;
-      referenceNumber?: string;
-      dueDate: Date;
-      status?: PaymentStatus;
-      notes?: string;
-    },
-  ) {
-    return (
-      payment.tenantId === data.tenantId &&
-      payment.leaseId === data.leaseId &&
-      payment.unitId === data.unitId &&
-      payment.rentAmount === data.rentAmount &&
-      payment.lateFee === (data.lateFee ?? 0) &&
-      payment.totalAmount === data.totalAmount &&
-      payment.paidAmount === (data.paidAmount ?? 0) &&
-      payment.paymentMethod === (data.paymentMethod ?? null) &&
-      payment.referenceNumber === (data.referenceNumber ?? null) &&
-      payment.dueDate.getTime() === data.dueDate.getTime() &&
-      payment.status === this.resolvedStatus(data) &&
-      payment.notes === (data.notes ?? null)
-    );
-  }
-
-  private recordFingerprint(data: {
-    tenantId: string;
-    leaseId: string;
-    unitId: string;
-    rentAmount: number;
-    lateFee?: number;
-    totalAmount: number;
-    paidAmount?: number;
-    paymentMethod?: string;
-    referenceNumber?: string;
-    dueDate: Date;
-    status?: PaymentStatus;
-    notes?: string;
-  }) {
-    return createHash('sha256')
-      .update(
-        JSON.stringify({
-          tenantId: data.tenantId,
-          leaseId: data.leaseId,
-          unitId: data.unitId,
-          rentAmount: data.rentAmount,
-          lateFee: data.lateFee ?? 0,
-          totalAmount: data.totalAmount,
-          paidAmount: data.paidAmount ?? 0,
-          paymentMethod: data.paymentMethod ?? null,
-          referenceNumber: data.referenceNumber ?? null,
-          dueDate: data.dueDate.toISOString(),
-          status: this.resolvedStatus(data),
-          notes: data.notes ?? null,
-        }),
-      )
-      .digest('hex');
-  }
-
   async findAll() {
     return this.prisma.payment.findMany({
       include: { tenant: true, lease: true, unit: true, propertyOwner: true },
@@ -230,25 +144,30 @@ export class PaymentsService {
     return this.findByTenant(tenant.id);
   }
 
+  async findOneForUser(userId: string, paymentId: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, tenant: { userId } },
+      include: {
+        tenant: true,
+        lease: true,
+        unit: { include: { property: true } },
+      },
+    });
+    if (!payment) throw new NotFoundException('Payment not found');
+    return payment;
+  }
+
   async recordPayment(
-    data: {
-      clientRequestId: string;
-      tenantId: string;
-      leaseId: string;
-      unitId: string;
-      rentAmount: number;
-      lateFee?: number;
-      totalAmount: number;
-      paidAmount?: number;
-      paymentMethod?: string;
-      referenceNumber?: string;
-      dueDate: Date;
-      status?: PaymentStatus;
-      notes?: string;
-    },
+    data: PaymentRecordInput & { clientRequestId: string },
     userId?: string,
   ) {
-    const requestFingerprint = this.recordFingerprint(data);
+    const expectedTotal = data.rentAmount + (data.lateFee ?? 0);
+    if (Math.abs(data.totalAmount - expectedTotal) > 0.005) {
+      throw new BadRequestException(
+        'Total amount must equal rent plus late fee',
+      );
+    }
+    const requestFingerprint = paymentRecordFingerprint(data);
     const existing = await this.prisma.payment.findUnique({
       where: { idempotencyKey: data.clientRequestId },
       include: paymentWithTenantInclude,
@@ -257,7 +176,7 @@ export class PaymentsService {
       if (
         existing.recordRequestFingerprint
           ? existing.recordRequestFingerprint !== requestFingerprint
-          : !this.sameRecordRequest(existing, data)
+          : !isSamePaymentRecordRequest(existing, data)
       ) {
         throw new ConflictException(
           'This payment request ID was already used with different details',
@@ -266,9 +185,20 @@ export class PaymentsService {
       return existing;
     }
 
+    const status = resolvedPaymentStatus(data);
     const paidAmount = data.paidAmount ?? 0;
-    const balanceDue = Math.max(0, data.totalAmount - paidAmount);
-    const status = this.resolvedStatus(data);
+    if (paidAmount > data.totalAmount) {
+      throw new BadRequestException('Paid amount cannot exceed the total due');
+    }
+    if (status === PaymentStatus.WAIVED && paidAmount > 0) {
+      throw new BadRequestException(
+        'A payment with money received cannot be waived; record it as paid or partial instead',
+      );
+    }
+    const balanceDue =
+      status === PaymentStatus.WAIVED
+        ? 0
+        : Math.max(0, data.totalAmount - paidAmount);
     const { clientRequestId, ...paymentData } = data;
 
     let result: { payment: PaymentWithTenant; created: boolean };
@@ -301,9 +231,7 @@ export class PaymentsService {
               'The tenant, lease, and unit must belong to the same tenancy',
             );
           }
-          const isReceived =
-            paidAmount > 0 &&
-            (status === PaymentStatus.PAID || status === PaymentStatus.PARTIAL);
+          const isReceived = paidAmount > 0 && status !== PaymentStatus.WAIVED;
           const owner = isReceived ? unit.property.owner : null;
           const split = this.splitPaidAmount(
             isReceived ? paidAmount : 0,
@@ -349,7 +277,7 @@ export class PaymentsService {
           duplicate &&
           (duplicate.recordRequestFingerprint
             ? duplicate.recordRequestFingerprint === requestFingerprint
-            : this.sameRecordRequest(duplicate, data))
+            : isSamePaymentRecordRequest(duplicate, data))
         ) {
           result = { payment: duplicate, created: false };
         } else if (data.referenceNumber) {
@@ -415,10 +343,12 @@ export class PaymentsService {
       clientRequestId: string;
       status: PaymentStatus;
       paidAmount?: number;
+      lateFee?: number;
       paymentMethod?: string;
       referenceNumber?: string;
       notes?: string;
       receiptUrl?: string;
+      adjustmentReason?: string;
     },
     userId?: string,
   ) {
@@ -433,15 +363,55 @@ export class PaymentsService {
         'A tenant-initiated online checkout is open for this payment. Wait for it to expire or complete before changing the payment manually.',
       );
     }
+    const financialChangeRequested =
+      data.status !== payment.status ||
+      (data.paidAmount !== undefined &&
+        data.paidAmount !== payment.paidAmount) ||
+      (data.lateFee !== undefined && data.lateFee !== payment.lateFee);
+    if (
+      payment.stripeCheckoutStatus === StripeCheckoutStatus.COMPLETE &&
+      financialChangeRequested
+    ) {
+      throw new ConflictException(
+        'A Stripe-confirmed payment cannot be changed manually. Use the Stripe refund workflow, then record a separate audited correction if needed.',
+      );
+    }
 
+    const lateFee = data.lateFee ?? payment.lateFee;
+    if (lateFee !== payment.lateFee && !data.adjustmentReason?.trim()) {
+      throw new BadRequestException(
+        'A reason is required when changing a late fee',
+      );
+    }
+    const totalAmount = payment.rentAmount + lateFee;
     const paidAmount =
-      data.paidAmount !== undefined ? data.paidAmount : payment.paidAmount;
-    const balanceDue = Math.max(0, payment.totalAmount - paidAmount);
+      data.status === PaymentStatus.PAID && data.paidAmount === undefined
+        ? totalAmount
+        : (data.paidAmount ?? payment.paidAmount);
+    if (paidAmount > totalAmount) {
+      throw new BadRequestException('Paid amount cannot exceed the total due');
+    }
+    if (data.status === PaymentStatus.WAIVED && paidAmount > 0) {
+      throw new BadRequestException(
+        'A payment with money received cannot be waived; record it as paid or partial instead',
+      );
+    }
+    const status =
+      data.status === PaymentStatus.WAIVED
+        ? PaymentStatus.WAIVED
+        : paidAmount >= totalAmount
+          ? PaymentStatus.PAID
+          : data.status === PaymentStatus.OVERDUE
+            ? PaymentStatus.OVERDUE
+            : paidAmount > 0
+              ? PaymentStatus.PARTIAL
+              : PaymentStatus.PENDING;
+    const balanceDue =
+      status === PaymentStatus.WAIVED
+        ? 0
+        : Math.max(0, totalAmount - paidAmount);
 
-    const isReceived =
-      paidAmount > 0 &&
-      (data.status === PaymentStatus.PAID ||
-        data.status === PaymentStatus.PARTIAL);
+    const isReceived = paidAmount > 0 && status !== PaymentStatus.WAIVED;
     const ownerId = payment.paidAt
       ? payment.propertyOwnerId
       : isReceived
@@ -454,7 +424,12 @@ export class PaymentsService {
         : null;
     const split = this.splitPaidAmount(isReceived ? paidAmount : 0, rate);
 
-    const { clientRequestId, ...statusData } = data;
+    const statusData = {
+      paymentMethod: data.paymentMethod,
+      referenceNumber: data.referenceNumber,
+      notes: data.notes,
+      receiptUrl: data.receiptUrl,
+    };
     let result:
       | { payment: PaymentWithContext; changed: true }
       | { changed: false };
@@ -465,7 +440,10 @@ export class PaymentsService {
             where: { id: paymentId, updatedAt: payment.updatedAt },
             data: {
               ...statusData,
-              lastStatusRequestId: clientRequestId,
+              lastStatusRequestId: data.clientRequestId,
+              status,
+              lateFee,
+              totalAmount,
               paidAmount,
               balanceDue,
               paidAt: isReceived
@@ -485,11 +463,17 @@ export class PaymentsService {
           await tx.auditLog.create({
             data: {
               userId,
-              action: 'PAYMENT_UPDATED',
+              action:
+                lateFee !== payment.lateFee
+                  ? 'PAYMENT_LATE_FEE_ADJUSTED'
+                  : 'PAYMENT_UPDATED',
               resource: 'payment',
               resourceId: paymentId,
               oldValue: JSON.stringify(payment),
-              newValue: JSON.stringify(updated),
+              newValue: JSON.stringify({
+                payment: updated,
+                adjustmentReason: data.adjustmentReason?.trim() || undefined,
+              }),
             },
           });
           return { payment: updated, changed: true as const };
@@ -502,7 +486,7 @@ export class PaymentsService {
         error.code === 'P2002'
       ) {
         const duplicate = await this.prisma.payment.findUnique({
-          where: { lastStatusRequestId: clientRequestId },
+          where: { lastStatusRequestId: data.clientRequestId },
           include: paymentWithContextInclude,
         });
         if (duplicate?.id === paymentId) {
@@ -522,7 +506,7 @@ export class PaymentsService {
         where: { id: paymentId },
         include: paymentWithContextInclude,
       });
-      if (concurrent?.lastStatusRequestId === clientRequestId) {
+      if (concurrent?.lastStatusRequestId === data.clientRequestId) {
         return concurrent;
       }
       throw new ConflictException(
@@ -532,7 +516,10 @@ export class PaymentsService {
     const updatedPayment = result.payment;
 
     const name = this.tenantName(updatedPayment.tenant);
-    if (updatedPayment.status === PaymentStatus.OVERDUE) {
+    if (
+      updatedPayment.status === PaymentStatus.OVERDUE &&
+      payment.status !== PaymentStatus.OVERDUE
+    ) {
       await this.emails.sendLateNotice(
         updatedPayment.tenant.email,
         updatedPayment.rentAmount,
@@ -540,7 +527,11 @@ export class PaymentsService {
         updatedPayment.id,
         name,
       );
-    } else {
+    } else if (
+      updatedPayment.status !== payment.status ||
+      updatedPayment.paidAmount !== payment.paidAmount ||
+      updatedPayment.lateFee !== payment.lateFee
+    ) {
       await this.emails.sendPaymentRecorded(
         updatedPayment.tenant.email,
         updatedPayment.paidAmount,

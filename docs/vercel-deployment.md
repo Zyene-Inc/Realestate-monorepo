@@ -85,6 +85,12 @@ Do not run Prisma migrations as part of every Vercel build. Apply reviewed migra
 
 The rent flow is tenant-initiated only: the portal creates a one-time Stripe-hosted Checkout Session after a tenant explicitly clicks pay. It does not store a payment method or create a subscription/off-session debit. A destination charge automatically places owner proceeds in the owner’s Stripe Connect balance while Johnson Realty retains the owner-specific management commission. Configure the Snapshot payment destination at `https://coach-johnson-realty-api-nu.vercel.app/api/stripe/webhook` and the separate Accounts v2 Thin capability destination at `https://coach-johnson-realty-api-nu.vercel.app/api/stripe/connect-webhook`, as documented in [Stripe rental payments](stripe-rental-payments.md). Apply `20260823183000_add_tenant_initiated_stripe_rent_payments.sql` before setting the feature flag to `true`.
 
+### Rental billing and late fees
+
+Apply `20260823193000_complete_rental_billing_workflow.sql` through the Supabase migration integration after the API deployment is ready. It adds a retry-safe monthly billing-period key and schedules a daily `08:13 UTC` protected callback to `POST /api/internal/rental-billing/run`, authenticated with the existing `email_retry_cron_secret` Vault value that matches `CRON_SECRET` in the API project. The callback creates a ledger charge only; it never opens Stripe Checkout or debits a tenant. It applies each lease's configured late fee once when the grace period ends.
+
+After the migration is live, a Rental Admin or Super Admin can use **Rental payments → Run billing check** to safely verify the current month. The operation is idempotent, so it can be repeated after a deploy or transient failure. Lease billing terms are managed through **Leases → Edit terms**; changes affect future charges and intentionally do not rewrite a previously issued payment record.
+
 ### Public chatbot activation
 
 The chatbot implementation is disabled safely when its feature flag or OpenRouter key is absent. To activate it:

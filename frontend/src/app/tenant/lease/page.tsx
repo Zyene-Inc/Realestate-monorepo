@@ -25,6 +25,7 @@ import { getErrorMessage } from "@/lib/errors";
 import type { CursorPage, ESignatureEnvelope } from "@/lib/e-signatures";
 import { signatureStatusLabel } from "@/lib/e-signatures";
 import { useRouter } from "next/navigation";
+import { rentDueLabel } from "@/lib/rent-policy";
 
 type ActiveLease = {
   id: string;
@@ -33,6 +34,9 @@ type ActiveLease = {
   createdAt: string;
   monthlyRent: number;
   securityDeposit: number;
+  rentDueDay: number;
+  gracePeriodDays: number;
+  lateFeeAmount: number;
   unit: { unitNumber: string; property: { name: string } };
 };
 
@@ -282,7 +286,7 @@ export default function TenantLease() {
                     Late Fee
                   </span>
                   <span className="text-sm font-bold text-foreground tabular-nums">
-                    $35.00
+                    ${lease.lateFeeAmount.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b border-border">
@@ -290,7 +294,7 @@ export default function TenantLease() {
                     Rent Due
                   </span>
                   <span className="text-sm font-bold text-foreground">
-                    1st of Month
+                    {rentDueLabel(lease.rentDueDay)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-3">
@@ -298,7 +302,7 @@ export default function TenantLease() {
                     Grace Period
                   </span>
                   <span className="text-sm font-bold text-foreground">
-                    3 Days
+                    {lease.gracePeriodDays} day{lease.gracePeriodDays === 1 ? "" : "s"}
                   </span>
                 </div>
               </div>

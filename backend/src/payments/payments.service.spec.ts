@@ -2,6 +2,7 @@ import {
   PaymentStatus,
   Prisma,
   PropertyOwnerPayoutStatus,
+  StripeCheckoutStatus,
 } from '@prisma/client';
 import { PaymentsService } from './payments.service';
 
@@ -24,6 +25,35 @@ describe('PaymentsService owner attribution', () => {
     dueDate: new Date('2026-08-01'),
     status: PaymentStatus.PAID,
   };
+
+  it('does not let staff alter money on a Stripe-confirmed payment', async () => {
+    const prisma = {
+      payment: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'payment-1',
+          status: PaymentStatus.PAID,
+          paidAmount: 1800,
+          lateFee: 0,
+          lastStatusRequestId: null,
+          stripeCheckoutStatus: StripeCheckoutStatus.COMPLETE,
+        }),
+      },
+    };
+    const emails = { sendPaymentRecorded: jest.fn() };
+
+    await expect(
+      new PaymentsService(prisma as never, emails as never).updatePaymentStatus(
+        'payment-1',
+        {
+          clientRequestId: '92345678-1234-4234-8234-123456789012',
+          status: PaymentStatus.PAID,
+          lateFee: 50,
+          adjustmentReason: 'Late fee entered in error',
+        },
+        'admin-1',
+      ),
+    ).rejects.toThrow('Stripe-confirmed payment cannot be changed manually');
+  });
 
   it('snapshots the owner and exact management split atomically on receipt', async () => {
     const created = {

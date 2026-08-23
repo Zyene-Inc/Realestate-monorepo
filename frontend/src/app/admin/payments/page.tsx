@@ -1,9 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Loader2, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2, Play, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -15,26 +21,23 @@ import {
 } from "@/components/ui/table";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
+import {
+  PaymentManagementDialog,
+  type AdminPayment,
+} from "./_components/payment-management-dialog";
 import { toast } from "sonner";
 
-type Payment = {
-  id: string;
-  status: string;
-  rentAmount: number;
-  lateFee: number;
-  totalAmount: number;
-  paidAmount: number;
-  balanceDue: number;
-  paymentMethod: string | null;
+type Payment = AdminPayment & {
   dueDate: string;
-  tenant: { firstName: string; lastName: string };
-  unit: { unitNumber: string };
-  propertyOwner?: {
-    ownerName?: string | null;
-    companyName?: string | null;
-  } | null;
+  billingPeriod?: string | null;
   managementCommissionAmount?: number | null;
   ownerProceedsAmount?: number | null;
+};
+
+type BillingRun = {
+  billingPeriod: string;
+  createdCharges: number;
+  markedOverdue: number;
 };
 
 const money = new Intl.NumberFormat("en-US", {
@@ -46,22 +49,59 @@ export default function AdminPayments() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [runningBilling, setRunningBilling] = useState(false);
+
+  const loadPayments = useCallback(async () => {
+    try {
+      const rows = await api.get("/payments");
+      setPayments(rows as Payment[]);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to load payments"));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
+    let active = true;
     api
       .get("/payments")
-      .then((rows: Payment[]) => setPayments(rows))
-      .catch((error: unknown) =>
-        toast.error(getErrorMessage(error, "Unable to load payments")),
-      )
-      .finally(() => setLoading(false));
-  }, []);
+      .then((rows: Payment[]) => {
+        if (active) setPayments(rows);
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          toast.error(getErrorMessage(error, "Unable to load payments"));
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [loadPayments]);
+
+  async function runBillingCycle() {
+    setRunningBilling(true);
+    try {
+      const result = (await api.post("/payments/billing/run", {})) as BillingRun;
+      await loadPayments();
+      toast.success(
+        `Billing checked for ${result.billingPeriod}: ${result.createdCharges} charge${result.createdCharges === 1 ? "" : "s"} created, ${result.markedOverdue} marked overdue.`,
+      );
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to run rental billing"));
+    } finally {
+      setRunningBilling(false);
+    }
+  }
 
   const rows = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return payments;
     return payments.filter((payment) =>
-      `${payment.tenant.firstName} ${payment.tenant.lastName} ${payment.unit.unitNumber} ${payment.status}`
+      `${payment.tenant.firstName} ${payment.tenant.lastName} ${payment.status} ${payment.billingPeriod || ""}`
         .toLowerCase()
         .includes(normalized),
     );
@@ -75,21 +115,31 @@ export default function AdminPayments() {
     0,
   );
   const commission = payments.reduce(
-    (total, payment) => total + Number(payment.managementCommissionAmount || 0),
+    (total, payment) =>
+      total + Number(payment.managementCommissionAmount || 0),
     0,
   );
 
   return (
     <div className="space-y-8 sm:space-y-10">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">
-          Rental payments
-        </h1>
-        <p className="mt-2 font-medium text-muted-foreground">
-          Live payment ledger. Online rent payments are tenant-initiated only;
-          owner proceeds move automatically through Stripe after payment
-          confirmation.
-        </p>
+      <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">
+            Rental payments
+          </h1>
+          <p className="mt-2 max-w-3xl font-medium text-muted-foreground">
+            Manage the monthly rent ledger, offline payment records, and late
+            fees. Online rent payments stay tenant-initiated only.
+          </p>
+        </div>
+        <Button onClick={() => void runBillingCycle()} disabled={runningBilling}>
+          {runningBilling ? (
+            <Loader2 className="animate-spin" />
+          ) : (
+            <Play aria-hidden="true" />
+          )}
+          Run billing check
+        </Button>
       </div>
       <div className="grid gap-5 md:grid-cols-3">
         <Metric title="Collected" value={money.format(collected)} />
@@ -105,7 +155,7 @@ export default function AdminPayments() {
           className="pl-11"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search tenant, unit, or status"
+          placeholder="Search tenant, month, or status"
         />
       </div>
       <Card>
@@ -113,13 +163,13 @@ export default function AdminPayments() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Tenant / unit</TableHead>
-                <TableHead>Due</TableHead>
-                <TableHead>Paid</TableHead>
+                <TableHead>Tenant / billing period</TableHead>
+                <TableHead>Charge</TableHead>
+                <TableHead>Paid / balance</TableHead>
                 <TableHead>Johnson Realty commission</TableHead>
                 <TableHead>Owner proceeds</TableHead>
-                <TableHead>Method</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Manage</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -135,7 +185,8 @@ export default function AdminPayments() {
                     colSpan={7}
                     className="h-28 text-center text-muted-foreground"
                   >
-                    No payments found.
+                    No payment records found. Run the billing check to create
+                    this month&apos;s rent charges.
                   </TableCell>
                 </TableRow>
               ) : (
@@ -146,16 +197,32 @@ export default function AdminPayments() {
                         {payment.tenant.firstName} {payment.tenant.lastName}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Unit {payment.unit.unitNumber}
+                        {payment.billingPeriod
+                          ? new Date(payment.billingPeriod).toLocaleDateString(undefined, {
+                              month: "long",
+                              year: "numeric",
+                              timeZone: "UTC",
+                            })
+                          : `Due ${new Date(payment.dueDate).toLocaleDateString()}`}
                       </p>
                     </TableCell>
                     <TableCell>
-                      {money.format(payment.totalAmount)}
+                      <p className="font-semibold tabular-nums">
+                        {money.format(payment.totalAmount)}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(payment.dueDate).toLocaleDateString()}
+                        Rent {money.format(payment.rentAmount)} · Fee{" "}
+                        {money.format(payment.lateFee)}
                       </p>
                     </TableCell>
-                    <TableCell>{money.format(payment.paidAmount)}</TableCell>
+                    <TableCell>
+                      <p className="font-semibold tabular-nums">
+                        {money.format(payment.paidAmount)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Balance {money.format(payment.balanceDue)}
+                      </p>
+                    </TableCell>
                     <TableCell>
                       {money.format(
                         Number(payment.managementCommissionAmount || 0),
@@ -163,9 +230,6 @@ export default function AdminPayments() {
                     </TableCell>
                     <TableCell>
                       {money.format(Number(payment.ownerProceedsAmount || 0))}
-                    </TableCell>
-                    <TableCell className="text-xs uppercase">
-                      {payment.paymentMethod || "—"}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -175,6 +239,12 @@ export default function AdminPayments() {
                       >
                         {payment.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <PaymentManagementDialog
+                        payment={payment}
+                        onSaved={loadPayments}
+                      />
                     </TableCell>
                   </TableRow>
                 ))
