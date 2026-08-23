@@ -63,13 +63,16 @@ export class OpenRouterChatbotGateway implements ChatbotAiGateway {
     });
     const result = streamText({
       model: provider(CHATBOT_MODEL, { user: input.visitorId }),
-      instructions: input.instructions,
+      system: input.instructions,
       messages: input.messages,
       maxOutputTokens: 500,
       maxRetries: 1,
       providerOptions: {
         openrouter: {
-          reasoning: { exclude: true },
+          reasoning: {
+            effort: 'none',
+            exclude: true,
+          },
         },
       },
       timeout: { totalMs: 30_000, firstChunkMs: 12_000, chunkMs: 10_000 },

@@ -305,6 +305,123 @@ describe('ChatbotService', () => {
     expect(generate).not.toHaveBeenCalled();
   });
 
+  it('lets booking and conversation follow-ups reach the model', async () => {
+    const conversation = {
+      id: 'chat-1',
+      accessTokenHash: 'hash',
+      expiresAt: new Date('2026-09-22T00:00:00.000Z'),
+    };
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      chatMessage: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: 'message-1' }),
+      },
+      chatConversation: {
+        findFirst: jest.fn().mockResolvedValue(conversation),
+        create: jest.fn(),
+        update: jest.fn().mockResolvedValue(conversation),
+      },
+    };
+    const generate = jest.fn().mockResolvedValue(completedGeneration);
+    const service = new ChatbotService(
+      {
+        $transaction: transactionMock(tx),
+        chatMessage: {
+          findMany: jest.fn().mockResolvedValue([
+            { role: ChatMessageRole.USER, content: 'Tell me about rentals' },
+            {
+              role: ChatMessageRole.ASSISTANT,
+              content: 'We have published rentals available.',
+            },
+            { role: ChatMessageRole.USER, content: 'can you book appointment' },
+          ]),
+        },
+        property: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+      } as never,
+      config(),
+      {
+        isEnabled: () => true,
+        generate: (input) => generate(input) as Promise<ChatbotGeneration>,
+      },
+    );
+
+    await service.startReply({
+      accessToken: 'a'.repeat(43),
+      message: 'can you book appointment',
+      fingerprint: { ipAddress: '203.0.113.14', userAgent: 'test-browser' },
+    });
+    await service.startReply({
+      accessToken: 'a'.repeat(43),
+      message: 'what i asked you before?',
+      fingerprint: { ipAddress: '203.0.113.14', userAgent: 'test-browser' },
+    });
+
+    expect(generate).toHaveBeenCalledTimes(2);
+  });
+
+  it('strips leaked model reasoning before streaming or storing the reply', async () => {
+    const conversation = {
+      id: 'chat-1',
+      accessTokenHash: 'hash',
+      expiresAt: new Date('2026-09-22T00:00:00.000Z'),
+    };
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      chatMessage: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: 'message-1' }),
+      },
+      chatConversation: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue(conversation),
+        update: jest.fn().mockResolvedValue(conversation),
+      },
+    };
+    const leaked =
+      "Here's a thinking process:\n1. Analyze User Input\n2. Check Rules\nI should greet them.";
+    const generate = jest.fn().mockResolvedValue({
+      textStream: (async function* () {
+        await Promise.resolve();
+        yield leaked;
+      })(),
+      completion: Promise.resolve({
+        text: leaked,
+        finishReason: 'stop',
+        inputTokens: 10,
+        outputTokens: 20,
+      }),
+    } satisfies ChatbotGeneration);
+    const service = new ChatbotService(
+      {
+        $transaction: transactionMock(tx),
+        chatMessage: { findMany: jest.fn().mockResolvedValue([]) },
+        property: {
+          findMany: jest.fn().mockResolvedValue([]),
+        },
+      } as never,
+      config(),
+      {
+        isEnabled: () => true,
+        generate: (input) => generate(input) as Promise<ChatbotGeneration>,
+      },
+    );
+
+    const started = await service.startReply({
+      message: 'hi',
+      fingerprint: { ipAddress: '203.0.113.15', userAgent: 'test-browser' },
+    });
+    const chunks: string[] = [];
+    for await (const chunk of started.generation.textStream) chunks.push(chunk);
+    const completion = await started.generation.completion;
+
+    expect(chunks.join('')).not.toContain('thinking process');
+    expect(completion.text).not.toContain('thinking process');
+    expect(completion.text.toLowerCase()).toContain('coach johnson realty');
+  });
+
   it('stores completed output and an audit event atomically', async () => {
     const operations = [
       Promise.resolve({ id: 'assistant-message' }),
