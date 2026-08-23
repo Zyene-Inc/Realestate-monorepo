@@ -104,7 +104,7 @@ export default function SalesDashboardPage() {
     {
       label: "Published sale listings",
       value: metrics.approvedListings,
-      href: "/properties",
+      href: "/admin/listings",
       icon: Building2,
     },
     {
