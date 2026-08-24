@@ -211,7 +211,11 @@ export default function AgentSignupPage() {
             ) : null}
           </Field>
           <div className="border-t border-border pt-5 sm:col-span-2">
-            <Button className="w-full sm:w-auto" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full sm:w-auto"
+              disabled={loading}
+            >
               {loading ? (
                 <>
                   <Loader2 className="animate-spin" aria-hidden="true" />

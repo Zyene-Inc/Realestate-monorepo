@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { Loader2, Send, UserRoundPlus } from "lucide-react";
+import { Loader2, Save, Send, UserRoundPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,9 +35,22 @@ export default function AdminOwnersPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [invitingId, setInvitingId] = useState<string | null>(null);
+  const [savingCommissionId, setSavingCommissionId] = useState<string | null>(
+    null,
+  );
+  const [commissionDrafts, setCommissionDrafts] = useState<
+    Record<string, string>
+  >({});
 
   const loadOwners = () =>
-    api.get("/property-owners").then((data: Owner[]) => setOwners(data));
+    api.get("/property-owners").then((data: Owner[]) => {
+      setOwners(data);
+      setCommissionDrafts(
+        Object.fromEntries(
+          data.map((owner) => [owner.id, String(owner.commissionRate)]),
+        ),
+      );
+    });
 
   useEffect(() => {
     loadOwners()
@@ -54,9 +67,7 @@ export default function AdminOwnersPage() {
       await api.post("/property-owners", {
         contactEmail: form.contactEmail.trim(),
         commissionRate: Number(form.commissionRate),
-        ...(form.ownerName.trim()
-          ? { ownerName: form.ownerName.trim() }
-          : {}),
+        ...(form.ownerName.trim() ? { ownerName: form.ownerName.trim() } : {}),
         ...(form.companyName.trim()
           ? { companyName: form.companyName.trim() }
           : {}),
@@ -91,6 +102,28 @@ export default function AdminOwnersPage() {
     }
   }
 
+  async function saveCommission(owner: Owner) {
+    const commissionRate = Number(commissionDrafts[owner.id]);
+    if (
+      !Number.isFinite(commissionRate) ||
+      commissionRate < 0 ||
+      commissionRate > 100
+    ) {
+      toast.error("Commission must be between 0% and 100%");
+      return;
+    }
+    setSavingCommissionId(owner.id);
+    try {
+      await api.patch(`/property-owners/${owner.id}`, { commissionRate });
+      await loadOwners();
+      toast.success("Management commission updated");
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Unable to update commission"));
+    } finally {
+      setSavingCommissionId(null);
+    }
+  }
+
   return (
     <div className="space-y-8 sm:space-y-10">
       <div>
@@ -118,6 +151,9 @@ export default function AdminOwnersPage() {
               <Label htmlFor="owner-name">Owner name</Label>
               <Input
                 id="owner-name"
+                required
+                minLength={2}
+                maxLength={160}
                 value={form.ownerName}
                 onChange={(event) =>
                   setForm({ ...form, ownerName: event.target.value })
@@ -205,7 +241,7 @@ export default function AdminOwnersPage() {
                 key={owner.id}
                 className="flex flex-col gap-4 rounded-xl border border-border p-5 lg:flex-row lg:items-center lg:justify-between"
               >
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="font-semibold text-foreground">
                     {owner.companyName || owner.ownerName || "Unnamed owner"}
                   </p>
@@ -217,6 +253,40 @@ export default function AdminOwnersPage() {
                   <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Payout: {owner.payoutStatus.replaceAll("_", " ")}
                   </p>
+                  <div className="mt-4 flex max-w-sm flex-col gap-2 sm:flex-row sm:items-end">
+                    <div className="grid flex-1 gap-2">
+                      <Label htmlFor={`owner-commission-${owner.id}`}>
+                        Management commission (%)
+                      </Label>
+                      <Input
+                        id={`owner-commission-${owner.id}`}
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={commissionDrafts[owner.id] ?? ""}
+                        onChange={(event) =>
+                          setCommissionDrafts((current) => ({
+                            ...current,
+                            [owner.id]: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={savingCommissionId !== null}
+                      onClick={() => void saveCommission(owner)}
+                    >
+                      {savingCommissionId === owner.id ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Save className="size-4" />
+                      )}
+                      Save rate
+                    </Button>
+                  </div>
                 </div>
                 <Button
                   variant={

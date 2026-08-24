@@ -46,7 +46,8 @@ export class AgentsService {
         user: { select: { status: true, createdAt: true } },
         approvedBy: { select: { email: true } },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: 250,
     });
   }
 

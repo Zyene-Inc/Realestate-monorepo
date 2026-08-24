@@ -4,12 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Play, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -64,7 +59,7 @@ export default function AdminPayments() {
 
   useEffect(() => {
     let active = true;
-    api
+    void api
       .get("/payments")
       .then((rows: Payment[]) => {
         if (active) setPayments(rows);
@@ -80,12 +75,15 @@ export default function AdminPayments() {
     return () => {
       active = false;
     };
-  }, [loadPayments]);
+  }, []);
 
   async function runBillingCycle() {
     setRunningBilling(true);
     try {
-      const result = (await api.post("/payments/billing/run", {})) as BillingRun;
+      const result = (await api.post(
+        "/payments/billing/run",
+        {},
+      )) as BillingRun;
       await loadPayments();
       toast.success(
         `Billing checked for ${result.billingPeriod}: ${result.createdCharges} charge${result.createdCharges === 1 ? "" : "s"} created, ${result.markedOverdue} marked overdue.`,
@@ -115,8 +113,7 @@ export default function AdminPayments() {
     0,
   );
   const commission = payments.reduce(
-    (total, payment) =>
-      total + Number(payment.managementCommissionAmount || 0),
+    (total, payment) => total + Number(payment.managementCommissionAmount || 0),
     0,
   );
 
@@ -132,7 +129,10 @@ export default function AdminPayments() {
             fees. Online rent payments stay tenant-initiated only.
           </p>
         </div>
-        <Button onClick={() => void runBillingCycle()} disabled={runningBilling}>
+        <Button
+          onClick={() => void runBillingCycle()}
+          disabled={runningBilling}
+        >
           {runningBilling ? (
             <Loader2 className="animate-spin" />
           ) : (
@@ -198,11 +198,14 @@ export default function AdminPayments() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {payment.billingPeriod
-                          ? new Date(payment.billingPeriod).toLocaleDateString(undefined, {
-                              month: "long",
-                              year: "numeric",
-                              timeZone: "UTC",
-                            })
+                          ? new Date(payment.billingPeriod).toLocaleDateString(
+                              undefined,
+                              {
+                                month: "long",
+                                year: "numeric",
+                                timeZone: "UTC",
+                              },
+                            )
                           : `Due ${new Date(payment.dueDate).toLocaleDateString()}`}
                       </p>
                     </TableCell>

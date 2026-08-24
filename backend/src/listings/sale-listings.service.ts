@@ -3,10 +3,8 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   AgentAccountStatus,
   ListingStatus,
@@ -15,20 +13,10 @@ import {
   Role,
   UserStatus,
 } from '@prisma/client';
-import { createClient } from '@supabase/supabase-js';
-import { randomUUID } from 'node:crypto';
 import { EmailsService } from '../emails/emails.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSaleListingDto } from './dto/create-sale-listing.dto';
-import {
-  AttachListingAssetDto,
-  CreateListingUploadDto,
-  ListingAssetKind,
-} from './dto/listing-asset.dto';
 import { UpdateSaleListingDto } from './dto/update-sale-listing.dto';
-
-const PHOTO_BUCKET = 'listing-media';
-const DOCUMENT_BUCKET = 'listing-documents';
 
 const listingInclude = {
   agent: {
@@ -47,22 +35,8 @@ const listingInclude = {
 export class SaleListingsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
     private readonly emails: EmailsService,
   ) {}
-
-  private storageClient() {
-    const url = this.config.get<string>('SUPABASE_URL');
-    const secretKey = this.config.get<string>('SUPABASE_SECRET_KEY');
-    if (!url || !secretKey) {
-      throw new InternalServerErrorException(
-        'Supabase Storage is not configured',
-      );
-    }
-    return createClient(url, secretKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-  }
 
   private async approvedAgent(userId: string) {
     const agent = await this.prisma.agent.findUnique({ where: { userId } });
@@ -97,16 +71,13 @@ export class SaleListingsService {
     }
   }
 
-  private bucket(kind: ListingAssetKind) {
-    return kind === 'photo' ? PHOTO_BUCKET : DOCUMENT_BUCKET;
-  }
-
   async listForAgent(userId: string) {
     const agent = await this.approvedAgent(userId);
     return this.prisma.property.findMany({
       where: { agentId: agent.id, listingType: ListingType.SALE },
       include: listingInclude,
-      orderBy: { updatedAt: 'desc' },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      take: 250,
     });
   }
 
@@ -340,7 +311,8 @@ export class SaleListingsService {
         listingStatus: status ?? ListingStatus.PENDING_REVIEW,
       },
       include: listingInclude,
-      orderBy: [{ submittedAt: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ submittedAt: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+      take: 250,
     });
   }
 
@@ -365,6 +337,7 @@ export class SaleListingsService {
         user: { select: { email: true, role: true } },
       },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      take: 500,
     });
 
     return events.map((event) => ({
@@ -508,7 +481,8 @@ export class SaleListingsService {
           },
         },
       },
-      orderBy: { reviewedAt: 'desc' },
+      orderBy: [{ reviewedAt: 'desc' }, { id: 'desc' }],
+      take: 100,
     });
   }
 
@@ -551,149 +525,7 @@ export class SaleListingsService {
     return listing;
   }
 
-  async createUploadUrl(
-    userId: string,
-    listingId: string,
-    data: CreateListingUploadDto,
-  ) {
-    const { agent, listing } = await this.ownedListing(userId, listingId);
-    this.assertEditable(listing.listingStatus);
-    if (data.kind === 'photo' && !data.contentType.startsWith('image/')) {
-      throw new BadRequestException('Photos must be JPEG, PNG, or WebP');
-    }
-    if (
-      data.kind === 'document' &&
-      data.contentType !== 'application/pdf' &&
-      !data.contentType.startsWith('image/')
-    ) {
-      throw new BadRequestException(
-        'Documents must be PDF, JPEG, PNG, or WebP',
-      );
-    }
-
-    const safeName = data.fileName
-      .normalize('NFKD')
-      .replace(/[^a-zA-Z0-9._-]/g, '-')
-      .replace(/-+/g, '-')
-      .slice(-120);
-    const path = `${agent.id}/${listing.id}/${data.kind}/${randomUUID()}-${safeName}`;
-    const bucket = this.bucket(data.kind);
-    const { data: signed, error } = await this.storageClient()
-      .storage.from(bucket)
-      .createSignedUploadUrl(path, { upsert: false });
-    if (error || !signed) {
-      throw new BadRequestException(
-        error?.message || 'Unable to prepare file upload',
-      );
-    }
-    return { bucket, path: signed.path, token: signed.token, expiresIn: 7200 };
-  }
-
-  async attachAsset(
-    userId: string,
-    listingId: string,
-    data: AttachListingAssetDto,
-  ) {
-    const { agent, listing } = await this.ownedListing(userId, listingId);
-    this.assertEditable(listing.listingStatus);
-    const expectedPrefix = `${agent.id}/${listing.id}/${data.kind}/`;
-    if (!data.path.startsWith(expectedPrefix)) {
-      throw new ForbiddenException('Invalid listing asset path');
-    }
-
-    const bucket = this.bucket(data.kind);
-    const slash = data.path.lastIndexOf('/');
-    const directory = data.path.slice(0, slash);
-    const fileName = data.path.slice(slash + 1);
-    const { data: objects, error } = await this.storageClient()
-      .storage.from(bucket)
-      .list(directory, { search: fileName, limit: 2 });
-    if (error || !objects?.some((object) => object.name === fileName)) {
-      throw new BadRequestException('Upload the file before attaching it');
-    }
-
-    const value =
-      data.kind === 'photo'
-        ? this.storageClient().storage.from(bucket).getPublicUrl(data.path).data
-            .publicUrl
-        : data.path;
-    const existing = data.kind === 'photo' ? listing.photos : listing.documents;
-    if (existing.includes(value)) return listing;
-    const values = [...existing, value];
-    const wasApproved = listing.listingStatus === ListingStatus.APPROVED;
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const changed = await tx.property.updateMany({
-        where: { id: listing.id, listingStatus: listing.listingStatus },
-        data: {
-          ...(data.kind === 'photo'
-            ? { photos: values }
-            : { documents: values }),
-          listingStatus: wasApproved
-            ? ListingStatus.PENDING_REVIEW
-            : listing.listingStatus,
-          submittedAt: wasApproved ? new Date() : listing.submittedAt,
-          reviewedAt: wasApproved ? null : listing.reviewedAt,
-          reviewedByUserId: wasApproved ? null : listing.reviewedByUserId,
-          rejectionReason: wasApproved ? null : listing.rejectionReason,
-        },
-      });
-      if (changed.count !== 1) {
-        throw new ConflictException(
-          'Listing status changed; refresh and retry',
-        );
-      }
-      const result = await tx.property.findUniqueOrThrow({
-        where: { id: listing.id },
-        include: listingInclude,
-      });
-      await tx.auditLog.create({
-        data: {
-          userId,
-          action: wasApproved
-            ? 'SALE_LISTING_ASSET_ATTACHED_AND_RESUBMITTED'
-            : data.kind === 'photo'
-              ? 'SALE_LISTING_PHOTO_ATTACHED'
-              : 'SALE_LISTING_DOCUMENT_ATTACHED',
-          resource: 'property',
-          resourceId: listing.id,
-          newValue: JSON.stringify({
-            kind: data.kind,
-            path: data.path,
-            listingStatus: result.listingStatus,
-          }),
-        },
-      });
-      return result;
-    });
-    if (wasApproved) await this.notifyReviewers(updated, true);
-    return updated;
-  }
-
-  async getAgentDocumentUrl(userId: string, listingId: string, index: number) {
-    const { listing } = await this.ownedListing(userId, listingId);
-    return this.createDocumentUrl(listing.documents, index);
-  }
-
-  async getAdminDocumentUrl(listingId: string, index: number) {
-    const listing = await this.getForReview(listingId);
-    return this.createDocumentUrl(listing.documents, index);
-  }
-
-  private async createDocumentUrl(documents: string[], index: number) {
-    const path = documents[index];
-    if (!path) throw new NotFoundException('Listing document not found');
-    const { data, error } = await this.storageClient()
-      .storage.from(DOCUMENT_BUCKET)
-      .createSignedUrl(path, 300, { download: true });
-    if (error || !data?.signedUrl) {
-      throw new BadRequestException(
-        error?.message || 'Unable to prepare document download',
-      );
-    }
-    return { url: data.signedUrl, expiresIn: 300 };
-  }
-
-  private async notifyReviewers(
+  async notifyReviewers(
     listing: {
       id: string;
       name: string;

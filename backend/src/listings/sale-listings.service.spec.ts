@@ -49,11 +49,7 @@ describe('SaleListingsService', () => {
   };
 
   function serviceWith(prisma: object, emails: object = {}) {
-    return new SaleListingsService(
-      prisma as never,
-      { get: jest.fn() } as never,
-      emails as never,
-    );
+    return new SaleListingsService(prisma as never, emails as never);
   }
 
   function firstArgument(mock: { mock: { calls: unknown[][] } }): unknown {
@@ -99,7 +95,8 @@ describe('SaleListingsService', () => {
     expect(prisma.property.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { agentId: agent.id, listingType: ListingType.SALE },
-        orderBy: { updatedAt: 'desc' },
+        orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+        take: 250,
       }),
     );
   });

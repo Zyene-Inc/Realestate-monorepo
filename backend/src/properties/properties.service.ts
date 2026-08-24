@@ -2,23 +2,16 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { ListingType, Prisma, PublishStatus } from '@prisma/client';
-import { createClient } from '@supabase/supabase-js';
-import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailsService } from '../emails/emails.service';
 import {
-  AttachRentalPhotoDto,
-  CreateRentalPhotoUploadDto,
   RentalPropertyDto,
   UpdateRentalPropertyDto,
 } from './dto/rental-property.dto';
-
-const RENTAL_PHOTO_BUCKET = 'listing-media';
+import { RentalPhotoService } from './rental-photo.service';
 
 const rentalInclude = {
   owner: {
@@ -83,22 +76,9 @@ type RentalWithUnits = Prisma.PropertyGetPayload<{
 export class PropertiesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
     private readonly emails: EmailsService,
+    private readonly rentalPhotos: RentalPhotoService,
   ) {}
-
-  private storageClient() {
-    const url = this.config.get<string>('SUPABASE_URL');
-    const secretKey = this.config.get<string>('SUPABASE_SECRET_KEY');
-    if (!url || !secretKey) {
-      throw new InternalServerErrorException(
-        'Supabase Storage is not configured',
-      );
-    }
-    return createClient(url, secretKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-  }
 
   private async rental(id: string) {
     const property = await this.prisma.property.findFirst({
@@ -122,6 +102,11 @@ export class PropertiesService {
     if (!property.description?.trim()) {
       throw new BadRequestException(
         'Add a property description before publishing',
+      );
+    }
+    if (property.photos.length === 0) {
+      throw new BadRequestException(
+        'Add at least one listing photo before publishing',
       );
     }
     const availableUnits = property.units.filter(
@@ -415,75 +400,6 @@ export class PropertiesService {
     return property;
   }
 
-  async createPhotoUploadUrl(id: string, data: CreateRentalPhotoUploadDto) {
-    await this.rental(id);
-    const safeName = data.fileName
-      .normalize('NFKD')
-      .replace(/[^a-zA-Z0-9._-]/g, '-')
-      .replace(/-+/g, '-')
-      .slice(-120);
-    const path = `rentals/${id}/photo/${randomUUID()}-${safeName}`;
-    const { data: signed, error } = await this.storageClient()
-      .storage.from(RENTAL_PHOTO_BUCKET)
-      .createSignedUploadUrl(path, { upsert: false });
-    if (error || !signed) {
-      throw new BadRequestException(
-        error?.message || 'Unable to prepare photo upload',
-      );
-    }
-    return {
-      bucket: RENTAL_PHOTO_BUCKET,
-      path: signed.path,
-      token: signed.token,
-      expiresIn: 7200,
-    };
-  }
-
-  async attachPhoto(userId: string, id: string, data: AttachRentalPhotoDto) {
-    const property = await this.rental(id);
-    const expectedPrefix = `rentals/${id}/photo/`;
-    if (!data.path.startsWith(expectedPrefix)) {
-      throw new BadRequestException('Invalid rental photo path');
-    }
-    const slash = data.path.lastIndexOf('/');
-    const directory = data.path.slice(0, slash);
-    const fileName = data.path.slice(slash + 1);
-    const storage = this.storageClient();
-    const { data: objects, error } = await storage.storage
-      .from(RENTAL_PHOTO_BUCKET)
-      .list(directory, { search: fileName, limit: 2 });
-    if (error || !objects?.some((object) => object.name === fileName)) {
-      throw new BadRequestException('Upload the photo before attaching it');
-    }
-    const publicUrl = storage.storage
-      .from(RENTAL_PHOTO_BUCKET)
-      .getPublicUrl(data.path).data.publicUrl;
-    if (property.photos.includes(publicUrl)) return property;
-    return this.prisma.$transaction(async (tx) => {
-      const changed = await tx.property.updateMany({
-        where: { id, listingType: ListingType.RENT },
-        data: { photos: [...property.photos, publicUrl] },
-      });
-      if (changed.count !== 1) {
-        throw new NotFoundException('Rental property not found');
-      }
-      const updated = await tx.property.findUniqueOrThrow({
-        where: { id },
-        include: rentalInclude,
-      });
-      await tx.auditLog.create({
-        data: {
-          userId,
-          action: 'RENTAL_PROPERTY_PHOTO_ATTACHED',
-          resource: 'property',
-          resourceId: id,
-          newValue: JSON.stringify({ path: data.path }),
-        },
-      });
-      return updated;
-    });
-  }
-
   async remove(userId: string, id: string) {
     const property = await this.rental(id);
     if (property.publishStatus === PublishStatus.PUBLISHED) {
@@ -506,6 +422,7 @@ export class PropertiesService {
       });
       await tx.property.delete({ where: { id } });
     });
+    await this.rentalPhotos.removePropertyPhotos(id, property.photos);
     return { deleted: true };
   }
 }

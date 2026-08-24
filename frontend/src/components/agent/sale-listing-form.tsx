@@ -2,24 +2,16 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
-import {
-  Download,
-  FileText,
-  ImagePlus,
-  Loader2,
-  Save,
-  Send,
-} from "lucide-react";
+import { Loader2, Save, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { listingStatusLabel, type SaleListing } from "@/lib/sale-listings";
 import { supabase } from "@/lib/supabase";
 import { ListingAvailabilityControl } from "@/components/agent/listing-availability-control";
+import { SaleListingAssets } from "@/components/agent/sale-listing-assets";
 import {
   SaleListingDetailsFields,
   type ListingFormState,
@@ -49,6 +41,7 @@ export function SaleListingForm({ listing }: { listing?: SaleListing }) {
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState<"photo" | "document" | null>(null);
+  const [assetAction, setAssetAction] = useState<string | null>(null);
   const locked = current?.listingStatus === "PENDING_REVIEW";
 
   const update = (field: keyof ListingFormState, value: string) => {
@@ -124,6 +117,18 @@ export function SaleListingForm({ listing }: { listing?: SaleListing }) {
 
   const upload = async (kind: "photo" | "document", file?: File) => {
     if (!file || !current) return;
+    const accepted =
+      kind === "photo"
+        ? ["image/jpeg", "image/png", "image/webp"]
+        : ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    if (!accepted.includes(file.type)) {
+      toast.error(
+        kind === "photo"
+          ? "Photos must be JPEG, PNG, or WebP"
+          : "Documents must be PDF, JPEG, PNG, or WebP",
+      );
+      return;
+    }
     if (file.size > 10 * 1024 * 1024) {
       toast.error("Files must be 10 MB or smaller");
       return;
@@ -166,6 +171,42 @@ export function SaleListingForm({ listing }: { listing?: SaleListing }) {
       window.open(result.url, "_blank", "noopener,noreferrer");
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Unable to open document"));
+    }
+  };
+
+  const movePhoto = async (fromIndex: number, toIndex: number) => {
+    if (!current) return;
+    setAssetAction(`photo-${fromIndex}`);
+    try {
+      const updated = (await api.patch(
+        `/agent/listings/${current.id}/photos/order`,
+        { fromIndex, toIndex },
+      )) as SaleListing;
+      setCurrent(updated);
+      toast.success(
+        toIndex === 0 ? "Cover photo updated" : "Photo order updated",
+      );
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to reorder photos"));
+    } finally {
+      setAssetAction(null);
+    }
+  };
+
+  const removeAsset = async (kind: "photo" | "document", index: number) => {
+    if (!current) return;
+    setAssetAction(`${kind}-${index}`);
+    try {
+      const endpoint = kind === "photo" ? "photos" : "documents";
+      const updated = (await api.delete(
+        `/agent/listings/${current.id}/${endpoint}/${index}`,
+      )) as SaleListing;
+      setCurrent(updated);
+      toast.success(kind === "photo" ? "Photo removed" : "Document removed");
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, `Unable to remove ${kind}`));
+    } finally {
+      setAssetAction(null);
     }
   };
 
@@ -218,82 +259,18 @@ export function SaleListingForm({ listing }: { listing?: SaleListing }) {
         onChange={update}
       />
 
-      {current && (
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle>Photos and review documents</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex flex-wrap gap-3">
-              <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-border bg-card px-5 text-sm font-semibold text-foreground transition-colors hover:border-primary/35 hover:bg-secondary has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
-                {uploading === "photo" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <ImagePlus className="mr-2 h-4 w-4" />
-                )}
-                Upload photo
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="sr-only"
-                  disabled={Boolean(uploading) || locked}
-                  onChange={(e) => void upload("photo", e.target.files?.[0])}
-                />
-              </label>
-              <label className="inline-flex min-h-11 cursor-pointer items-center rounded-full border border-input bg-card px-5 text-sm font-semibold transition-colors hover:bg-secondary has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
-                {uploading === "document" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <FileText className="mr-2 h-4 w-4" />
-                )}
-                Upload private document
-                <input
-                  type="file"
-                  accept="application/pdf,image/jpeg,image/png,image/webp"
-                  className="sr-only"
-                  disabled={Boolean(uploading) || locked}
-                  onChange={(e) => void upload("document", e.target.files?.[0])}
-                />
-              </label>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {current.photos.map((photo, index) => (
-                <div
-                  key={photo}
-                  className="relative h-40 overflow-hidden rounded-xl bg-secondary"
-                >
-                  <Image
-                    src={photo}
-                    alt={`${current.name} view ${index + 1}`}
-                    fill
-                    sizes="(min-width: 1024px) 28vw, (min-width: 640px) 45vw, 100vw"
-                    className="object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-            {current.documents?.length ? (
-              <div className="flex flex-wrap gap-2">
-                {current.documents.map((documentPath, index) => (
-                  <Button
-                    key={documentPath}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => void openDocument(index)}
-                  >
-                    <Download className="mr-2 h-4 w-4" /> Document {index + 1}
-                  </Button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No private review documents attached.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {current ? (
+        <SaleListingAssets
+          listing={current}
+          locked={locked}
+          uploading={uploading}
+          assetAction={assetAction}
+          onUpload={upload}
+          onMovePhoto={movePhoto}
+          onRemove={removeAsset}
+          onOpenDocument={openDocument}
+        />
+      ) : null}
 
       {current &&
         ["DRAFT", "REJECTED"].includes(current.listingStatus ?? "") && (

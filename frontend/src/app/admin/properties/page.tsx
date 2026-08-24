@@ -6,18 +6,13 @@ import { Building2, Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
-import { supabase } from "@/lib/supabase";
+import {
+  RentalPhotoRemovalDialog,
+  RentalPropertyRemovalDialog,
+} from "./_components/rental-property-confirmations";
 import { RentalPropertyDialog } from "./_components/rental-property-dialog";
 import { RentalPropertyGrid } from "./_components/rental-property-grid";
 import {
@@ -26,6 +21,7 @@ import {
   type RentalProperty,
   type RentalPropertyForm,
 } from "./_components/rental-property-types";
+import { useRentalPhotoManager } from "./_components/use-rental-photo-manager";
 
 function propertyPayload(form: RentalPropertyForm) {
   return {
@@ -49,16 +45,13 @@ export default function AdminProperties() {
   const [properties, setProperties] = useState<RentalProperty[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<RentalProperty | null>(null);
   const [propertyPendingDelete, setPropertyPendingDelete] =
     useState<RentalProperty | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [form, setForm] = useState<RentalPropertyForm>(
-    emptyRentalPropertyForm,
-  );
+  const [form, setForm] = useState<RentalPropertyForm>(emptyRentalPropertyForm);
 
   const load = async () => {
     try {
@@ -114,6 +107,18 @@ export default function AdminProperties() {
     setOpen(true);
   };
 
+  const replaceProperty = (property: RentalProperty) => {
+    setEditing(property);
+    setProperties((current) =>
+      current.map((item) => (item.id === property.id ? property : item)),
+    );
+  };
+
+  const photos = useRentalPhotoManager({
+    editing,
+    onPropertyChange: replaceProperty,
+  });
+
   const save = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true);
@@ -146,38 +151,6 @@ export default function AdminProperties() {
       toast.error(getErrorMessage(error, "Unable to save rental"));
     } finally {
       setBusy(false);
-    }
-  };
-
-  const uploadPhoto = async (file?: File) => {
-    if (!file || !editing) return;
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Photos must be 10 MB or smaller");
-      return;
-    }
-    setUploading(true);
-    try {
-      const signed = (await api.post(
-        `/admin/properties/${editing.id}/photo-upload-url`,
-        { fileName: file.name, contentType: file.type },
-      )) as { bucket: string; path: string; token: string };
-      const { error } = await supabase.storage
-        .from(signed.bucket)
-        .uploadToSignedUrl(signed.path, signed.token, file, {
-          contentType: file.type,
-        });
-      if (error) throw error;
-      const updated = (await api.post(
-        `/admin/properties/${editing.id}/photos`,
-        { path: signed.path },
-      )) as RentalProperty;
-      setEditing(updated);
-      toast.success("Rental photo uploaded");
-      await load();
-    } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Unable to upload photo"));
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -287,42 +260,35 @@ export default function AdminProperties() {
         editing={editing}
         form={form}
         busy={busy}
-        uploading={uploading}
+        uploading={photos.uploading}
+        photoActionIndex={photos.photoActionIndex}
         onOpenChange={setOpen}
         onFormChange={setForm}
         onSave={save}
-        onUploadPhoto={uploadPhoto}
+        onUploadPhotos={photos.uploadPhotos}
+        onMovePhoto={photos.movePhoto}
+        onRemovePhoto={photos.setPhotoPendingDelete}
       />
 
-      <Dialog
-        open={propertyPendingDelete !== null}
+      <RentalPhotoRemovalDialog
+        photoIndex={photos.photoPendingDelete}
+        busy={photos.photoActionIndex !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && photos.photoActionIndex === null) {
+            photos.setPhotoPendingDelete(null);
+          }
+        }}
+        onConfirm={photos.removePhoto}
+      />
+
+      <RentalPropertyRemovalDialog
+        property={propertyPendingDelete}
+        deleting={deletingId !== null}
         onOpenChange={(nextOpen) => {
           if (!nextOpen && deletingId === null) setPropertyPendingDelete(null);
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete this rental draft?</DialogTitle>
-            <DialogDescription>
-              <strong>{propertyPendingDelete?.name}</strong> will be removed
-              permanently. This cannot be undone. Published rentals and rentals
-              with units must be unpublished and empty before they can be
-              deleted.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter showCloseButton>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={deletingId !== null}
-              onClick={() => void deleteProperty()}
-            >
-              {deletingId ? <Loader2 className="animate-spin" /> : null}
-              Delete rental
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onConfirm={deleteProperty}
+      />
     </div>
   );
 }

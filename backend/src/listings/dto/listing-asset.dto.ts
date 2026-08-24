@@ -1,4 +1,4 @@
-import { IsIn, IsString, Length, Matches } from 'class-validator';
+import { IsIn, IsInt, IsString, Length, Matches, Min } from 'class-validator';
 
 const LISTING_ASSET_KINDS = ['photo', 'document'] as const;
 export type ListingAssetKind = (typeof LISTING_ASSET_KINDS)[number];
@@ -23,4 +23,14 @@ export class AttachListingAssetDto {
   @IsString()
   @Length(10, 500)
   path!: string;
+}
+
+export class ReorderListingPhotosDto {
+  @IsInt()
+  @Min(0)
+  fromIndex!: number;
+
+  @IsInt()
+  @Min(0)
+  toIndex!: number;
 }

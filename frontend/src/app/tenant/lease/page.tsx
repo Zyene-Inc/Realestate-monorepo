@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -14,7 +15,6 @@ import {
   Download,
   Calendar,
   ShieldCheck,
-  ArrowRight,
   Info,
   Loader2,
 } from "lucide-react";
@@ -266,9 +266,12 @@ export default function TenantLease() {
                 <span>{format(new Date(lease.endDate), "MMM yyyy")}</span>
               </div>
 
-              <Button className="w-full mt-10 bg-secondary/20 hover:bg-secondary/40 text-primary-foreground font-bold text-[10px] uppercase tracking-[0.2em] py-8 rounded-2xl transition-[background-color,color,border-color,box-shadow,transform,opacity] border border-white/10 group/btn font-heading backdrop-blur-sm">
-                Request Modification
-                <ArrowRight className="ml-2 w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+              <Button
+                nativeButton={false}
+                render={<Link href="/tenant/messages" />}
+                className="mt-10 w-full border border-white/10 bg-secondary/20 py-8 text-primary-foreground hover:bg-secondary/40"
+              >
+                Message management about this lease
               </Button>
             </CardContent>
           </Card>
@@ -302,7 +305,8 @@ export default function TenantLease() {
                     Grace Period
                   </span>
                   <span className="text-sm font-bold text-foreground">
-                    {lease.gracePeriodDays} day{lease.gracePeriodDays === 1 ? "" : "s"}
+                    {lease.gracePeriodDays} day
+                    {lease.gracePeriodDays === 1 ? "" : "s"}
                   </span>
                 </div>
               </div>

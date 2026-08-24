@@ -298,22 +298,29 @@ export function AdminSidebar() {
     };
 
     void refreshNewLeadCount();
-    const interval = window.setInterval(() => void refreshNewLeadCount(), 30_000);
+    const interval = window.setInterval(
+      () => void refreshNewLeadCount(),
+      30_000,
+    );
     return () => {
       active = false;
       window.clearInterval(interval);
     };
   }, [canReviewLeads]);
 
-  const visibleItems = items.filter((item) =>
-    user?.role === "SALES_ADMIN"
-      ? item.area !== "rent" && item.area !== "super"
-      : user?.role === "TENANT_ADMIN"
-        ? item.area !== "sales" && item.area !== "super"
-        : true,
-  ).map((item) =>
-    item.href === "/admin/leads" ? { ...item, badge: newLeadCount } : item,
-  ) as PortalNavItem[];
+  const visibleItems = items.reduce<PortalNavItem[]>((visible, item) => {
+    const allowed =
+      user?.role === "SALES_ADMIN"
+        ? item.area !== "rent" && item.area !== "super"
+        : user?.role === "TENANT_ADMIN"
+          ? item.area !== "sales" && item.area !== "super"
+          : true;
+    if (!allowed) return visible;
+    visible.push(
+      item.href === "/admin/leads" ? { ...item, badge: newLeadCount } : item,
+    );
+    return visible;
+  }, []);
   const role =
     user?.role === "SUPER_ADMIN"
       ? "Super administrator"

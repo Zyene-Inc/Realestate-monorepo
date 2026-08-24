@@ -53,11 +53,19 @@ export function getPortalUrlForRole(config: ConfigService, role?: Role) {
 }
 
 export function getAllowedFrontendOrigins(config: ConfigService) {
+  const localOrLegacyFrontend = normalizedUrl(
+    config.get<string>('FRONTEND_URL'),
+    'http://localhost:3000',
+  );
   const configured = (config.get<string>('CORS_ORIGINS') || '')
     .split(',')
     .map((origin) => origin.trim().replace(/\/$/, ''))
     .filter(Boolean);
-  return new Set([...Object.values(getPortalUrls(config)), ...configured]);
+  return new Set([
+    localOrLegacyFrontend,
+    ...Object.values(getPortalUrls(config)),
+    ...configured,
+  ]);
 }
 
 export function createCorsOriginValidator(allowedOrigins: ReadonlySet<string>) {

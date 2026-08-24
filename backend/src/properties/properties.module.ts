@@ -5,6 +5,7 @@ import {
   RentalDashboardController,
 } from './properties.controller';
 import { PropertiesService } from './properties.service';
+import { RentalPhotoService } from './rental-photo.service';
 
 @Module({
   controllers: [
@@ -12,6 +13,6 @@ import { PropertiesService } from './properties.service';
     RentalDashboardController,
     PublicRentalPropertiesController,
   ],
-  providers: [PropertiesService],
+  providers: [PropertiesService, RentalPhotoService],
 })
 export class PropertiesModule {}

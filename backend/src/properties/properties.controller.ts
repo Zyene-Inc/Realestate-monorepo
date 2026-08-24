@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  ParseIntPipe,
   UseGuards,
   Request,
 } from '@nestjs/common';
@@ -19,14 +20,19 @@ import {
   UpdateRentalPropertyDto,
   AttachRentalPhotoDto,
   CreateRentalPhotoUploadDto,
+  ReorderRentalPhotosDto,
 } from './dto/rental-property.dto';
 import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
+import { RentalPhotoService } from './rental-photo.service';
 
 @Controller('admin/properties')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN)
 export class PropertiesController {
-  constructor(private readonly propertiesService: PropertiesService) {}
+  constructor(
+    private readonly propertiesService: PropertiesService,
+    private readonly rentalPhotos: RentalPhotoService,
+  ) {}
 
   @Post()
   create(
@@ -80,7 +86,7 @@ export class PropertiesController {
     @Param('id') id: string,
     @Body() body: CreateRentalPhotoUploadDto,
   ) {
-    return this.propertiesService.createPhotoUploadUrl(id, body);
+    return this.rentalPhotos.createUploadUrl(id, body);
   }
 
   @Post(':id/photos')
@@ -89,7 +95,25 @@ export class PropertiesController {
     @Param('id') id: string,
     @Body() body: AttachRentalPhotoDto,
   ) {
-    return this.propertiesService.attachPhoto(request.user.sub, id, body);
+    return this.rentalPhotos.attach(request.user.sub, id, body);
+  }
+
+  @Patch(':id/photos/order')
+  reorderPhotos(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: ReorderRentalPhotosDto,
+  ) {
+    return this.rentalPhotos.reorder(request.user.sub, id, body);
+  }
+
+  @Delete(':id/photos/:photoIndex')
+  removePhoto(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('photoIndex', ParseIntPipe) photoIndex: number,
+  ) {
+    return this.rentalPhotos.remove(request.user.sub, id, photoIndex);
   }
 
   @Delete(':id')

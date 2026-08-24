@@ -9,6 +9,9 @@ describe('PropertiesService rental publishing', () => {
     listingType: ListingType.RENT,
     publishStatus: PublishStatus.DRAFT,
     description: 'A complete rental description.',
+    photos: [
+      'https://project.supabase.co/storage/v1/object/public/listing-media/rentals/rental-1/photo/front.webp',
+    ],
     rentAmount: 1500,
     status: 'active',
     units: [],
@@ -18,8 +21,8 @@ describe('PropertiesService rental publishing', () => {
   function serviceWith(prisma: object) {
     return new PropertiesService(
       prisma as never,
-      { get: jest.fn() } as never,
       { sendRentalPublished: jest.fn() } as never,
+      { removePropertyPhotos: jest.fn() } as never,
     );
   }
 

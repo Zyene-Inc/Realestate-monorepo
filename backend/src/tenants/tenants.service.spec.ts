@@ -134,6 +134,28 @@ describe('TenantsService', () => {
     );
   });
 
+  it('limits self-service profile updates to the signed-in tenant', async () => {
+    const service = serviceWith({
+      tenant: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'tenant-1' }),
+      },
+    });
+    const update = jest
+      .spyOn(service, 'update')
+      .mockResolvedValue({ id: 'tenant-1' } as never);
+
+    await expect(
+      service.updateOwnProfile('user-1', {
+        phone: '816-555-0100',
+        vehicleInfo: 'Silver sedan',
+      }),
+    ).resolves.toEqual({ id: 'tenant-1' });
+    expect(update).toHaveBeenCalledWith('user-1', 'tenant-1', {
+      phone: '816-555-0100',
+      vehicleInfo: 'Silver sedan',
+    });
+  });
+
   it('does not expose lease data when the signed-in tenant profile is absent', async () => {
     const prisma = {
       tenant: { findUnique: jest.fn().mockResolvedValue(null) },

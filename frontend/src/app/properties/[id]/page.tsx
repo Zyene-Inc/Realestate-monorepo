@@ -32,12 +32,24 @@ export default function PublicSaleListingPage() {
   const { id } = useParams<{ id: string }>();
   const [listing, setListing] = useState<SaleListing | null>(null);
   const [failed, setFailed] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState(0);
 
   useEffect(() => {
-    api
+    let active = true;
+    void api
       .get(`/public/sale-listings/${id}`)
-      .then(setListing)
-      .catch(() => setFailed(true));
+      .then((saleListing: SaleListing) => {
+        if (!active) return;
+        setListing(saleListing);
+        setFailed(false);
+        setSelectedPhoto(0);
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      });
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   return (
@@ -106,12 +118,12 @@ export default function PublicSaleListingPage() {
               default="none"
             >
               <div className="relative mt-6 aspect-[4/3] overflow-hidden rounded-[1.5rem] bg-secondary sm:aspect-[16/10] lg:aspect-[2/1] lg:rounded-[2rem]">
-                {listing.photos[0] ? (
+                {listing.photos[selectedPhoto] ? (
                   <Image
-                    src={listing.photos[0]}
-                    alt={`${listing.name} exterior`}
+                    src={listing.photos[selectedPhoto]}
+                    alt={`${listing.name} photo ${selectedPhoto + 1} of ${listing.photos.length}`}
                     fill
-                    priority
+                    loading="eager"
                     sizes="(min-width: 1536px) 1400px, 100vw"
                     className="object-cover"
                   />
@@ -133,20 +145,27 @@ export default function PublicSaleListingPage() {
             </ViewTransition>
 
             {listing.photos.length > 1 && (
-              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {listing.photos.slice(1, 5).map((photo, index) => (
-                  <div
+              <div
+                className="mt-4 flex gap-3 overflow-x-auto pb-2"
+                aria-label="Sale property photos"
+              >
+                {listing.photos.map((photo, index) => (
+                  <button
                     key={photo}
-                    className="relative aspect-[4/3] overflow-hidden rounded-xl bg-secondary"
+                    type="button"
+                    aria-label={`Show photo ${index + 1} of ${listing.photos.length}`}
+                    aria-pressed={selectedPhoto === index}
+                    onClick={() => setSelectedPhoto(index)}
+                    className="relative h-20 w-28 shrink-0 overflow-hidden rounded-xl border-2 border-transparent bg-secondary outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/30 aria-pressed:border-primary"
                   >
                     <Image
                       src={photo}
-                      alt={`${listing.name}, view ${index + 2}`}
+                      alt=""
                       fill
-                      sizes="(min-width: 640px) 24vw, 48vw"
+                      sizes="112px"
                       className="object-cover"
                     />
-                  </div>
+                  </button>
                 ))}
               </div>
             )}

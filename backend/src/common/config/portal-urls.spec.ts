@@ -1,5 +1,9 @@
 import { ForbiddenException } from '@nestjs/common';
-import { createCorsOriginValidator } from './portal-urls';
+import { ConfigService } from '@nestjs/config';
+import {
+  createCorsOriginValidator,
+  getAllowedFrontendOrigins,
+} from './portal-urls';
 
 describe('createCorsOriginValidator', () => {
   const validateOrigin = createCorsOriginValidator(
@@ -32,5 +36,26 @@ describe('createCorsOriginValidator', () => {
     expect(error.getStatus()).toBe(403);
     expect(error.message).toBe('Origin is not allowed by CORS');
     expect(allowed).toBe(false);
+  });
+});
+
+describe('getAllowedFrontendOrigins', () => {
+  it('keeps the local frontend origin when production portal URLs are set', () => {
+    const values: Record<string, string> = {
+      FRONTEND_URL: 'http://localhost:3000',
+      PUBLIC_SITE_URL: 'https://coachjohnsonrealty.com',
+      AGENT_PORTAL_URL: 'https://agents.coachjohnsonrealty.com',
+      PROPERTIES_ADMIN_URL: 'https://properties-admin.coachjohnsonrealty.com',
+      RENTAL_ADMIN_URL: 'https://rental-admin.coachjohnsonrealty.com',
+      TENANT_PORTAL_URL: 'https://tenant.coachjohnsonrealty.com',
+      SUPER_ADMIN_URL: 'https://admin.coachjohnsonrealty.com',
+    };
+    const config = {
+      get: jest.fn((key: string) => values[key]),
+    } as unknown as ConfigService;
+
+    expect(getAllowedFrontendOrigins(config)).toContain(
+      'http://localhost:3000',
+    );
   });
 });

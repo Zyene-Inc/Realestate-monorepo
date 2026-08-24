@@ -16,11 +16,10 @@ const normalizeEmail = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim().toLowerCase() : value;
 
 export class CreatePropertyOwnerDto {
-  @IsOptional()
   @Transform(trimOptionalString)
   @IsString()
-  @MaxLength(160)
-  ownerName?: string;
+  @Length(2, 160)
+  ownerName!: string;
 
   @IsOptional()
   @Transform(trimOptionalString)

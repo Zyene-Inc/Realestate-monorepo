@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { UpdateTenantDto } from './dto/update-tenant.dto';
+import {
+  UpdateTenantDto,
+  UpdateTenantProfileDto,
+} from './dto/update-tenant.dto';
 
 const tenantInclude = {
   user: { select: { id: true, email: true, status: true } },
@@ -66,6 +69,15 @@ export class TenantsService {
       });
       return tenant;
     });
+  }
+
+  async updateOwnProfile(userId: string, data: UpdateTenantProfileDto) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { userId },
+      select: { id: true },
+    });
+    if (!tenant) throw new NotFoundException('Tenant profile not found');
+    return this.update(userId, tenant.id, data);
   }
 
   async getDashboardData(userId: string) {

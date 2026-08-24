@@ -159,3 +159,15 @@ export class AttachRentalPhotoDto {
   @Length(10, 500)
   path!: string;
 }
+
+export class ReorderRentalPhotosDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  fromIndex!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  toIndex!: number;
+}

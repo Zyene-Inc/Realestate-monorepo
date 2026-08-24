@@ -4,9 +4,9 @@ import { validate } from 'class-validator';
 import { CreatePropertyOwnerDto } from './property-owner.dto';
 
 describe('property owner DTOs', () => {
-  it('accepts an owner submission with blank optional fields', async () => {
+  it('accepts a named owner submission with blank optional fields', async () => {
     const dto = plainToInstance(CreatePropertyOwnerDto, {
-      ownerName: '  ',
+      ownerName: '  Alice Owner  ',
       companyName: '  ',
       contactEmail: '  OWNER@Example.com ',
       contactPhone: '  ',
@@ -18,8 +18,18 @@ describe('property owner DTOs', () => {
       contactEmail: 'owner@example.com',
       commissionRate: 10,
     });
-    expect(dto.ownerName).toBeUndefined();
+    expect(dto.ownerName).toBe('Alice Owner');
     expect(dto.companyName).toBeUndefined();
     expect(dto.contactPhone).toBeUndefined();
+  });
+
+  it('rejects an owner record without a name', async () => {
+    const dto = plainToInstance(CreatePropertyOwnerDto, {
+      ownerName: '  ',
+      contactEmail: 'owner@example.com',
+      commissionRate: 10,
+    });
+
+    await expect(validate(dto)).resolves.not.toHaveLength(0);
   });
 });

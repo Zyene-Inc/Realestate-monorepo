@@ -5,6 +5,7 @@ import {
   PublicSaleListingsController,
 } from './sale-listings.controller';
 import { SaleListingsService } from './sale-listings.service';
+import { SaleListingAssetsService } from './sale-listing-assets.service';
 
 @Module({
   controllers: [
@@ -12,6 +13,6 @@ import { SaleListingsService } from './sale-listings.service';
     AdminSaleListingsController,
     PublicSaleListingsController,
   ],
-  providers: [SaleListingsService],
+  providers: [SaleListingsService, SaleListingAssetsService],
 })
 export class ListingsModule {}

@@ -30,12 +30,24 @@ export default function PublicRentalPropertyPage() {
   const { id } = useParams<{ id: string }>();
   const [property, setProperty] = useState<RentalProperty | null>(null);
   const [failed, setFailed] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState(0);
 
   useEffect(() => {
-    api
+    let active = true;
+    void api
       .get(`/public/rental-properties/${id}`)
-      .then(setProperty)
-      .catch(() => setFailed(true));
+      .then((rental: RentalProperty) => {
+        if (!active) return;
+        setProperty(rental);
+        setFailed(false);
+        setSelectedPhoto(0);
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      });
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   if (!property && !failed) {
@@ -99,6 +111,11 @@ export default function PublicRentalPropertyPage() {
   const rented = property.status === "rented";
   const unit = property.units[0];
   const price = rentalPrice(property);
+  const photos =
+    property.photos.length > 0
+      ? property.photos
+      : ["/images/coach-johnson/missouri-brick-rental.webp"];
+  const activePhoto = photos[Math.min(selectedPhoto, photos.length - 1)];
   const search = new URLSearchParams({
     intent: rented ? "similar-rental" : "rent",
     property: property.name,
@@ -128,25 +145,18 @@ export default function PublicRentalPropertyPage() {
             default="none"
           >
             <div className="relative mt-6 aspect-[4/3] overflow-hidden rounded-[1.5rem] bg-secondary sm:aspect-[16/10] lg:aspect-[2/1] lg:rounded-[2rem]">
-              {property.photos[0] ? (
-                <Image
-                  src={property.photos[0]}
-                  alt={`${property.name} rental property`}
-                  fill
-                  priority
-                  sizes="(min-width: 1536px) 1400px, 100vw"
-                  className="object-cover"
-                />
-              ) : (
-                <Image
-                  src="/images/coach-johnson/missouri-brick-rental.webp"
-                  alt={`Representative Missouri home for ${property.name}`}
-                  fill
-                  priority
-                  sizes="(min-width: 1536px) 1400px, 100vw"
-                  className="object-cover"
-                />
-              )}
+              <Image
+                src={activePhoto}
+                alt={
+                  property.photos.length > 0
+                    ? `${property.name} photo ${selectedPhoto + 1} of ${photos.length}`
+                    : `Representative Missouri home for ${property.name}`
+                }
+                fill
+                loading="eager"
+                sizes="(min-width: 1536px) 1400px, 100vw"
+                className="object-cover"
+              />
               {rented && (
                 <span className="absolute left-5 top-5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background shadow-sm">
                   Rented
@@ -154,6 +164,32 @@ export default function PublicRentalPropertyPage() {
               )}
             </div>
           </ViewTransition>
+
+          {photos.length > 1 ? (
+            <div
+              className="mt-4 flex gap-3 overflow-x-auto pb-2"
+              aria-label="Rental property photos"
+            >
+              {photos.map((photo, index) => (
+                <button
+                  key={photo}
+                  type="button"
+                  aria-label={`Show photo ${index + 1} of ${photos.length}`}
+                  aria-pressed={selectedPhoto === index}
+                  onClick={() => setSelectedPhoto(index)}
+                  className="relative h-20 w-28 shrink-0 overflow-hidden rounded-xl border-2 border-transparent bg-secondary outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/30 aria-pressed:border-primary"
+                >
+                  <Image
+                    src={photo}
+                    alt=""
+                    fill
+                    sizes="112px"
+                    className="object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          ) : null}
 
           <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_23rem] lg:gap-16">
             <article>

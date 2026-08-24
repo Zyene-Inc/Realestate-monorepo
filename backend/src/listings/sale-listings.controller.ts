@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseEnumPipe,
@@ -19,18 +20,23 @@ import { CreateSaleListingDto } from './dto/create-sale-listing.dto';
 import {
   AttachListingAssetDto,
   CreateListingUploadDto,
+  ReorderListingPhotosDto,
 } from './dto/listing-asset.dto';
 import { RejectSaleListingDto } from './dto/reject-sale-listing.dto';
 import { UpdateSaleListingDto } from './dto/update-sale-listing.dto';
 import { UpdateListingAvailabilityDto } from './dto/update-listing-availability.dto';
 import { SaleListingsService } from './sale-listings.service';
+import { SaleListingAssetsService } from './sale-listing-assets.service';
 import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('agent/listings')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.AGENT)
 export class AgentSaleListingsController {
-  constructor(private readonly listings: SaleListingsService) {}
+  constructor(
+    private readonly listings: SaleListingsService,
+    private readonly assets: SaleListingAssetsService,
+  ) {}
 
   @Get()
   list(@Request() request: RequiredAuthenticatedRequest) {
@@ -85,7 +91,7 @@ export class AgentSaleListingsController {
     @Param('id') id: string,
     @Body() body: CreateListingUploadDto,
   ) {
-    return this.listings.createUploadUrl(request.user.sub, id, body);
+    return this.assets.createUploadUrl(request.user.sub, id, body);
   }
 
   @Post(':id/assets')
@@ -94,7 +100,34 @@ export class AgentSaleListingsController {
     @Param('id') id: string,
     @Body() body: AttachListingAssetDto,
   ) {
-    return this.listings.attachAsset(request.user.sub, id, body);
+    return this.assets.attach(request.user.sub, id, body);
+  }
+
+  @Patch(':id/photos/order')
+  reorderPhotos(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: ReorderListingPhotosDto,
+  ) {
+    return this.assets.reorderPhotos(request.user.sub, id, body);
+  }
+
+  @Delete(':id/photos/:index')
+  removePhoto(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('index', ParseIntPipe) index: number,
+  ) {
+    return this.assets.remove(request.user.sub, id, 'photo', index);
+  }
+
+  @Delete(':id/documents/:index')
+  removeDocument(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('index', ParseIntPipe) index: number,
+  ) {
+    return this.assets.remove(request.user.sub, id, 'document', index);
   }
 
   @Get(':id/documents/:index/url')
@@ -103,7 +136,7 @@ export class AgentSaleListingsController {
     @Param('id') id: string,
     @Param('index', ParseIntPipe) index: number,
   ) {
-    return this.listings.getAgentDocumentUrl(request.user.sub, id, index);
+    return this.assets.getAgentDocumentUrl(request.user.sub, id, index);
   }
 }
 
@@ -111,7 +144,10 @@ export class AgentSaleListingsController {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.SUPER_ADMIN, Role.SALES_ADMIN)
 export class AdminSaleListingsController {
-  constructor(private readonly listings: SaleListingsService) {}
+  constructor(
+    private readonly listings: SaleListingsService,
+    private readonly assets: SaleListingAssetsService,
+  ) {}
 
   @Get()
   list(
@@ -136,7 +172,7 @@ export class AdminSaleListingsController {
     @Param('id') id: string,
     @Param('index', ParseIntPipe) index: number,
   ) {
-    return this.listings.getAdminDocumentUrl(id, index);
+    return this.assets.getAdminDocumentUrl(id, index);
   }
 
   @Patch(':id/approve')

@@ -126,7 +126,8 @@ export class PaymentsService {
   async findAll() {
     return this.prisma.payment.findMany({
       include: { tenant: true, lease: true, unit: true, propertyOwner: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 500,
     });
   }
 
@@ -134,7 +135,8 @@ export class PaymentsService {
     return this.prisma.payment.findMany({
       where: { tenantId },
       include: { lease: true, unit: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: 120,
     });
   }
 
@@ -1058,6 +1060,8 @@ export class PaymentsService {
         dueDate: { lt: new Date() },
       },
       include: { tenant: true },
+      orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+      take: 500,
     });
   }
 }
