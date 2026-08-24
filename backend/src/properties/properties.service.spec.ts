@@ -1,10 +1,11 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { ListingType, PublishStatus } from '@prisma/client';
 import { PropertiesService } from './properties.service';
 
 describe('PropertiesService rental publishing', () => {
   const baseRental = {
     id: 'rental-1',
+    name: 'Oakwood Apartments',
     listingType: ListingType.RENT,
     publishStatus: PublishStatus.DRAFT,
     description: 'A complete rental description.',
@@ -82,5 +83,61 @@ describe('PropertiesService rental publishing', () => {
       },
     });
     jest.useRealTimers();
+  });
+
+  it.each([
+    {
+      name: 'is published',
+      property: { ...baseRental, publishStatus: PublishStatus.PUBLISHED },
+      message: 'Unpublish the rental before deleting it',
+    },
+    {
+      name: 'has rental units',
+      property: { ...baseRental, units: [{ id: 'unit-1' }] },
+      message: 'Remove all units before deleting the rental',
+    },
+  ])(
+    'refuses deletion when the rental $name',
+    async ({ property, message }) => {
+      const prisma = {
+        property: { findFirst: jest.fn().mockResolvedValue(property) },
+        $transaction: jest.fn(),
+      };
+
+      await expect(
+        serviceWith(prisma).remove('admin-1', 'rental-1'),
+      ).rejects.toMatchObject<Partial<ConflictException>>({ message });
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it('deletes an eligible draft and writes the exact audit event atomically', async () => {
+    const tx = {
+      property: { delete: jest.fn().mockResolvedValue(baseRental) },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      property: { findFirst: jest.fn().mockResolvedValue(baseRental) },
+      $transaction: jest.fn(
+        async (callback: (client: typeof tx) => Promise<unknown>) =>
+          callback(tx),
+      ),
+    };
+
+    await expect(
+      serviceWith(prisma).remove('admin-1', 'rental-1'),
+    ).resolves.toEqual({ deleted: true });
+    expect(tx.auditLog.create).toHaveBeenCalledWith({
+      data: {
+        userId: 'admin-1',
+        action: 'RENTAL_PROPERTY_DELETED',
+        resource: 'property',
+        resourceId: 'rental-1',
+        oldValue: JSON.stringify({ name: baseRental.name }),
+      },
+    });
+    expect(tx.property.delete).toHaveBeenCalledWith({
+      where: { id: 'rental-1' },
+    });
   });
 });

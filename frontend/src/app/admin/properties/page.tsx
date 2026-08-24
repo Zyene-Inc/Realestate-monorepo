@@ -6,6 +6,14 @@ import { Building2, Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
@@ -45,6 +53,9 @@ export default function AdminProperties() {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<RentalProperty | null>(null);
+  const [propertyPendingDelete, setPropertyPendingDelete] =
+    useState<RentalProperty | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [form, setForm] = useState<RentalPropertyForm>(
     emptyRentalPropertyForm,
   );
@@ -107,6 +118,7 @@ export default function AdminProperties() {
     event.preventDefault();
     setBusy(true);
     try {
+      const isUpdate = editing !== null;
       const property = editing
         ? ((await api.patch(
             `/admin/properties/${editing.id}`,
@@ -116,10 +128,20 @@ export default function AdminProperties() {
             "/admin/properties",
             propertyPayload(form),
           )) as RentalProperty);
-      setEditing(property);
-      setForm(rentalPropertyFormFor(property));
-      toast.success(editing ? "Rental updated" : "Rental draft created");
-      await load();
+      setProperties((current) =>
+        isUpdate
+          ? current.map((item) => (item.id === property.id ? property : item))
+          : [property, ...current],
+      );
+      setOpen(false);
+      setEditing(null);
+      setForm({ ...emptyRentalPropertyForm });
+      toast.success(
+        isUpdate
+          ? "Rental updated"
+          : "Rental draft created. Select Edit & photos to add images.",
+      );
+      void load();
     } catch (error: unknown) {
       toast.error(getErrorMessage(error, "Unable to save rental"));
     } finally {
@@ -176,6 +198,23 @@ export default function AdminProperties() {
     }
   };
 
+  const deleteProperty = async () => {
+    if (!propertyPendingDelete) return;
+    setDeletingId(propertyPendingDelete.id);
+    try {
+      await api.delete(`/admin/properties/${propertyPendingDelete.id}`);
+      setProperties((current) =>
+        current.filter((item) => item.id !== propertyPendingDelete.id),
+      );
+      toast.success("Rental draft deleted");
+      setPropertyPendingDelete(null);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to delete rental"));
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   return (
     <div className="space-y-8 sm:space-y-10">
       <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -187,8 +226,8 @@ export default function AdminProperties() {
             Rental properties
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Draft, publish, update, or unpublish rentals without an approval
-            queue.
+            Draft, publish, update, unpublish, or delete eligible rentals
+            without an approval queue.
           </p>
         </div>
         <Button onClick={startCreate}>
@@ -236,7 +275,9 @@ export default function AdminProperties() {
         <RentalPropertyGrid
           properties={filtered}
           busy={busy}
+          deletingId={deletingId}
           onEdit={startEdit}
+          onDelete={setPropertyPendingDelete}
           onPublishChange={changePublishState}
         />
       )}
@@ -252,6 +293,36 @@ export default function AdminProperties() {
         onSave={save}
         onUploadPhoto={uploadPhoto}
       />
+
+      <Dialog
+        open={propertyPendingDelete !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && deletingId === null) setPropertyPendingDelete(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete this rental draft?</DialogTitle>
+            <DialogDescription>
+              <strong>{propertyPendingDelete?.name}</strong> will be removed
+              permanently. This cannot be undone. Published rentals and rentals
+              with units must be unpublished and empty before they can be
+              deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter showCloseButton>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deletingId !== null}
+              onClick={() => void deleteProperty()}
+            >
+              {deletingId ? <Loader2 className="animate-spin" /> : null}
+              Delete rental
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

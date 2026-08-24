@@ -79,4 +79,62 @@ describe('StripeClient webhook verification', () => {
 
     expect(event.related_object?.id).toBe('acct_owner_123');
   });
+
+  it('uses the current Accounts v2 profile field for an owner business name', async () => {
+    let requestBody: string | undefined;
+    const fetchMock = jest.fn(
+      (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+        requestBody = typeof init?.body === 'string' ? init.body : undefined;
+        return Promise.resolve(
+          new Response(JSON.stringify({ id: 'acct_owner_123' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      },
+    );
+    const originalFetch = global.fetch;
+    global.fetch = fetchMock;
+
+    try {
+      await expect(
+        new StripeClient({
+          get: jest.fn((key: string) => {
+            if (key === 'STRIPE_RENT_PAYMENTS_ENABLED') return 'true';
+            if (key === 'STRIPE_SECRET_KEY') return 'sk_test_example';
+            return undefined;
+          }),
+        } as never).createRecipientAccount({
+          ownerId: 'owner-123',
+          email: 'owner@example.com',
+          businessName: 'Zyene Holdings',
+          idempotencyKey: 'owner-account-owner-123',
+        }),
+      ).resolves.toEqual({ id: 'acct_owner_123' });
+
+      if (!requestBody) {
+        throw new Error('Expected Stripe to send a JSON request body');
+      }
+      const payload = JSON.parse(requestBody) as {
+        defaults: {
+          profile?: { doing_business_as?: string };
+          responsibilities: {
+            fees_collector: string;
+            losses_collector: string;
+          };
+        };
+        identity?: unknown;
+      };
+      expect(payload.defaults).toMatchObject({
+        profile: { doing_business_as: 'Zyene Holdings' },
+        responsibilities: {
+          fees_collector: 'application',
+          losses_collector: 'application',
+        },
+      });
+      expect(payload.identity).toBeUndefined();
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 });

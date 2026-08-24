@@ -201,6 +201,9 @@ export class StripeClient {
           contact_email: input.email,
           dashboard: 'express',
           defaults: {
+            profile: input.businessName
+              ? { doing_business_as: input.businessName }
+              : undefined,
             responsibilities: {
               fees_collector: 'application',
               losses_collector: 'application',
@@ -213,9 +216,6 @@ export class StripeClient {
               },
             },
           },
-          identity: input.businessName
-            ? { business_details: { doing_business_as: input.businessName } }
-            : undefined,
           metadata: { property_owner_id: input.ownerId },
         }),
       },

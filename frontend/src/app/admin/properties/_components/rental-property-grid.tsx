@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Building2, Eye, EyeOff, Pencil } from "lucide-react";
+import { Building2, Eye, EyeOff, ImagePlus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,12 +8,16 @@ import type { RentalProperty } from "./rental-property-types";
 export function RentalPropertyGrid({
   properties,
   busy,
+  deletingId,
   onEdit,
+  onDelete,
   onPublishChange,
 }: {
   properties: RentalProperty[];
   busy: boolean;
+  deletingId: string | null;
   onEdit: (property: RentalProperty) => void;
+  onDelete: (property: RentalProperty) => void;
   onPublishChange: (property: RentalProperty) => Promise<void>;
 }) {
   return (
@@ -61,7 +65,7 @@ export function RentalPropertyGrid({
                   size="sm"
                   onClick={() => onEdit(property)}
                 >
-                  <Pencil aria-hidden="true" /> Edit
+                  <ImagePlus aria-hidden="true" /> Edit & photos
                 </Button>
                 <Button
                   size="sm"
@@ -82,7 +86,36 @@ export function RentalPropertyGrid({
                     ? "Unpublish"
                     : "Publish"}
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  disabled={
+                    busy ||
+                    deletingId !== null ||
+                    property.publishStatus === "PUBLISHED" ||
+                    property.units.length > 0
+                  }
+                  title={
+                    property.publishStatus === "PUBLISHED"
+                      ? "Unpublish this rental before deleting it"
+                      : property.units.length > 0
+                        ? "Remove all rental units before deleting it"
+                        : "Delete rental"
+                  }
+                  onClick={() => onDelete(property)}
+                >
+                  <Trash2 aria-hidden="true" /> Delete
+                </Button>
               </div>
+              {(property.publishStatus === "PUBLISHED" ||
+                property.units.length > 0) && (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {property.publishStatus === "PUBLISHED"
+                    ? "Unpublish this rental before deleting it."
+                    : "Remove all units before deleting this rental."}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

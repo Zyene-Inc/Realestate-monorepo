@@ -65,10 +65,46 @@ export function RentalPropertyDialog({
             {editing ? "Edit rental" : "Create rental draft"}
           </DialogTitle>
           <DialogDescription>
-            Public visibility changes only when you use the Publish action.
+            {editing
+              ? "Update rental details or add listing photos. Public visibility changes only when you use Publish."
+              : "This private draft is not public. Save it first, then select Edit & photos to upload listing images."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={onSave} className="grid gap-5 sm:grid-cols-2">
+          {editing ? (
+            <section
+              aria-labelledby="rental-photos-heading"
+              className="grid gap-3 rounded-xl border border-border bg-muted/30 p-4 sm:col-span-2"
+            >
+              <div>
+                <h2 id="rental-photos-heading" className="font-semibold">
+                  Listing photos
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {editing.photos.length === 0
+                    ? "Add at least one clear exterior or interior photo before publishing."
+                    : `${editing.photos.length} photo${editing.photos.length === 1 ? "" : "s"} uploaded.`}
+                </p>
+              </div>
+              <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-input bg-card px-4 text-sm font-semibold hover:bg-secondary has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60">
+                {uploading ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <ImagePlus className="mr-2 size-4" />
+                )}
+                {uploading ? "Uploading photo" : "Upload photo"}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  disabled={uploading}
+                  onChange={(event) =>
+                    void onUploadPhoto(event.target.files?.[0])
+                  }
+                />
+              </label>
+            </section>
+          ) : null}
           {identityFields.map(([field, label]) => (
             <div
               key={field}
@@ -141,28 +177,6 @@ export function RentalPropertyDialog({
               <option value="inactive">Inactive</option>
             </select>
           </div>
-          {editing ? (
-            <div className="grid gap-2">
-              <Label>Property photos</Label>
-              <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-input px-4 text-sm font-semibold hover:bg-secondary">
-                {uploading ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                ) : (
-                  <ImagePlus className="mr-2 size-4" />
-                )}
-                Upload photo
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="sr-only"
-                  disabled={uploading}
-                  onChange={(event) =>
-                    void onUploadPhoto(event.target.files?.[0])
-                  }
-                />
-              </label>
-            </div>
-          ) : null}
           <div className="flex justify-end gap-3 border-t border-border pt-5 sm:col-span-2">
             <Button
               type="button"
