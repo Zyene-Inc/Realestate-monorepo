@@ -56,7 +56,7 @@ const OUT_OF_SCOPE_REQUEST_PATTERNS = [
 const SAFE_FALLBACK_ASSISTANT_MESSAGE =
   'Hi! I can help with Coach Johnson Realty listings, rentals, buying, selling, leasing, property management, showings, and how to contact our team. What would you like to know?';
 
-export function sanitizeAssistantOutput(text: string) {
+function sanitizeAssistantOutput(text: string) {
   const cleaned = text
     .replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, '')
     .replace(/```(?:thinking|reasoning)[\s\S]*?```/gi, '')

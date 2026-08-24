@@ -1,41 +1,178 @@
 {
   "projectRef": "xwrlpqakdndpnqqpfepz",
-  "verifiedAt": "2026-08-23",
+  "verifiedAt": "2026-08-24",
   "authority": "supabase_migrations.schema_migrations",
   "applied": [
-    { "version": "20260820170259", "name": "initial_real_estate_schema", "sources": ["backend/prisma/migrations/20260427180016_init/migration.sql"] },
-    { "version": "20260820170303", "name": "use_supabase_auth", "sources": ["backend/prisma/migrations/20260820161000_use_supabase_auth/migration.sql"] },
-    { "version": "20260820170740", "name": "lock_down_rls_trigger", "sources": ["backend/prisma/migrations/20260820172000_lock_down_rls_trigger/migration.sql"] },
-    { "version": "20260820192128", "name": "create_listing_storage_buckets", "sources": ["supabase/migrations/20260820192128_create_listing_storage_buckets.sql"] },
-    { "version": "20260820201333", "name": "create_agent_document_bucket", "sources": ["supabase/migrations/20260820201333_create_agent_document_bucket.sql"] },
-    { "version": "20260820202536", "name": "create_listing_inquiries", "sources": ["supabase/migrations/20260820202536_create_listing_inquiries.sql"] },
-    { "version": "20260820215615", "name": "add_inquiry_pagination_indexes", "sources": ["supabase/migrations/20260820215615_add_inquiry_pagination_indexes.sql", "backend/prisma/migrations/20260820215103_add_inquiry_pagination_indexes/migration.sql"] },
-    { "version": "20260822175846", "name": "complete_phase_6_rental_workflows", "sources": ["supabase/migrations/20260822172932_complete_phase_6_rental_workflows.sql", "backend/prisma/migrations/20260822172932_complete_phase_6_rental_workflows/migration.sql"] },
-    { "version": "20260822175918", "name": "index_maintenance_unit", "sources": ["supabase/migrations/20260822180600_index_maintenance_unit.sql", "backend/prisma/migrations/20260822180600_index_maintenance_unit/migration.sql"] },
-    { "version": "20260822184417", "name": "complete_phase_7_email_architecture", "sources": ["supabase/migrations/20260822183141_complete_phase_7_email_architecture.sql", "backend/prisma/migrations/20260822183141_complete_phase_7_email_architecture/migration.sql"] },
-    { "version": "20260822184639", "name": "schedule_phase_7_email_retries", "sources": ["supabase/migrations/20260822184920_schedule_phase_7_email_retries.sql", "backend/prisma/migrations/20260822184920_schedule_phase_7_email_retries/migration.sql"] },
-    { "version": "20260822184722", "name": "add_email_provider_attempt_key", "sources": ["supabase/migrations/20260822184704_add_email_provider_attempt_key.sql", "backend/prisma/migrations/20260822184704_add_email_provider_attempt_key/migration.sql"] },
-    { "version": "20260822190446", "name": "move_pg_net_out_of_public", "sources": ["supabase/migrations/20260822190600_move_pg_net_out_of_public.sql", "backend/prisma/migrations/20260822190600_move_pg_net_out_of_public/migration.sql"] },
-    { "version": "20260822190856", "name": "align_email_log_defaults", "sources": ["supabase/migrations/20260822191000_align_email_log_defaults.sql", "backend/prisma/migrations/20260822191000_align_email_log_defaults/migration.sql"] },
-    { "version": "20260822193247", "name": "complete_phase_8_sale_commission_ledger", "sources": ["supabase/migrations/20260822192238_complete_phase_8_sale_commission_ledger.sql", "backend/prisma/migrations/20260822192238_complete_phase_8_sale_commission_ledger/migration.sql"] },
-    { "version": "20260822213828", "name": "complete_phase_9_verdocs_esignatures", "sources": ["supabase/migrations/20260822210321_complete_phase_9_verdocs_esignatures.sql", "backend/prisma/migrations/20260822210321_complete_phase_9_verdocs_esignatures/migration.sql"] },
-    { "version": "20260822230722", "name": "complete_phase_10_reporting", "sources": ["supabase/migrations/20260822224826_complete_phase_10_reporting.sql", "backend/prisma/migrations/20260822224826_complete_phase_10_reporting/migration.sql"] },
-    { "version": "20260823000305", "name": "complete_phase_11_launch_hardening", "sources": ["supabase/migrations/20260822235105_complete_phase_11_launch_hardening.sql", "backend/prisma/migrations/20260822235105_complete_phase_11_launch_hardening/migration.sql"] },
-    { "version": "20260823000347", "name": "index_remaining_foreign_keys_phase_11", "sources": ["supabase/migrations/20260823000325_index_remaining_foreign_keys_phase_11.sql", "backend/prisma/migrations/20260823000325_index_remaining_foreign_keys_phase_11/migration.sql"] },
-    { "version": "20260823203635", "name": "complete_rental_billing_workflow", "sources": ["supabase/migrations/20260823193000_complete_rental_billing_workflow.sql", "backend/prisma/migrations/20260823193000_complete_rental_billing_workflow/migration.sql"] },
-    { "version": "20260823202000", "name": "add_website_leads", "sources": ["supabase/migrations/20260823202000_add_website_leads.sql", "backend/prisma/migrations/20260823202000_add_website_leads/migration.sql"] }
+    {
+      "version": "20260820170259",
+      "name": "initial_real_estate_schema",
+      "sources": ["backend/prisma/migrations/20260427180016_init/migration.sql"]
+    },
+    {
+      "version": "20260820170303",
+      "name": "use_supabase_auth",
+      "sources": [
+        "backend/prisma/migrations/20260820161000_use_supabase_auth/migration.sql"
+      ]
+    },
+    {
+      "version": "20260820170740",
+      "name": "lock_down_rls_trigger",
+      "sources": [
+        "backend/prisma/migrations/20260820172000_lock_down_rls_trigger/migration.sql"
+      ]
+    },
+    {
+      "version": "20260820192128",
+      "name": "create_listing_storage_buckets",
+      "sources": [
+        "supabase/migrations/20260820192128_create_listing_storage_buckets.sql"
+      ]
+    },
+    {
+      "version": "20260820201333",
+      "name": "create_agent_document_bucket",
+      "sources": [
+        "supabase/migrations/20260820201333_create_agent_document_bucket.sql"
+      ]
+    },
+    {
+      "version": "20260820202536",
+      "name": "create_listing_inquiries",
+      "sources": [
+        "supabase/migrations/20260820202536_create_listing_inquiries.sql"
+      ]
+    },
+    {
+      "version": "20260820215615",
+      "name": "add_inquiry_pagination_indexes",
+      "sources": [
+        "supabase/migrations/20260820215615_add_inquiry_pagination_indexes.sql",
+        "backend/prisma/migrations/20260820215103_add_inquiry_pagination_indexes/migration.sql"
+      ]
+    },
+    {
+      "version": "20260822175846",
+      "name": "complete_phase_6_rental_workflows",
+      "sources": [
+        "supabase/migrations/20260822172932_complete_phase_6_rental_workflows.sql",
+        "backend/prisma/migrations/20260822172932_complete_phase_6_rental_workflows/migration.sql"
+      ]
+    },
+    {
+      "version": "20260822175918",
+      "name": "index_maintenance_unit",
+      "sources": [
+        "supabase/migrations/20260822180600_index_maintenance_unit.sql",
+        "backend/prisma/migrations/20260822180600_index_maintenance_unit/migration.sql"
+      ]
+    },
+    {
+      "version": "20260822184417",
+      "name": "complete_phase_7_email_architecture",
+      "sources": [
+        "supabase/migrations/20260822183141_complete_phase_7_email_architecture.sql",
+        "backend/prisma/migrations/20260822183141_complete_phase_7_email_architecture/migration.sql"
+      ]
+    },
+    {
+      "version": "20260822184639",
+      "name": "schedule_phase_7_email_retries",
+      "sources": [
+        "supabase/migrations/20260822184920_schedule_phase_7_email_retries.sql",
+        "backend/prisma/migrations/20260822184920_schedule_phase_7_email_retries/migration.sql"
+      ]
+    },
+    {
+      "version": "20260822184722",
+      "name": "add_email_provider_attempt_key",
+      "sources": [
+        "supabase/migrations/20260822184704_add_email_provider_attempt_key.sql",
+        "backend/prisma/migrations/20260822184704_add_email_provider_attempt_key/migration.sql"
+      ]
+    },
+    {
+      "version": "20260822190446",
+      "name": "move_pg_net_out_of_public",
+      "sources": [
+        "supabase/migrations/20260822190600_move_pg_net_out_of_public.sql",
+        "backend/prisma/migrations/20260822190600_move_pg_net_out_of_public/migration.sql"
+      ]
+    },
+    {
+      "version": "20260822190856",
+      "name": "align_email_log_defaults",
+      "sources": [
+        "supabase/migrations/20260822191000_align_email_log_defaults.sql",
+        "backend/prisma/migrations/20260822191000_align_email_log_defaults/migration.sql"
+      ]
+    },
+    {
+      "version": "20260822193247",
+      "name": "complete_phase_8_sale_commission_ledger",
+      "sources": [
+        "supabase/migrations/20260822192238_complete_phase_8_sale_commission_ledger.sql",
+        "backend/prisma/migrations/20260822192238_complete_phase_8_sale_commission_ledger/migration.sql"
+      ]
+    },
+    {
+      "version": "20260822213828",
+      "name": "complete_phase_9_verdocs_esignatures",
+      "sources": [
+        "supabase/migrations/20260822210321_complete_phase_9_verdocs_esignatures.sql",
+        "backend/prisma/migrations/20260822210321_complete_phase_9_verdocs_esignatures/migration.sql"
+      ]
+    },
+    {
+      "version": "20260822230722",
+      "name": "complete_phase_10_reporting",
+      "sources": [
+        "supabase/migrations/20260822224826_complete_phase_10_reporting.sql",
+        "backend/prisma/migrations/20260822224826_complete_phase_10_reporting/migration.sql"
+      ]
+    },
+    {
+      "version": "20260823000305",
+      "name": "complete_phase_11_launch_hardening",
+      "sources": [
+        "supabase/migrations/20260822235105_complete_phase_11_launch_hardening.sql",
+        "backend/prisma/migrations/20260822235105_complete_phase_11_launch_hardening/migration.sql"
+      ]
+    },
+    {
+      "version": "20260823000347",
+      "name": "index_remaining_foreign_keys_phase_11",
+      "sources": [
+        "supabase/migrations/20260823000325_index_remaining_foreign_keys_phase_11.sql",
+        "backend/prisma/migrations/20260823000325_index_remaining_foreign_keys_phase_11/migration.sql"
+      ]
+    },
+    {
+      "version": "20260823203635",
+      "name": "complete_rental_billing_workflow",
+      "sources": [
+        "supabase/migrations/20260823193000_complete_rental_billing_workflow.sql",
+        "backend/prisma/migrations/20260823193000_complete_rental_billing_workflow/migration.sql"
+      ]
+    }
   ],
   "pending": [
     {
       "version": "20260823164507",
       "name": "add_public_chatbot",
-      "sources": ["supabase/migrations/20260823164507_add_public_chatbot.sql", "backend/prisma/migrations/20260823164507_add_public_chatbot/migration.sql"],
+      "sources": [
+        "supabase/migrations/20260823164507_add_public_chatbot.sql",
+        "backend/prisma/migrations/20260823164507_add_public_chatbot/migration.sql"
+      ],
       "reason": "Phase 12 implementation is validated locally; production application awaits an explicit migration approval."
     },
     {
       "version": "20260823183000",
       "name": "add_tenant_initiated_stripe_rent_payments",
-      "sources": ["supabase/migrations/20260823183000_add_tenant_initiated_stripe_rent_payments.sql", "backend/prisma/migrations/20260823183000_add_tenant_initiated_stripe_rent_payments/migration.sql"],
+      "sources": [
+        "supabase/migrations/20260823183000_add_tenant_initiated_stripe_rent_payments.sql",
+        "backend/prisma/migrations/20260823183000_add_tenant_initiated_stripe_rent_payments/migration.sql"
+      ],
       "reason": "Stripe Connect implementation is validated locally; production application awaits an explicit migration approval and sensitive Vercel configuration."
     }
   ],
@@ -44,6 +181,26 @@
       "source": "supabase/migrations/20260822132441_add_auth_login_lockout_fields.sql",
       "status": "schema_present_history_unreconciled",
       "reason": "The columns are present in the connected schema, but this local timestamp is not in the authoritative Supabase migration ledger. Repairing applied history requires an explicit production migration-history decision."
+    },
+    {
+      "source": "supabase/migrations/20260823202000_add_website_leads.sql",
+      "status": "schema_present_history_unreconciled",
+      "reason": "The WebsiteLead table and related schema are present in the connected database, but this local timestamp is absent from the authoritative Supabase migration ledger. Repairing applied history requires an explicit production migration-history decision."
+    },
+    {
+      "source": "backend/prisma/migrations/20260823202000_add_website_leads/migration.sql",
+      "status": "schema_present_history_unreconciled",
+      "reason": "The WebsiteLead table and related schema are present in the connected database, but this local timestamp is absent from the authoritative Supabase migration ledger. Repairing applied history requires an explicit production migration-history decision."
+    },
+    {
+      "source": "supabase/migrations/20260823210000_fix_website_lead_email_constraint.sql",
+      "status": "schema_present_history_unreconciled",
+      "reason": "The corrected WebsiteLead email constraint is present in the connected database, but this local timestamp is absent from the authoritative Supabase migration ledger. Repairing applied history requires an explicit production migration-history decision."
+    },
+    {
+      "source": "backend/prisma/migrations/20260823210000_fix_website_lead_email_constraint/migration.sql",
+      "status": "schema_present_history_unreconciled",
+      "reason": "The corrected WebsiteLead email constraint is present in the connected database, but this local timestamp is absent from the authoritative Supabase migration ledger. Repairing applied history requires an explicit production migration-history decision."
     }
   ]
 }

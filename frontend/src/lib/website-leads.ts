@@ -20,6 +20,7 @@ export type WebsiteLeadDetail = WebsiteLeadSummary & {
     createdAt: string;
     lastMessageAt: string;
     messages: Array<{
+      id: string;
       role: "USER" | "ASSISTANT";
       content: string;
       createdAt: string;
@@ -27,7 +28,7 @@ export type WebsiteLeadDetail = WebsiteLeadSummary & {
   } | null;
 };
 
-export type CursorPage<T> = {
+type CursorPage<T> = {
   items: T[];
   nextCursor: string | null;
 };
@@ -67,9 +68,9 @@ export async function updateWebsiteLeadStatus(
   id: string,
   status: WebsiteLeadStatus,
 ) {
-  return api.patch(`/admin/website-leads/${id}`, { status }) as Promise<
-    WebsiteLeadSummary
-  >;
+  return api.patch(`/admin/website-leads/${id}`, {
+    status,
+  }) as Promise<WebsiteLeadSummary>;
 }
 
 export async function deleteWebsiteLead(id: string) {

@@ -37,7 +37,11 @@ import {
 } from "@/lib/portal-domains";
 import { cn } from "@/lib/utils";
 
-const suggestions = ["Show me homes for sale", "What rentals are available?", "How can I sell my property?"];
+const suggestions = [
+  "Show me homes for sale",
+  "What rentals are available?",
+  "How can I sell my property?",
+];
 
 function publicChatAllowed(pathname: string) {
   if (canonicalPortalForPath(pathname)) return false;
@@ -66,6 +70,15 @@ function chatbotWelcomeDismissed() {
   }
 }
 
+function handleChatbotComposerKeyDown(
+  event: KeyboardEvent<HTMLTextAreaElement>,
+) {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
+  }
+}
+
 export function PublicChatbot() {
   const pathname = usePathname();
   const publicRoute = canonicalPortalForPath(pathname) === null;
@@ -77,7 +90,9 @@ export function PublicChatbot() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showLeadForm, setShowLeadForm] = useState(false);
-  const [leadSubmitted, setLeadSubmitted] = useState(() => leadAlreadySubmitted());
+  const [leadSubmitted, setLeadSubmitted] = useState(() =>
+    leadAlreadySubmitted(),
+  );
   const [leadEmail, setLeadEmail] = useState("");
   const [leadPhone, setLeadPhone] = useState("");
   const [leadMessage, setLeadMessage] = useState("");
@@ -125,7 +140,10 @@ export function PublicChatbot() {
     [],
   );
 
-  function maybeShowLeadForm(message: string, currentMessages: ChatbotMessage[]) {
+  function maybeShowLeadForm(
+    message: string,
+    currentMessages: ChatbotMessage[],
+  ) {
     if (leadSubmitted || leadAlreadySubmitted()) return;
     if (hasChatbotBookingIntent(message)) {
       setShowLeadForm(true);
@@ -242,13 +260,6 @@ export function PublicChatbot() {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void sendMessage(input);
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      event.currentTarget.form?.requestSubmit();
-    }
   }
 
   function dismissWelcome() {
@@ -464,7 +475,7 @@ export function PublicChatbot() {
           chatPausedForBooking={chatPausedForBooking}
           input={input}
           onChange={setInput}
-          onKeyDown={handleKeyDown}
+          onKeyDown={handleChatbotComposerKeyDown}
           onSubmit={submit}
         />
       </DialogContent>

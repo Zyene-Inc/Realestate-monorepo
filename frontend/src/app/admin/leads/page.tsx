@@ -232,9 +232,9 @@ export default function WebsiteLeadsPage() {
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                       Recent chat context
                     </p>
-                    {selected.conversation.messages.map((message, index) => (
+                    {selected.conversation.messages.map((message) => (
                       <div
-                        key={`${message.createdAt}-${index}`}
+                        key={message.id}
                         className={`rounded-2xl px-4 py-3 text-sm ${
                           message.role === "USER"
                             ? "border bg-card"

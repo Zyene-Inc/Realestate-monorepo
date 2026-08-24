@@ -147,7 +147,7 @@ export async function submitWebsiteLead(input: SubmitWebsiteLeadInput) {
 export const CHATBOT_LEAD_FORM_THRESHOLD = 6;
 export const CHATBOT_LEAD_SUBMITTED_KEY = "jr_chatbot_lead_submitted";
 export const CHATBOT_WELCOME_DISMISSED_KEY = "jr_chatbot_welcome_dismissed";
-export const CHATBOT_BOOKING_INTENT_PATTERN =
+const CHATBOT_BOOKING_INTENT_PATTERN =
   /\b(book|schedule|tour|showing|appointment|contact)\b/i;
 
 export function hasChatbotBookingIntent(message: string) {

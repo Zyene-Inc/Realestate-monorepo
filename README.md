@@ -5,12 +5,14 @@ A production-ready full-stack application for modern property management.
 ## Tech Stack
 
 ### Frontend
+
 - **Framework**: Next.js 16+ (App Router)
 - **Styling**: Tailwind CSS 4
 - **UI Components**: Shadcn UI / Base UI
 - **State**: React Context API
 
 ### Backend
+
 - **Framework**: NestJS
 - **Database**: Supabase PostgreSQL with Prisma 6
 - **Auth**: Supabase Auth sessions with NestJS role enforcement
@@ -22,11 +24,13 @@ A production-ready full-stack application for modern property management.
 ## Getting Started
 
 ### 1. Supabase setup
+
 This application uses the connected `coachjohnsonrealty Project` for PostgreSQL and authentication. Copy `backend/.env.example` to `backend/.env` and add the database password and server-only Supabase secret key from **Settings > API Keys**. Copy `frontend/.env.example` to `frontend/.env.local`.
 
-The live Supabase migration history is authoritative. Baseline Prisma migrations remain in `backend/prisma/migrations`; Supabase-specific migrations live in `supabase/migrations` with matching Prisma schema migrations where applicable. [The checked-in migration ledger](docs/database-migration-ledger.json) maps all 19 live records, the three locally validated pending migrations, and the one pre-existing history exception explicitly; CI rejects unmapped or missing migration SQL. Future schema changes must be applied through the Supabase integration and committed alongside the matching Prisma schema change. Do not run both histories blindly against the same database or run `migration repair` without a reviewed production change.
+The live Supabase migration history is authoritative. Baseline Prisma migrations remain in `backend/prisma/migrations`; Supabase-specific migrations live in `supabase/migrations` with matching Prisma schema migrations where applicable. [The checked-in migration ledger](docs/database-migration-ledger.json) maps the live records, locally validated pending migrations, and every known history exception explicitly; CI rejects unmapped or missing migration SQL. Future schema changes must be applied through the Supabase integration and committed alongside the matching Prisma schema change. Do not run both histories blindly against the same database or run `migration repair` without a reviewed production change.
 
 ### 2. Backend Setup
+
 ```bash
 cd backend
 npm install
@@ -35,6 +39,7 @@ npm run start:dev
 ```
 
 ### 3. Frontend Setup
+
 ```bash
 cd frontend
 npm install
@@ -68,4 +73,5 @@ The frontend and API are deployed as two Vercel projects from this repository. `
 Production operations use [the runbook](docs/operations-runbook.md), [staff training guide](docs/staff-training.md), and [launch checklist](docs/launch-checklist.md). Phase 11 evidence is recorded in [the launch-readiness report](docs/phase-11-launch-readiness.md).
 
 ## License
+
 MIT

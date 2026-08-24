@@ -7,19 +7,16 @@ function isPropertyLink(part: string) {
   );
 }
 
-export function PublicChatbotMessageContent({
-  content,
-}: {
-  content: string;
-}) {
+export function PublicChatbotMessageContent({ content }: { content: string }) {
+  let linkOccurrence = 0;
   return (
     <p className="whitespace-pre-wrap text-sm leading-6">
-      {content.split(PROPERTY_LINK_PATTERN).map((part, index) =>
+      {content.split(PROPERTY_LINK_PATTERN).map((part) =>
         isPropertyLink(part) ? (
           <a
             className="font-semibold text-primary underline underline-offset-4"
             href={part}
-            key={`${part}-${index}`}
+            key={`${part}-${linkOccurrence++}`}
           >
             View property
           </a>

@@ -1,72 +1,95 @@
-"use client"
+"use client";
 
-import { Card } from "@/components/ui/card"
-import { Megaphone, Calendar, Bell } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { useEffect, useState } from "react";
+import { Bell, Calendar, Loader2, Megaphone } from "lucide-react";
+import { toast } from "sonner";
+import { Card, CardContent } from "@/components/ui/card";
+import { api } from "@/lib/api";
+import { getErrorMessage } from "@/lib/errors";
 
-const announcements = [
-  { id: 1, title: "Filter change schedule", date: "April 28, 2026", category: "Maintenance", content: "The maintenance team will conduct quarterly air filter changes for all units starting tomorrow at 9:00 AM.", isNew: true },
-  { id: 2, title: "Spring courtyard gathering", date: "May 15, 2026", category: "Event", content: "Join neighbors for a spring gathering in the courtyard. Food and drinks will be provided for residents.", isNew: false },
-  { id: 3, title: "Package locker update", date: "April 20, 2026", category: "General", content: "Common area improvements are nearly complete. The secure package lockers are expected to open next Monday.", isNew: false },
-]
+type Announcement = {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  property: { id: string; name: string } | null;
+  unit: { id: string; unitNumber: string } | null;
+};
 
-export default function TenantAnnouncements() {
+export default function TenantAnnouncementsPage() {
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api
+      .get("/tenant/portal/announcements")
+      .then((rows: Announcement[]) => setAnnouncements(rows))
+      .catch((error: unknown) =>
+        toast.error(getErrorMessage(error, "Unable to load announcements")),
+      )
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <div className="space-y-8 sm:space-y-10">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">Announcements</h1>
-          <p className="text-muted-foreground mt-2 font-medium">Latest updates from Coach Johnson Realty.</p>
-        </div>
-        <div className="flex items-center gap-2 px-5 py-2.5 bg-accent/10 text-accent rounded-full text-[10px] font-bold uppercase tracking-widest border border-accent/20">
-          <Bell className="h-4 w-4" />
-          {announcements.filter(a => a.isNew).length} New Updates
-        </div>
+      <div>
+        <p className="text-sm font-semibold text-primary">
+          Resident communication
+        </p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+          Announcements
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Updates from Coach Johnson Realty for your home and community.
+        </p>
       </div>
 
-      <div className="grid gap-5">
-        {announcements.map((announcement) => (
-          <Card key={announcement.id} className="border-border bg-card">
-            <div className="p-5 sm:p-6">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      "flex size-10 items-center justify-center rounded-lg",
-                      announcement.isNew ? "bg-accent/10 text-accent" : "bg-secondary text-muted-foreground"
-                    )}>
-                      <Megaphone className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-foreground">{announcement.title}</h3>
-                      <div className="flex items-center gap-4 mt-2">
-                        <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest font-heading">
-                          <Calendar className="h-3 w-3" /> {announcement.date}
-                        </span>
-                        <span className="text-[10px] font-bold text-primary uppercase tracking-[0.2em] px-2.5 py-1 bg-primary/10 rounded-md">
-                          {announcement.category}
-                        </span>
-                      </div>
-                    </div>
+      {loading ? (
+        <div className="flex min-h-64 items-center justify-center">
+          <Loader2 className="size-7 animate-spin text-primary" />
+        </div>
+      ) : announcements.length === 0 ? (
+        <Card>
+          <CardContent className="py-16 text-center">
+            <Bell className="mx-auto size-10 text-primary" aria-hidden="true" />
+            <h2 className="mt-4 text-xl font-semibold">
+              No announcements right now
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Important updates for your home will appear here.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {announcements.map((announcement) => (
+            <Card key={announcement.id}>
+              <CardContent className="p-5 sm:p-6">
+                <div className="flex gap-3">
+                  <div className="rounded-lg bg-primary/10 p-2.5 text-primary">
+                    <Megaphone className="size-5" aria-hidden="true" />
                   </div>
-                  {announcement.isNew && (
-                    <span className="bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-[0.2em] px-4 py-1.5 rounded-full font-heading">
-                      New update
-                    </span>
-                  )}
+                  <div>
+                    <h2 className="text-lg font-semibold">
+                      {announcement.title}
+                    </h2>
+                    <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Calendar className="size-3.5" aria-hidden="true" />
+                      {new Date(announcement.createdAt).toLocaleDateString(
+                        undefined,
+                        { dateStyle: "long" },
+                      )}
+                    </p>
+                  </div>
                 </div>
-                
-                <p className="mt-5 text-sm leading-6 text-foreground/80">
+                <p className="mt-5 border-l-2 border-primary/30 pl-4 text-sm leading-6 text-muted-foreground">
                   {announcement.content}
                 </p>
-
-                <div className="mt-5 flex items-center justify-between border-t border-border pt-5">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Posted by the property team</span>
-                  <span className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest font-heading">Post ID: #ANN-{announcement.id}42</span>
-                </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
-  )
+  );
 }

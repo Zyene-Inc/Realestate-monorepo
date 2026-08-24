@@ -125,7 +125,7 @@ export class WebsiteLeadsService {
             createdAt: true,
             lastMessageAt: true,
             messages: {
-              select: { role: true, content: true, createdAt: true },
+              select: { id: true, role: true, content: true, createdAt: true },
               orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
               take: 30,
             },

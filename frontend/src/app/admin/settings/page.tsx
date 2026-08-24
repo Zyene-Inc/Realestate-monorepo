@@ -1,169 +1,110 @@
-"use client";
-
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
-import { Building2, CreditCard, Bell, Shield, Save } from "lucide-react";
+import {
+  Building2,
+  CreditCard,
+  FileText,
+  Mail,
+  ShieldCheck,
+  UsersRound,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export default function AdminSettings() {
+const setupAreas = [
+  {
+    href: "/admin/owners",
+    title: "Property owners and payouts",
+    description:
+      "Set each owner’s management commission and send secure Stripe payout onboarding.",
+    icon: CreditCard,
+  },
+  {
+    href: "/admin/tenants",
+    title: "Tenant access",
+    description: "Invite residents and manage access to the tenant portal.",
+    icon: UsersRound,
+  },
+  {
+    href: "/admin/emails",
+    title: "Email delivery",
+    description:
+      "Review delivery history and retry eligible operational messages.",
+    icon: Mail,
+  },
+  {
+    href: "/admin/e-signatures",
+    title: "E-signatures",
+    description:
+      "Create and monitor Verdocs lease, disclosure, and agreement envelopes.",
+    icon: FileText,
+  },
+  {
+    href: "/admin/reports",
+    title: "Reports and audit history",
+    description:
+      "Review operational reports and the recorded administrative history.",
+    icon: ShieldCheck,
+  },
+];
+
+export default function AdminSettingsPage() {
   return (
     <div className="space-y-8 sm:space-y-10">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">
-            Settings
-          </h1>
-          <p className="text-muted-foreground mt-2 font-medium">
-            Configure the agency portal and payment settings.
-          </p>
-        </div>
-        <Button className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-[10px] uppercase tracking-widest px-8 py-6 rounded-2xl  transition-[background-color,color,border-color,box-shadow,transform,opacity] font-heading group">
-          <Save className="mr-2 h-4 w-4 text-current transition-transform group-hover:scale-110" />
-          Save All Changes
-        </Button>
+      <div>
+        <p className="text-sm font-semibold text-primary">Company tools</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+          Settings and setup
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+          Use the operational areas below to manage the parts of the company
+          workspace that are ready for staff use. Nothing on this page is a
+          placeholder control.
+        </p>
       </div>
 
-      <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid h-auto w-full max-w-3xl grid-cols-2 gap-1 rounded-2xl border border-border bg-secondary/50 p-1 sm:grid-cols-4">
-          <TabsTrigger
-            value="general"
-            className="rounded-xl font-bold font-heading text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-[background-color,color,border-color,box-shadow,transform,opacity] gap-2"
-          >
-            <Building2 className="w-4 h-4" /> Agency
-          </TabsTrigger>
-          <TabsTrigger
-            value="payments"
-            className="rounded-xl font-bold font-heading text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-[background-color,color,border-color,box-shadow,transform,opacity] gap-2"
-          >
-            <CreditCard className="w-4 h-4" /> Payments
-          </TabsTrigger>
-          <TabsTrigger
-            value="notifications"
-            className="rounded-xl font-bold font-heading text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-[background-color,color,border-color,box-shadow,transform,opacity] gap-2"
-          >
-            <Bell className="w-4 h-4" /> Alerts
-          </TabsTrigger>
-          <TabsTrigger
-            value="security"
-            className="rounded-xl font-bold font-heading text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-[background-color,color,border-color,box-shadow,transform,opacity] gap-2"
-          >
-            <Shield className="w-4 h-4" /> Security
-          </TabsTrigger>
+      <Tabs defaultValue="setup">
+        <TabsList aria-label="Settings sections">
+          <TabsTrigger value="setup">Operational setup</TabsTrigger>
+          <TabsTrigger value="profile">Company profile</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="general" className="mt-8 space-y-6">
-          <Card className="border-border bg-card shadow-sm rounded-[1.25rem] overflow-hidden">
-            <CardHeader className="bg-secondary/30 border-b border-border py-6 px-8">
-              <CardTitle className="text-xl font-bold font-heading tracking-tight">
-                Agency Profile
-              </CardTitle>
-              <CardDescription className="text-muted-foreground font-medium mt-1">
-                Public information for your agency.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 p-8">
-              <div className="grid gap-5 sm:grid-cols-2 sm:gap-8">
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="agency-name"
-                    className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
-                  >
-                    Agency name
-                  </Label>
-                  <Input
-                    id="agency-name"
-                    name="agencyName"
-                    autoComplete="organization"
-                    defaultValue="Coach Johnson Realty"
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="agency-email"
-                    className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
-                  >
-                    Contact email
-                  </Label>
-                  <Input
-                    id="agency-email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    defaultValue="contact@coachjohnsonrealty.com"
-                    className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="agency-address"
-                  className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground ml-1 font-heading"
+        <TabsContent value="setup" className="mt-6">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {setupAreas.map((area) => {
+              const Icon = area.icon;
+              return (
+                <Link
+                  key={area.href}
+                  href={area.href}
+                  className="group rounded-xl border border-border bg-card p-5 transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/25"
                 >
-                  Business address
-                </Label>
-                <Input
-                  id="agency-address"
-                  name="address"
-                  autoComplete="street-address"
-                  defaultValue="456 Realty Dr, Kansas City, MO 64101"
-                  className="h-12 rounded-xl bg-secondary/50 border-transparent focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium"
-                />
-              </div>
-            </CardContent>
-          </Card>
+                  <Icon className="size-5 text-primary" aria-hidden="true" />
+                  <h2 className="mt-5 text-lg font-semibold">{area.title}</h2>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                    {area.description}
+                  </p>
+                  <span className="mt-5 inline-block text-sm font-semibold text-primary group-hover:underline">
+                    Open workspace
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
         </TabsContent>
-
-        <TabsContent value="payments" className="mt-8 space-y-6">
-          <Card className="border-border bg-card shadow-sm rounded-[1.25rem] overflow-hidden">
-            <CardHeader className="bg-secondary/30 border-b border-border py-6 px-8">
-              <CardTitle className="text-xl font-bold font-heading tracking-tight">
-                Rental payment policy
+        <TabsContent value="profile" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="size-5" aria-hidden="true" />
+                Company profile
               </CardTitle>
-              <CardDescription className="text-muted-foreground font-medium mt-1">
-                Online rent payments are one-time, tenant-initiated Stripe
-                Checkout sessions.
-              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6 p-8">
-              <div className="space-y-4 rounded-2xl border border-primary/20 bg-primary/5 p-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-                    <Shield className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground font-heading">
-                      No auto-debit or saved payment methods
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Residents must return to the tenant portal and actively
-                      start every payment.
-                    </p>
-                  </div>
-                </div>
-                <p className="text-sm leading-6 text-muted-foreground">
-                  Johnson Realty’s percentage is configured separately for each
-                  property owner. When a one-time payment succeeds, Stripe
-                  automatically places the owner’s proceeds in that owner’s
-                  connected account while Johnson Realty retains the configured
-                  management commission.
-                </p>
-                <Button
-                  nativeButton={false}
-                  render={<Link href="/admin/owners" />}
-                >
-                  Manage property owners and commissions
-                </Button>
-              </div>
+            <CardContent>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Coach Johnson Realty’s public website copy, address, and
+                branding are maintained through the deployed website
+                configuration. Changing those values is intentionally not
+                exposed as a misleading in-app form.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
