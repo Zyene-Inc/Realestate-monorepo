@@ -111,10 +111,10 @@ export default function AdminOwnersPage() {
         </CardHeader>
         <CardContent>
           <form
-            className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+            className="grid gap-x-5 gap-y-5 md:grid-cols-2 xl:grid-cols-3"
             onSubmit={createOwner}
           >
-            <div>
+            <div className="grid gap-2">
               <Label htmlFor="owner-name">Owner name</Label>
               <Input
                 id="owner-name"
@@ -124,7 +124,7 @@ export default function AdminOwnersPage() {
                 }
               />
             </div>
-            <div>
+            <div className="grid gap-2">
               <Label htmlFor="company-name">Company name</Label>
               <Input
                 id="company-name"
@@ -134,7 +134,7 @@ export default function AdminOwnersPage() {
                 }
               />
             </div>
-            <div>
+            <div className="grid gap-2">
               <Label htmlFor="owner-email">Email</Label>
               <Input
                 id="owner-email"
@@ -146,7 +146,7 @@ export default function AdminOwnersPage() {
                 }
               />
             </div>
-            <div>
+            <div className="grid gap-2">
               <Label htmlFor="owner-phone">Phone (optional)</Label>
               <Input
                 id="owner-phone"
@@ -156,7 +156,7 @@ export default function AdminOwnersPage() {
                 }
               />
             </div>
-            <div>
+            <div className="grid gap-2">
               <Label htmlFor="commission-rate">
                 Johnson Realty commission (%)
               </Label>

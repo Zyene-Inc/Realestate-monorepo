@@ -72,12 +72,13 @@ export function RentalPropertyDialog({
           {identityFields.map(([field, label]) => (
             <div
               key={field}
-              className={field === "address" ? "sm:col-span-2" : ""}
+              className={`grid gap-2 ${
+                field === "address" ? "sm:col-span-2" : ""
+              }`}
             >
               <Label htmlFor={`property-${field}`}>{label}</Label>
               <Input
                 id={`property-${field}`}
-                className="mt-2"
                 value={form[field]}
                 onChange={(event) =>
                   onFormChange({ ...form, [field]: event.target.value })
@@ -86,11 +87,11 @@ export function RentalPropertyDialog({
               />
             </div>
           ))}
-          <div className="sm:col-span-2">
+          <div className="grid gap-2 sm:col-span-2">
             <Label htmlFor="property-description">Description</Label>
             <Textarea
               id="property-description"
-              className="mt-2 min-h-28"
+              className="min-h-28"
               value={form.description}
               onChange={(event) =>
                 onFormChange({ ...form, description: event.target.value })
@@ -99,13 +100,12 @@ export function RentalPropertyDialog({
             />
           </div>
           {detailFields.map(([field, label, type]) => (
-            <div key={field}>
+            <div key={field} className="grid gap-2">
               <Label htmlFor={`property-${field}`}>{label}</Label>
               <Input
                 id={`property-${field}`}
                 type={type}
                 min={type === "number" ? 0 : undefined}
-                className="mt-2"
                 value={form[field]}
                 onChange={(event) =>
                   onFormChange({ ...form, [field]: event.target.value })
@@ -113,22 +113,21 @@ export function RentalPropertyDialog({
               />
             </div>
           ))}
-          <div className="sm:col-span-2">
+          <div className="grid gap-2 sm:col-span-2">
             <Label htmlFor="property-utilities">Utility information</Label>
             <Textarea
               id="property-utilities"
-              className="mt-2"
               value={form.utilityInfo}
               onChange={(event) =>
                 onFormChange({ ...form, utilityInfo: event.target.value })
               }
             />
           </div>
-          <div>
+          <div className="grid gap-2">
             <Label htmlFor="property-status">Availability status</Label>
             <select
               id="property-status"
-              className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              className="h-11 w-full rounded-xl border border-input bg-card px-3 text-sm"
               value={form.status}
               onChange={(event) =>
                 onFormChange({
@@ -143,9 +142,9 @@ export function RentalPropertyDialog({
             </select>
           </div>
           {editing ? (
-            <div>
+            <div className="grid gap-2">
               <Label>Property photos</Label>
-              <label className="mt-2 flex min-h-10 cursor-pointer items-center justify-center rounded-md border border-input px-4 text-sm font-semibold hover:bg-secondary">
+              <label className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-input px-4 text-sm font-semibold hover:bg-secondary">
                 {uploading ? (
                   <Loader2 className="mr-2 size-4 animate-spin" />
                 ) : (

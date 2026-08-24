@@ -226,31 +226,30 @@ export default function AdminUnits() {
                     ? `${unit.tenants[0].firstName} ${unit.tenants[0].lastName}`
                     : "No active resident"}
                 </p>
-                <Label
-                  htmlFor={`unit-status-${unit.id}`}
-                  className="mt-4 block"
-                >
-                  Operational status
-                </Label>
-                <select
-                  id={`unit-status-${unit.id}`}
-                  className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  value={unit.status}
-                  onChange={(event) =>
-                    void updateStatus(
-                      unit,
-                      event.target.value as Unit["status"],
-                    )
-                  }
-                  disabled={unit.status === "occupied"}
-                >
-                  <option value="vacant">Vacant</option>
-                  <option value="under_maintenance">Under maintenance</option>
-                  <option value="off_market">Off market</option>
-                  {unit.status === "occupied" ? (
-                    <option value="occupied">Occupied</option>
-                  ) : null}
-                </select>
+                <div className="mt-4 grid gap-2">
+                  <Label htmlFor={`unit-status-${unit.id}`}>
+                    Operational status
+                  </Label>
+                  <select
+                    id={`unit-status-${unit.id}`}
+                    className="h-11 w-full rounded-xl border border-input bg-card px-3 text-sm"
+                    value={unit.status}
+                    onChange={(event) =>
+                      void updateStatus(
+                        unit,
+                        event.target.value as Unit["status"],
+                      )
+                    }
+                    disabled={unit.status === "occupied"}
+                  >
+                    <option value="vacant">Vacant</option>
+                    <option value="under_maintenance">Under maintenance</option>
+                    <option value="off_market">Off market</option>
+                    {unit.status === "occupied" ? (
+                      <option value="occupied">Occupied</option>
+                    ) : null}
+                  </select>
+                </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   {unit.status === "occupied"
                     ? "Occupied is set by the active lease and cannot be changed here."
@@ -271,11 +270,11 @@ export default function AdminUnits() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={createUnit} className="grid gap-5 sm:grid-cols-2">
-            <div className="sm:col-span-2">
+            <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="unit-property">Property</Label>
               <select
                 id="unit-property"
-                className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                className="h-11 w-full rounded-xl border border-input bg-card px-3 text-sm"
                 value={form.propertyId}
                 onChange={(event) =>
                   setForm({ ...form, propertyId: event.target.value })
@@ -302,11 +301,10 @@ export default function AdminUnits() {
                 ["availableDate", "Available date", "date"],
               ] as const
             ).map(([field, label, type]) => (
-              <div key={field}>
+              <div key={field} className="grid gap-2">
                 <Label htmlFor={`unit-${field}`}>{label}</Label>
                 <Input
                   id={`unit-${field}`}
-                  className="mt-2"
                   type={type}
                   min={type === "number" ? 0 : undefined}
                   step={field === "bathrooms" ? "0.5" : undefined}

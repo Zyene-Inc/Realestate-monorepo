@@ -159,7 +159,7 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
       <form onSubmit={submit} className="space-y-3">
         {!inquiry && (
           <>
-            <div>
+            <div className="grid gap-2">
               <Label htmlFor="buyer-name">Name</Label>
               <Input
                 id="buyer-name"
@@ -171,7 +171,7 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
                 minLength={2}
               />
             </div>
-            <div>
+            <div className="grid gap-2">
               <Label htmlFor="buyer-email">Email</Label>
               <Input
                 id="buyer-email"
@@ -183,8 +183,13 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
                 required
               />
             </div>
-            <div>
-              <Label htmlFor="buyer-phone">Phone <span className="font-normal text-muted-foreground">(optional)</span></Label>
+            <div className="grid gap-2">
+              <Label htmlFor="buyer-phone">
+                Phone{" "}
+                <span className="font-normal text-muted-foreground">
+                  (optional)
+                </span>
+              </Label>
               <Input
                 id="buyer-phone"
                 name="phone"
@@ -196,8 +201,10 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
             </div>
           </>
         )}
-        <div>
-          <Label htmlFor="buyer-message">{inquiry ? "Reply" : "Message"}</Label>
+        <div className="grid gap-2">
+          <Label htmlFor="buyer-message">
+            {inquiry ? "Reply" : "Message"}
+          </Label>
           <Textarea
             id="buyer-message"
             name="message"
@@ -207,7 +214,11 @@ export function BuyerInquiryPanel({ listingId }: { listingId: string }) {
             minLength={inquiry ? 1 : 5}
             maxLength={4000}
             disabled={inquiry?.status === "CLOSED"}
-            placeholder={inquiry ? "Write a reply" : "Ask about availability, showings, or property details"}
+            placeholder={
+              inquiry
+                ? "Write a reply"
+                : "Ask about availability, showings, or property details"
+            }
           />
         </div>
         <Button
