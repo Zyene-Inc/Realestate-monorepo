@@ -90,6 +90,35 @@ describe('TenantsService', () => {
     });
   });
 
+  it('preserves omitted optional profile fields during an admin update', async () => {
+    const current = { id: 'tenant-1', status: 'invited' };
+    const updated = { ...current, status: 'active' };
+    const tx = {
+      tenant: { update: jest.fn().mockResolvedValue(updated) },
+      auditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      tenant: { findUnique: jest.fn().mockResolvedValue(current) },
+      $transaction: jest.fn(
+        async (callback: (client: typeof tx) => Promise<unknown>) =>
+          callback(tx),
+      ),
+    };
+
+    await expect(
+      serviceWith(prisma).update('admin-1', current.id, { status: 'active' }),
+    ).resolves.toEqual(updated);
+    expect(firstArgument(tx.tenant.update)).toMatchObject({
+      where: { id: current.id },
+      data: {
+        status: 'active',
+        firstName: undefined,
+        lastName: undefined,
+        dateOfBirth: undefined,
+      },
+    });
+  });
+
   it('returns bounded tenant dashboard data and rejects a missing profile', async () => {
     const tenant = { id: 'tenant-1' };
     const findUnique = jest
@@ -154,6 +183,18 @@ describe('TenantsService', () => {
       phone: '816-555-0100',
       vehicleInfo: 'Silver sedan',
     });
+  });
+
+  it('rejects a self-service update when the tenant profile is absent', async () => {
+    const service = serviceWith({
+      tenant: { findUnique: jest.fn().mockResolvedValue(null) },
+    });
+    const update = jest.spyOn(service, 'update');
+
+    await expect(
+      service.updateOwnProfile('missing', { phone: '816-555-0100' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('does not expose lease data when the signed-in tenant profile is absent', async () => {
