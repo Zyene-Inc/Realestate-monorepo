@@ -58,6 +58,13 @@ export class RentalPropertyDto {
 
   @IsOptional()
   @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(10000)
+  applicationFeeAmount?: number;
+
+  @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   @Max(100)
@@ -113,6 +120,12 @@ export class UpdateRentalPropertyDto {
   @Min(0)
   @Max(9999999999.99)
   rentAmount?: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(10000)
+  applicationFeeAmount?: number;
   @IsOptional()
   @Type(() => Number)
   @IsInt()

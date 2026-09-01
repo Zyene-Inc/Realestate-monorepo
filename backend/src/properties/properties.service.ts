@@ -35,6 +35,7 @@ const publicRentalSelect = {
   propertyType: true,
   description: true,
   rentAmount: true,
+  applicationFeeAmount: true,
   bedrooms: true,
   bathrooms: true,
   squareFeet: true,

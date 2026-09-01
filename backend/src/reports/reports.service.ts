@@ -3,6 +3,7 @@ import {
   AgentAccountStatus,
   ListingStatus,
   ListingType,
+  PaymentPurpose,
   PaymentStatus,
   Prisma,
   PublishStatus,
@@ -64,6 +65,7 @@ export class ReportsService {
   async overview(query: ReportQueryDto) {
     const range = this.reportRange(query);
     const receivedWhere: Prisma.PaymentWhereInput = {
+      purpose: PaymentPurpose.RENT,
       status: { in: [PaymentStatus.PAID, PaymentStatus.PARTIAL] },
       paidAmount: { gt: 0 },
       paidAt: range.filter,
@@ -82,6 +84,8 @@ export class ReportsService {
       unitGroups,
       rentTotals,
       unassignedRentTotals,
+      moveInTotals,
+      maintenanceExpenseTotals,
       saleTotals,
       auditEventCount,
       auditActorGroups,
@@ -142,6 +146,7 @@ export class ReportsService {
         where: receivedWhere,
         _sum: {
           paidAmount: true,
+          refundedAmount: true,
           managementCommissionAmount: true,
           ownerProceedsAmount: true,
         },
@@ -150,6 +155,24 @@ export class ReportsService {
       this.prisma.payment.aggregate({
         where: { ...receivedWhere, propertyOwnerId: null },
         _sum: { paidAmount: true },
+        _count: { _all: true },
+      }),
+      this.prisma.payment.aggregate({
+        where: {
+          ...receivedWhere,
+          purpose: PaymentPurpose.MOVE_IN,
+        },
+        _sum: {
+          paidAmount: true,
+          refundedAmount: true,
+          managementCommissionAmount: true,
+          ownerProceedsAmount: true,
+        },
+        _count: { _all: true },
+      }),
+      this.prisma.ownerExpenseLedgerEntry.aggregate({
+        where: { occurredAt: range.filter },
+        _sum: { amount: true },
         _count: { _all: true },
       }),
       this.prisma.saleCommission.aggregate({
@@ -206,12 +229,26 @@ export class ReportsService {
             : Number(((occupiedUnits / totalUnits) * 100).toFixed(1)),
       },
       rentRevenue: {
-        collected: this.money(rentTotals._sum.paidAmount),
+        collected: new Prisma.Decimal(this.money(rentTotals._sum.paidAmount))
+          .minus(this.money(rentTotals._sum.refundedAmount))
+          .toFixed(2),
         managementCommission: managementRevenue,
         ownerProceeds: this.money(rentTotals._sum.ownerProceedsAmount),
         paymentCount: rentTotals._count._all,
         unassignedCollected: this.money(unassignedRentTotals._sum.paidAmount),
         unassignedPaymentCount: unassignedRentTotals._count._all,
+        maintenanceExpenses: this.money(maintenanceExpenseTotals._sum.amount),
+        maintenanceExpenseEntryCount: maintenanceExpenseTotals._count._all,
+      },
+      moveInRevenue: {
+        collected: new Prisma.Decimal(this.money(moveInTotals._sum.paidAmount))
+          .minus(this.money(moveInTotals._sum.refundedAmount))
+          .toFixed(2),
+        managementAmount: this.money(
+          moveInTotals._sum.managementCommissionAmount,
+        ),
+        ownerProceeds: this.money(moveInTotals._sum.ownerProceedsAmount),
+        paymentCount: moveInTotals._count._all,
       },
       saleRevenue: {
         commission: saleRevenue,
@@ -219,6 +256,7 @@ export class ReportsService {
       },
       companyRevenue: {
         combined: new Prisma.Decimal(managementRevenue)
+          .plus(this.money(moveInTotals._sum.managementCommissionAmount))
           .plus(saleRevenue)
           .toFixed(2),
       },
@@ -257,7 +295,12 @@ export class ReportsService {
     const hasMore = rows.length > query.limit;
     const owners = hasMore ? rows.slice(0, query.limit) : rows;
     const ownerIds = owners.map((owner) => owner.id);
-    const [properties, paymentGroups] = ownerIds.length
+    const [
+      properties,
+      paymentGroups,
+      moveInPaymentGroups,
+      maintenanceExpenseGroups,
+    ] = ownerIds.length
       ? await Promise.all([
           this.prisma.property.findMany({
             where: { ownerId: { in: ownerIds }, listingType: ListingType.RENT },
@@ -271,21 +314,55 @@ export class ReportsService {
             by: ['propertyOwnerId'],
             where: {
               propertyOwnerId: { in: ownerIds },
+              purpose: PaymentPurpose.RENT,
               status: { in: [PaymentStatus.PAID, PaymentStatus.PARTIAL] },
               paidAmount: { gt: 0 },
               paidAt: range.filter,
             },
             _sum: {
               paidAmount: true,
+              refundedAmount: true,
               managementCommissionAmount: true,
               ownerProceedsAmount: true,
             },
             _count: { _all: true },
           }),
+          this.prisma.payment.groupBy({
+            by: ['propertyOwnerId'],
+            where: {
+              propertyOwnerId: { in: ownerIds },
+              purpose: PaymentPurpose.MOVE_IN,
+              status: { in: [PaymentStatus.PAID, PaymentStatus.PARTIAL] },
+              paidAmount: { gt: 0 },
+              paidAt: range.filter,
+            },
+            _sum: {
+              paidAmount: true,
+              refundedAmount: true,
+              managementCommissionAmount: true,
+              ownerProceedsAmount: true,
+            },
+            _count: { _all: true },
+          }),
+          this.prisma.ownerExpenseLedgerEntry.groupBy({
+            by: ['propertyOwnerId'],
+            where: {
+              propertyOwnerId: { in: ownerIds },
+              occurredAt: range.filter,
+            },
+            _sum: { amount: true },
+            _count: { _all: true },
+          }),
         ])
-      : [[], []];
+      : [[], [], [], []];
     const paymentsByOwner = new Map(
       paymentGroups.map((group) => [group.propertyOwnerId, group]),
+    );
+    const moveInPaymentsByOwner = new Map(
+      moveInPaymentGroups.map((group) => [group.propertyOwnerId, group]),
+    );
+    const maintenanceExpensesByOwner = new Map(
+      maintenanceExpenseGroups.map((group) => [group.propertyOwnerId, group]),
     );
     const items = owners.map((owner) => {
       const rentals = properties.filter(
@@ -293,6 +370,13 @@ export class ReportsService {
       );
       const units = rentals.flatMap((property) => property.units);
       const payment = paymentsByOwner.get(owner.id);
+      const moveInPayment = moveInPaymentsByOwner.get(owner.id);
+      const maintenanceExpense = maintenanceExpensesByOwner.get(owner.id);
+      const ownerProceeds = this.money(payment?._sum.ownerProceedsAmount);
+      const moveInOwnerProceeds = this.money(
+        moveInPayment?._sum.ownerProceedsAmount,
+      );
+      const maintenanceExpenses = this.money(maintenanceExpense?._sum.amount);
       return {
         ...owner,
         commissionRate: owner.commissionRate.toFixed(2),
@@ -303,12 +387,27 @@ export class ReportsService {
         unitCount: units.length,
         occupiedUnitCount: units.filter((unit) => unit.status === 'occupied')
           .length,
-        rentCollected: this.money(payment?._sum.paidAmount),
+        rentCollected: new Prisma.Decimal(this.money(payment?._sum.paidAmount))
+          .minus(this.money(payment?._sum.refundedAmount))
+          .toFixed(2),
         managementCommission: this.money(
           payment?._sum.managementCommissionAmount,
         ),
-        ownerProceeds: this.money(payment?._sum.ownerProceedsAmount),
+        ownerProceeds,
         paymentCount: payment?._count._all ?? 0,
+        moveInCollected: new Prisma.Decimal(
+          this.money(moveInPayment?._sum.paidAmount),
+        )
+          .minus(this.money(moveInPayment?._sum.refundedAmount))
+          .toFixed(2),
+        moveInOwnerProceeds,
+        moveInPaymentCount: moveInPayment?._count._all ?? 0,
+        maintenanceExpenses,
+        maintenanceExpenseEntryCount: maintenanceExpense?._count._all ?? 0,
+        netOwnerPosition: new Prisma.Decimal(ownerProceeds)
+          .plus(moveInOwnerProceeds)
+          .minus(maintenanceExpenses)
+          .toFixed(2),
       };
     });
     const last = items.at(-1);

@@ -182,6 +182,22 @@ describe('UnitsService', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
+  it('keeps reserved status under the signing workflow control', async () => {
+    const prisma = {
+      unit: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValue({ id: 'unit-1', status: 'reserved' }),
+      },
+      $transaction: jest.fn(),
+    };
+
+    await expect(
+      serviceWith(prisma).update('admin-1', 'unit-1', { status: 'vacant' }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('protects unit history from deletion', async () => {
     const prisma = {
       unit: {

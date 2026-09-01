@@ -30,6 +30,7 @@ describe('ReportsService', () => {
           .mockResolvedValueOnce({
             _sum: {
               paidAmount: 10000,
+              refundedAmount: 500,
               managementCommissionAmount: new Prisma.Decimal('1000'),
               ownerProceedsAmount: new Prisma.Decimal('9000'),
             },
@@ -38,7 +39,22 @@ describe('ReportsService', () => {
           .mockResolvedValueOnce({
             _sum: { paidAmount: 500 },
             _count: { _all: 1 },
+          })
+          .mockResolvedValueOnce({
+            _sum: {
+              paidAmount: 3000,
+              refundedAmount: 500,
+              managementCommissionAmount: new Prisma.Decimal('200'),
+              ownerProceedsAmount: new Prisma.Decimal('2800'),
+            },
+            _count: { _all: 2 },
           }),
+      },
+      ownerExpenseLedgerEntry: {
+        aggregate: jest.fn().mockResolvedValue({
+          _sum: { amount: new Prisma.Decimal('600') },
+          _count: { _all: 3 },
+        }),
       },
       saleCommission: {
         aggregate: jest.fn().mockResolvedValue({
@@ -72,14 +88,22 @@ describe('ReportsService', () => {
       occupancyRate: 80,
     });
     expect(result.rentRevenue).toEqual({
-      collected: '10000.00',
+      collected: '9500.00',
       managementCommission: '1000.00',
       ownerProceeds: '9000.00',
       paymentCount: 6,
       unassignedCollected: '500.00',
       unassignedPaymentCount: 1,
+      maintenanceExpenses: '600.00',
+      maintenanceExpenseEntryCount: 3,
     });
-    expect(result.companyRevenue.combined).toBe('13000.00');
+    expect(result.moveInRevenue).toEqual({
+      collected: '2500.00',
+      managementAmount: '200.00',
+      ownerProceeds: '2800.00',
+      paymentCount: 2,
+    });
+    expect(result.companyRevenue.combined).toBe('13200.00');
     expect(result.compliance).toEqual({
       auditEventCount: 20,
       actorCount: 2,
@@ -120,15 +144,39 @@ describe('ReportsService', () => {
         ]),
       },
       payment: {
+        groupBy: jest
+          .fn()
+          .mockResolvedValueOnce([
+            {
+              propertyOwnerId: 'owner-2',
+              _sum: {
+                paidAmount: 2000,
+                refundedAmount: 200,
+                managementCommissionAmount: new Prisma.Decimal('250'),
+                ownerProceedsAmount: new Prisma.Decimal('1750'),
+              },
+              _count: { _all: 1 },
+            },
+          ])
+          .mockResolvedValueOnce([
+            {
+              propertyOwnerId: 'owner-2',
+              _sum: {
+                paidAmount: 2500,
+                refundedAmount: 0,
+                managementCommissionAmount: new Prisma.Decimal('150'),
+                ownerProceedsAmount: new Prisma.Decimal('2350'),
+              },
+              _count: { _all: 2 },
+            },
+          ]),
+      },
+      ownerExpenseLedgerEntry: {
         groupBy: jest.fn().mockResolvedValue([
           {
             propertyOwnerId: 'owner-2',
-            _sum: {
-              paidAmount: 2000,
-              managementCommissionAmount: new Prisma.Decimal('250'),
-              ownerProceedsAmount: new Prisma.Decimal('1750'),
-            },
-            _count: { _all: 1 },
+            _sum: { amount: new Prisma.Decimal('300') },
+            _count: { _all: 2 },
           },
         ]),
       },
@@ -146,9 +194,15 @@ describe('ReportsService', () => {
       propertyCount: 1,
       unitCount: 2,
       occupiedUnitCount: 1,
-      rentCollected: '2000.00',
+      rentCollected: '1800.00',
       managementCommission: '250.00',
       ownerProceeds: '1750.00',
+      moveInCollected: '2500.00',
+      moveInOwnerProceeds: '2350.00',
+      moveInPaymentCount: 2,
+      maintenanceExpenses: '300.00',
+      maintenanceExpenseEntryCount: 2,
+      netOwnerPosition: '3800.00',
     });
     expect(result.nextCursor).toEqual(expect.any(String));
     expect(prisma.propertyOwner.findMany).toHaveBeenCalledWith(

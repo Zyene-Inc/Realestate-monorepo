@@ -99,10 +99,11 @@ export class UnitsService {
     if (data.propertyId) await this.rentalProperty(data.propertyId);
     if (
       data.status !== undefined &&
-      (current.status === 'occupied' || data.status === 'occupied')
+      (['occupied', 'reserved'].includes(current.status) ||
+        ['occupied', 'reserved'].includes(data.status))
     ) {
       throw new ConflictException(
-        'Occupied status is controlled automatically by the active lease',
+        'Occupied and reserved statuses are controlled automatically by the lease workflow',
       );
     }
     try {
