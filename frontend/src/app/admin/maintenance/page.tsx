@@ -1,250 +1,318 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Image from "next/image";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Search,
-  Loader2,
   AlertTriangle,
-  CheckCircle2,
-  Clock,
+  CalendarClock,
+  Loader2,
+  RefreshCw,
+  Search,
+  Wrench,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import { api } from "@/lib/api";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
+import { MaintenanceManagementDialog } from "./_components/maintenance-management-dialog";
+import { MaintenanceRequestTable } from "./_components/maintenance-request-table";
+import {
+  MAINTENANCE_STATUSES,
+  MaintenanceRequest,
+  OwnerExpensePage,
+  Vendor,
+} from "./_components/maintenance-types";
+import { OwnerExpenseLedger } from "./_components/owner-expense-ledger";
 
-type MaintenanceRequest = {
-  id: string;
-  status: string;
-  category: string;
-  description: string;
-  priority: string;
-  createdAt: string;
-  photoUrls: string[];
-  tenant: { firstName: string; lastName: string };
-  unit: { unitNumber: string };
-  property: { name: string };
+const emptyExpensePage: OwnerExpensePage = {
+  summary: { total: "0.00", entryCount: 0 },
+  items: [],
+  nextCursor: null,
 };
 
-export default function AdminMaintenance() {
+export default function AdminMaintenancePage() {
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [expenses, setExpenses] = useState<OwnerExpensePage>(emptyExpensePage);
+  const [selected, setSelected] = useState<MaintenanceRequest | null>(null);
   const [query, setQuery] = useState("");
-  const filteredRequests = requests.filter((request) =>
-    `${request.tenant.firstName} ${request.tenant.lastName} ${request.property.name} ${request.unit.unitNumber} ${request.category}`
-      .toLowerCase()
-      .includes(query.trim().toLowerCase()),
-  );
+  const [status, setStatus] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  async function fetchRequests() {
+  const load = useCallback(async () => {
+    const [nextRequests, nextVendors, nextExpenses] = await Promise.all([
+      api.get("/admin/maintenance?limit=100") as Promise<MaintenanceRequest[]>,
+      api.get("/admin/vendors") as Promise<Vendor[]>,
+      api.get(
+        "/admin/maintenance/expenses?limit=50",
+      ) as Promise<OwnerExpensePage>,
+    ]);
+    setRequests(nextRequests);
+    setVendors(nextVendors);
+    setExpenses(nextExpenses);
+    const requestedId = new URLSearchParams(window.location.search).get("id");
+    if (requestedId) {
+      setSelected(
+        nextRequests.find((request) => request.id === requestedId) ?? null,
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.all([
+      api.get("/admin/maintenance?limit=100") as Promise<MaintenanceRequest[]>,
+      api.get("/admin/vendors") as Promise<Vendor[]>,
+      api.get(
+        "/admin/maintenance/expenses?limit=50",
+      ) as Promise<OwnerExpensePage>,
+    ])
+      .then(([nextRequests, nextVendors, nextExpenses]) => {
+        if (!active) return;
+        setRequests(nextRequests);
+        setVendors(nextVendors);
+        setExpenses(nextExpenses);
+        const requestedId = new URLSearchParams(window.location.search).get(
+          "id",
+        );
+        if (requestedId) {
+          setSelected(
+            nextRequests.find((request) => request.id === requestedId) ?? null,
+          );
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          toast.error(
+            getErrorMessage(error, "Unable to load maintenance operations"),
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filtered = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    return requests.filter((request) => {
+      if (status !== "all" && request.status !== status) return false;
+      if (!term) return true;
+      return [
+        request.category,
+        request.description,
+        request.tenant.firstName,
+        request.tenant.lastName,
+        request.property.name,
+        request.property.address,
+        request.unit.unitNumber,
+        request.vendor?.name,
+        request.vendor?.companyName,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(term);
+    });
+  }, [query, requests, status]);
+
+  const metrics = useMemo(() => {
+    const open = requests.filter(
+      (request) => !["completed", "tenant_confirmed"].includes(request.status),
+    );
+    return {
+      open: open.length,
+      emergencies: open.filter((request) => request.priority === "emergency")
+        .length,
+      scheduled: open.filter((request) => request.status === "scheduled")
+        .length,
+      awaitingCost: requests.filter(
+        (request) => request.status === "in_progress" && request.cost === null,
+      ).length,
+    };
+  }, [requests]);
+
+  async function refresh() {
+    setRefreshing(true);
     try {
-      const data = await api.get("/admin/maintenance");
-      setRequests(data as MaintenanceRequest[]);
-    } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Unable to load service requests"));
+      await load();
+      toast.success("Maintenance operations refreshed");
+    } catch (error) {
+      toast.error(
+        getErrorMessage(error, "Unable to refresh maintenance operations"),
+      );
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   }
 
-  useEffect(() => {
-    api
-      .get("/admin/maintenance")
-      .then((data: MaintenanceRequest[]) => setRequests(data))
-      .catch((error: unknown) =>
-        toast.error(getErrorMessage(error, "Unable to load service requests")),
-      )
-      .finally(() => setLoading(false));
-  }, []);
+  async function saved(updated: MaintenanceRequest) {
+    setRequests((current) =>
+      current.map((request) => (request.id === updated.id ? updated : request)),
+    );
+    setExpenses(
+      (await api.get(
+        "/admin/maintenance/expenses?limit=50",
+      )) as OwnerExpensePage,
+    );
+  }
 
-  const updateStatus = async (id: string, status: string) => {
+  async function loadMoreExpenses() {
+    if (!expenses.nextCursor) return;
+    setLoadingMore(true);
     try {
-      await api.patch(`/admin/maintenance/${id}`, { status });
-      toast.success("Status updated");
-      void fetchRequests();
-    } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Unable to update status"));
+      const next = (await api.get(
+        `/admin/maintenance/expenses?limit=50&cursor=${encodeURIComponent(expenses.nextCursor)}`,
+      )) as OwnerExpensePage;
+      setExpenses({
+        summary: next.summary,
+        items: [...expenses.items, ...next.items],
+        nextCursor: next.nextCursor,
+      });
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Unable to load more owner expenses"));
+    } finally {
+      setLoadingMore(false);
     }
-  };
+  }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="space-y-6" aria-label="Loading maintenance operations">
+        <Skeleton className="h-24 w-full rounded-2xl" />
+        <Skeleton className="h-20 w-full rounded-2xl" />
+        <Skeleton className="h-96 w-full rounded-2xl" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 sm:space-y-10">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+    <div className="mx-auto w-full max-w-[1500px] space-y-7">
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-[-0.04em] text-foreground sm:text-4xl">
+          <p className="text-sm font-semibold text-primary">
+            Service operations
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
             Maintenance
           </h1>
-          <p className="text-muted-foreground mt-2 font-medium">
-            Manage and track property service requests.
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Assign vendors, schedule work, document costs, and keep every owner
+            expense traceable from the original resident request.
           </p>
         </div>
-      </div>
+        <Button
+          variant="outline"
+          onClick={() => void refresh()}
+          disabled={refreshing}
+        >
+          {refreshing ? (
+            <Loader2 className="animate-spin" aria-hidden="true" />
+          ) : (
+            <RefreshCw aria-hidden="true" />
+          )}
+          Refresh
+        </Button>
+      </header>
 
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-          <Input
-            aria-label="Search service requests"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            className="pl-12 h-12 rounded-2xl border-border bg-card shadow-sm focus:border-primary transition-[background-color,color,border-color,box-shadow,transform,opacity] font-medium"
-            placeholder="Search requests"
-          />
+      <section
+        aria-label="Maintenance summary"
+        className="grid overflow-hidden rounded-2xl border border-border bg-card sm:grid-cols-2 xl:grid-cols-4"
+      >
+        {[
+          { label: "Open requests", value: metrics.open, icon: Wrench },
+          {
+            label: "Emergencies",
+            value: metrics.emergencies,
+            icon: AlertTriangle,
+          },
+          { label: "Scheduled", value: metrics.scheduled, icon: CalendarClock },
+          {
+            label: "Awaiting final cost",
+            value: metrics.awaitingCost,
+            icon: Loader2,
+          },
+        ].map((metric, index) => (
+          <div
+            key={metric.label}
+            className={`flex items-center justify-between gap-4 p-5 ${index ? "border-t border-border sm:border-t-0 sm:border-l" : ""} ${index === 2 ? "sm:border-l-0 xl:border-l" : ""}`}
+          >
+            <div>
+              <p className="text-sm text-muted-foreground">{metric.label}</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">
+                {metric.value}
+              </p>
+            </div>
+            <metric.icon className="size-5 text-primary" aria-hidden="true" />
+          </div>
+        ))}
+      </section>
+
+      <section className="space-y-4" aria-labelledby="service-request-title">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 id="service-request-title" className="text-xl font-semibold">
+              Service requests
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {filtered.length} of {requests.length} requests shown
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative sm:w-80">
+              <Search
+                className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                aria-label="Search maintenance requests"
+                className="pl-10"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search resident, property, issue, or vendor"
+              />
+            </div>
+            <select
+              aria-label="Filter maintenance workflow status"
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+              className="h-11 rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="all">All workflow statuses</option>
+              {MAINTENANCE_STATUSES.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-      </div>
+        <MaintenanceRequestTable requests={filtered} onManage={setSelected} />
+      </section>
 
-      <Card className="border-border bg-card shadow-sm rounded-[1.25rem] overflow-hidden">
-        <Table>
-          <TableHeader className="bg-secondary/50">
-            <TableRow className="border-border hover:bg-transparent">
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">
-                Status
-              </TableHead>
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">
-                Request Details
-              </TableHead>
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">
-                Tenant/Unit
-              </TableHead>
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">
-                Priority
-              </TableHead>
-              <TableHead className="font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">
-                Submitted
-              </TableHead>
-              <TableHead className="text-right font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">
-                Actions
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredRequests.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="h-32 text-center text-muted-foreground font-medium italic uppercase tracking-widest text-[10px] font-heading"
-                >
-                  No active requests found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredRequests.map((req) => (
-                <TableRow
-                  key={req.id}
-                  className="hover:bg-secondary/30 transition-colors border-border"
-                >
-                  <TableCell className="py-4">
-                    <Badge
-                      className={cn(
-                        "font-bold uppercase tracking-widest text-[9px] px-3 py-1 rounded-md border-transparent",
-                        req.status === "completed"
-                          ? "bg-success/10 text-success"
-                          : req.status === "in_progress"
-                            ? "bg-accent/10 text-accent"
-                            : "bg-primary text-primary-foreground",
-                      )}
-                    >
-                      {req.status.replace("_", " ")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-foreground font-heading">
-                        {req.category}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground font-medium mt-1 line-clamp-1 max-w-[200px]">
-                        {req.description}
-                      </span>
-                      {req.photoUrls?.[0] ? (
-                        <Image
-                          src={req.photoUrls[0]}
-                          alt={`${req.category} request`}
-                          width={64}
-                          height={48}
-                          className="mt-2 h-12 w-16 rounded-lg object-cover"
-                        />
-                      ) : null}
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-foreground font-heading">
-                        {req.tenant.firstName} {req.tenant.lastName}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1 font-heading">
-                        Unit {req.unit.unitNumber}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <div className="flex items-center gap-2">
-                      {req.priority === "emergency" ? (
-                        <AlertTriangle className="w-4 h-4 text-destructive" />
-                      ) : req.priority === "high" ? (
-                        <Clock className="h-4 w-4 text-warning" />
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
-                      )}
-                      <span
-                        className={cn(
-                          "text-[10px] font-bold uppercase tracking-widest font-heading",
-                          req.priority === "emergency"
-                            ? "text-destructive"
-                            : req.priority === "high"
-                              ? "text-warning"
-                              : "text-muted-foreground",
-                        )}
-                      >
-                        {req.priority}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4 text-[10px] font-bold uppercase tracking-widest text-muted-foreground font-heading">
-                    {format(new Date(req.createdAt), "MMM dd, yyyy")}
-                  </TableCell>
-                  <TableCell className="py-4 text-right">
-                    <select
-                      aria-label={`Update status for ${req.category} request from ${req.tenant.firstName} ${req.tenant.lastName}`}
-                      className="text-[10px] font-bold uppercase tracking-widest bg-secondary text-foreground border-transparent rounded-lg px-4 py-2.5 outline-none focus:ring-1 focus:ring-primary font-heading cursor-pointer hover:bg-secondary/80 transition-colors"
-                      value={req.status}
-                      onChange={(e) => updateStatus(req.id, e.target.value)}
-                    >
-                      <option value="submitted">New</option>
-                      <option value="reviewed">Reviewed</option>
-                      <option value="assigned">Assigned</option>
-                      <option value="scheduled">Scheduled</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed</option>
-                      <option value="tenant_confirmed">Tenant Confirmed</option>
-                    </select>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+      <OwnerExpenseLedger
+        page={expenses}
+        loadingMore={loadingMore}
+        onLoadMore={loadMoreExpenses}
+      />
+
+      {selected ? (
+        <MaintenanceManagementDialog
+          key={selected.id}
+          request={selected}
+          vendors={vendors}
+          onOpenChange={(open) => {
+            if (!open) setSelected(null);
+          }}
+          onSaved={saved}
+        />
+      ) : null}
     </div>
   );
 }

@@ -30,6 +30,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/errors";
 import { LeaseRentPolicyDialog } from "./_components/lease-rent-policy-dialog";
+import { LeaseLifecycleLink } from "./_components/lease-lifecycle-link";
 
 type LeaseTenant = { id: string; firstName: string; lastName: string };
 type LeaseUnit = {
@@ -40,6 +41,7 @@ type LeaseUnit = {
 };
 type Lease = {
   id: string;
+  rentalApplicationId: string | null;
   tenant: LeaseTenant;
   unit: LeaseUnit;
   startDate: string;
@@ -90,16 +92,17 @@ function LeaseCreateDialog({
         }
       >
         <Plus className="mr-2 h-4 w-4 text-current transition-transform group-hover:rotate-90" />
-        Create Lease
+        Create active lease
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px] rounded-xl border-border bg-card p-5 sm:p-6">
         <form onSubmit={onSubmit}>
           <DialogHeader className="mb-6">
             <DialogTitle className="text-xl font-semibold font-heading">
-              Create New Lease
+              Create active lease manually
             </DialogTitle>
             <DialogDescription className="text-muted-foreground font-medium mt-2">
-              Define terms for a new tenant agreement.
+              Use this only for an agreement signed outside the portal. For an
+              approved application, send the lease from its review page.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-6 py-2">
@@ -196,7 +199,7 @@ function LeaseCreateDialog({
           </div>
           <DialogFooter className="mt-8">
             <Button type="submit" className="w-full h-14" disabled={creating}>
-              {creating ? "Processing…" : "Sign & Create Lease"}
+              {creating ? "Processing…" : "Create active lease"}
             </Button>
           </DialogFooter>
         </form>
@@ -422,7 +425,8 @@ export default function AdminLeases() {
                   <TableCell className="py-4 text-xs text-muted-foreground">
                     <p>Due on day {lease.rentDueDay}</p>
                     <p className="mt-1">
-                      {lease.gracePeriodDays}-day grace · ${lease.lateFeeAmount.toFixed(2)} fee
+                      {lease.gracePeriodDays}-day grace · $
+                      {lease.lateFeeAmount.toFixed(2)} fee
                     </p>
                   </TableCell>
                   <TableCell className="py-4">
@@ -439,20 +443,40 @@ export default function AdminLeases() {
                   </TableCell>
                   <TableCell className="py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                    <LeaseRentPolicyDialog lease={lease} onSaved={fetchData} />
-                    <select
-                      aria-label={`Update lease status for ${lease.tenant.firstName} ${lease.tenant.lastName}`}
-                      className="h-10 rounded-md border border-input bg-background px-3 text-xs font-semibold"
-                      value={lease.status}
-                      onChange={(event) =>
-                        void updateStatus(lease, event.target.value)
-                      }
-                    >
-                      <option value="active">Active</option>
-                      <option value="expiring">Expiring</option>
-                      <option value="renewed">Renewed</option>
-                      <option value="terminated">Terminated</option>
-                    </select>
+                      <LeaseRentPolicyDialog
+                        lease={lease}
+                        onSaved={fetchData}
+                        disabled={
+                          Boolean(lease.rentalApplicationId) ||
+                          ["renewed", "terminated"].includes(lease.status)
+                        }
+                      />
+                      <select
+                        aria-label={`Update lease status for ${lease.tenant.firstName} ${lease.tenant.lastName}`}
+                        className="h-10 rounded-md border border-input bg-background px-3 text-xs font-semibold"
+                        value={lease.status}
+                        disabled={Boolean(lease.rentalApplicationId)}
+                        onChange={(event) =>
+                          void updateStatus(lease, event.target.value)
+                        }
+                      >
+                        <option value="active">Active</option>
+                        <option value="expiring">Expiring</option>
+                        {["renewed", "terminated"].includes(lease.status) && (
+                          <option value={lease.status}>{lease.status}</option>
+                        )}
+                        {lease.status === "pending_signature" && (
+                          <option value="pending_signature">
+                            Pending signature
+                          </option>
+                        )}
+                        {lease.status === "signature_action_required" && (
+                          <option value="signature_action_required">
+                            Signature action required
+                          </option>
+                        )}
+                      </select>
+                      <LeaseLifecycleLink leaseId={lease.id} />
                     </div>
                   </TableCell>
                 </TableRow>

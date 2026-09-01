@@ -49,9 +49,11 @@ function initialForm(lease: LeaseTerms): FormState {
 export function LeaseRentPolicyDialog({
   lease,
   onSaved,
+  disabled = false,
 }: {
   lease: LeaseTerms;
   onSaved: () => Promise<void>;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -86,7 +88,9 @@ export function LeaseRentPolicyDialog({
         setOpen(nextOpen);
       }}
     >
-      <DialogTrigger render={<Button size="sm" variant="outline" />}>
+      <DialogTrigger
+        render={<Button size="sm" variant="outline" disabled={disabled} />}
+      >
         <Settings2 aria-hidden="true" /> Edit terms
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
@@ -94,7 +98,9 @@ export function LeaseRentPolicyDialog({
           <DialogHeader>
             <DialogTitle>Lease billing terms</DialogTitle>
             <DialogDescription>
-              Update the rent policy for {lease.tenant.firstName} {lease.tenant.lastName}. Changes apply to future monthly charges; existing payment records stay intact.
+              Update the rent policy for {lease.tenant.firstName}{" "}
+              {lease.tenant.lastName}. Changes apply to future monthly charges;
+              existing payment records stay intact.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -104,7 +110,9 @@ export function LeaseRentPolicyDialog({
               value={form.monthlyRent}
               min="0"
               step="0.01"
-              onChange={(monthlyRent) => setForm((current) => ({ ...current, monthlyRent }))}
+              onChange={(monthlyRent) =>
+                setForm((current) => ({ ...current, monthlyRent }))
+              }
             />
             <Field
               id={`deposit-${lease.id}`}
@@ -112,7 +120,9 @@ export function LeaseRentPolicyDialog({
               value={form.securityDeposit}
               min="0"
               step="0.01"
-              onChange={(securityDeposit) => setForm((current) => ({ ...current, securityDeposit }))}
+              onChange={(securityDeposit) =>
+                setForm((current) => ({ ...current, securityDeposit }))
+              }
             />
             <Field
               id={`due-day-${lease.id}`}
@@ -121,7 +131,9 @@ export function LeaseRentPolicyDialog({
               min="1"
               max="28"
               step="1"
-              onChange={(rentDueDay) => setForm((current) => ({ ...current, rentDueDay }))}
+              onChange={(rentDueDay) =>
+                setForm((current) => ({ ...current, rentDueDay }))
+              }
             />
             <Field
               id={`grace-days-${lease.id}`}
@@ -130,7 +142,9 @@ export function LeaseRentPolicyDialog({
               min="0"
               max="30"
               step="1"
-              onChange={(gracePeriodDays) => setForm((current) => ({ ...current, gracePeriodDays }))}
+              onChange={(gracePeriodDays) =>
+                setForm((current) => ({ ...current, gracePeriodDays }))
+              }
             />
             <Field
               id={`late-fee-${lease.id}`}
@@ -138,7 +152,9 @@ export function LeaseRentPolicyDialog({
               value={form.lateFeeAmount}
               min="0"
               step="0.01"
-              onChange={(lateFeeAmount) => setForm((current) => ({ ...current, lateFeeAmount }))}
+              onChange={(lateFeeAmount) =>
+                setForm((current) => ({ ...current, lateFeeAmount }))
+              }
             />
           </div>
           <DialogFooter>
