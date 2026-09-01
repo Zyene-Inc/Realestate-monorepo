@@ -1,4 +1,3 @@
-import { ConfigService } from '@nestjs/config';
 import {
   ChatMessageRole,
   ListingStatus,
@@ -12,59 +11,22 @@ import {
   CHATBOT_SCOPE_REFUSAL_MESSAGE,
 } from './chatbot.constants';
 import { ChatbotService } from './chatbot.service';
+import {
+  argumentAt,
+  completedGeneration,
+  createTestAi,
+  createTestConfig,
+  firstArgument,
+  transactionMock,
+} from './chatbot.service.spec.utils';
 
 describe('ChatbotService', () => {
-  const completedGeneration: ChatbotGeneration = {
-    textStream: (async function* () {
-      await Promise.resolve();
-      yield 'A helpful answer';
-    })(),
-    completion: Promise.resolve({
-      text: 'A helpful answer',
-      finishReason: 'stop',
-      inputTokens: 120,
-      outputTokens: 24,
-    }),
-  };
-
-  function config(enabled = true) {
-    return new ConfigService({
-      CHATBOT_ENABLED: enabled ? 'true' : 'false',
-      GROQ_API_KEY: enabled ? 'gsk-test-key' : '',
-      CHATBOT_FINGERPRINT_SECRET:
-        'chatbot-test-fingerprint-secret-with-more-than-32-characters',
-      PUBLIC_SITE_URL: 'https://coachjohnsonrealty.com',
-    });
-  }
-
-  function ai(enabled = true): ChatbotAiGateway {
-    return {
-      isEnabled: jest.fn().mockReturnValue(enabled),
-      generate: jest.fn().mockResolvedValue(completedGeneration),
-    };
-  }
-
-  function firstArgument(mock: { mock: { calls: unknown[][] } }) {
-    return mock.mock.calls[0]?.[0];
-  }
-
-  function argumentAt(mock: { mock: { calls: unknown[][] } }, index: number) {
-    return mock.mock.calls[index]?.[0];
-  }
-
-  function transactionMock(tx: object) {
-    return jest.fn((input: unknown) => {
-      if (typeof input === 'function') {
-        return Promise.resolve(
-          (input as (transaction: typeof tx) => unknown)(tx),
-        );
-      }
-      return Promise.all(input as Promise<unknown>[]);
-    });
-  }
-
   it('reports availability without exposing the Groq key', () => {
-    const service = new ChatbotService({} as never, config(), ai());
+    const service = new ChatbotService(
+      {} as never,
+      createTestConfig(),
+      createTestAi(),
+    );
     const status = service.status();
 
     expect(status).toEqual({ available: true, model: CHATBOT_MODEL });
@@ -75,7 +37,7 @@ describe('ChatbotService', () => {
     const prisma = {
       chatConversation: { findFirst: jest.fn() },
     };
-    const service = new ChatbotService(prisma as never, config(), ai());
+    const service = new ChatbotService(prisma as never, createTestConfig(), createTestAi());
 
     await expect(service.history('not-a-token')).resolves.toEqual({
       items: [],
@@ -140,7 +102,7 @@ describe('ChatbotService', () => {
       isEnabled: () => true,
       generate: (input) => generate(input) as Promise<ChatbotGeneration>,
     };
-    const service = new ChatbotService(prisma as never, config(), gateway);
+    const service = new ChatbotService(prisma as never, createTestConfig(), gateway);
 
     const started = await service.startReply({
       message: '  Show me a home  ',
@@ -208,7 +170,7 @@ describe('ChatbotService', () => {
       chatConversation: { create: jest.fn() },
     };
     const prisma = { $transaction: transactionMock(tx) };
-    const service = new ChatbotService(prisma as never, config(), ai());
+    const service = new ChatbotService(prisma as never, createTestConfig(), createTestAi());
 
     await service
       .startReply({
@@ -250,8 +212,8 @@ describe('ChatbotService', () => {
     };
     const service = new ChatbotService(
       { $transaction: transactionMock(tx) } as never,
-      config(),
-      ai(),
+      createTestConfig(),
+      createTestAi(),
     );
 
     await expect(
@@ -292,7 +254,7 @@ describe('ChatbotService', () => {
     };
     const service = new ChatbotService(
       { $transaction: transactionMock(tx) } as never,
-      config(),
+      createTestConfig(),
       gateway,
     );
 
@@ -332,7 +294,7 @@ describe('ChatbotService', () => {
     const generate = jest.fn();
     const service = new ChatbotService(
       { $transaction: transactionMock(tx) } as never,
-      config(),
+      createTestConfig(),
       {
         isEnabled: () => true,
         generate: (input) => generate(input) as Promise<ChatbotGeneration>,
@@ -390,7 +352,7 @@ describe('ChatbotService', () => {
           findMany: jest.fn().mockResolvedValue([]),
         },
       } as never,
-      config(),
+      createTestConfig(),
       {
         isEnabled: () => true,
         generate: (input) => generate(input) as Promise<ChatbotGeneration>,
@@ -454,7 +416,7 @@ describe('ChatbotService', () => {
           findMany: jest.fn().mockResolvedValue([]),
         },
       } as never,
-      config(),
+      createTestConfig(),
       {
         isEnabled: () => true,
         generate: (input) => generate(input) as Promise<ChatbotGeneration>,
@@ -486,7 +448,7 @@ describe('ChatbotService', () => {
       auditLog: { create: jest.fn().mockReturnValue(operations[2]) },
       $transaction: jest.fn().mockResolvedValue(await Promise.all(operations)),
     };
-    const service = new ChatbotService(prisma as never, config(), ai());
+    const service = new ChatbotService(prisma as never, createTestConfig(), createTestAi());
 
     await service.completeReply('chat-1', await completedGeneration.completion);
 
