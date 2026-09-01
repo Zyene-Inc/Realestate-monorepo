@@ -62,9 +62,7 @@ function readDeltaContent(choice: JsonRecord | undefined) {
   const delta = asRecord(choice?.delta);
   const message = asRecord(choice?.message);
   return (
-    readString(delta, 'content') ??
-    readString(message, 'content') ??
-    undefined
+    readString(delta, 'content') ?? readString(message, 'content') ?? undefined
   );
 }
 

@@ -4,6 +4,22 @@ import {
   promptGuardDetectedAttack,
 } from './chatbot-ai.gateway';
 
+function fetchRequestBody(fetchMock: jest.Mock, callIndex: number): string {
+  const call = fetchMock.mock.calls[callIndex] as unknown;
+  if (!Array.isArray(call) || call.length < 2) {
+    throw new Error(`fetch call ${callIndex} did not include request init`);
+  }
+  const init = call[1] as unknown;
+  if (!init || typeof init !== 'object') {
+    throw new Error(`fetch call ${callIndex} did not include request init`);
+  }
+  const body = (init as RequestInit).body;
+  if (typeof body !== 'string') {
+    throw new Error(`fetch call ${callIndex} did not include a string body`);
+  }
+  return body;
+}
+
 describe('GroqChatbotGateway', () => {
   it('requires both the explicit feature flag and server-only key', () => {
     expect(
@@ -75,16 +91,16 @@ describe('GroqChatbotGateway', () => {
 
       expect(text).toBe('Hello');
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      const guardBody = JSON.parse(
-        String(fetchMock.mock.calls[0]?.[1]?.body),
-      ) as { model: string; messages: Array<{ role: string }> };
+      const guardBody = JSON.parse(fetchRequestBody(fetchMock, 0)) as {
+        model: string;
+        messages: Array<{ role: string }>;
+      };
       expect(guardBody.model).toBe('meta-llama/llama-prompt-guard-2-86m');
-      expect(guardBody.messages).toEqual([
-        { role: 'user', content: 'hello' },
-      ]);
-      const chatBody = JSON.parse(
-        String(fetchMock.mock.calls[1]?.[1]?.body),
-      ) as { include_reasoning?: boolean; reasoning_format?: string };
+      expect(guardBody.messages).toEqual([{ role: 'user', content: 'hello' }]);
+      const chatBody = JSON.parse(fetchRequestBody(fetchMock, 1)) as {
+        include_reasoning?: boolean;
+        reasoning_format?: string;
+      };
       expect(chatBody.include_reasoning).toBe(false);
       expect(chatBody.reasoning_format).toBeUndefined();
     } finally {
