@@ -1,5 +1,12 @@
 import { BadRequestException } from '@nestjs/common';
-import { WebsiteLeadSource, WebsiteLeadStatus } from '@prisma/client';
+import {
+  ListingType,
+  PublishStatus,
+  Role,
+  WebsiteLeadIntent,
+  WebsiteLeadSource,
+  WebsiteLeadStatus,
+} from '@prisma/client';
 import { WebsiteLeadsService } from './website-leads.service';
 
 describe('WebsiteLeadsService', () => {
@@ -11,13 +18,27 @@ describe('WebsiteLeadsService', () => {
       chatConversation: {
         findFirst: jest.fn(),
       },
+      property: {
+        findFirst: jest.fn(),
+      },
+      unit: {
+        findFirst: jest.fn(),
+      },
+      user: {
+        findFirst: jest.fn(),
+        findMany: jest.fn(),
+      },
       websiteLead: {
         create: jest.fn(),
         count: jest.fn(),
         delete: jest.fn(),
+        findFirst: jest.fn(),
         findMany: jest.fn(),
-        findUnique: jest.fn(),
-        update: jest.fn(),
+        updateMany: jest.fn(),
+      },
+      websiteLeadNote: {
+        create: jest.fn(),
+        findMany: jest.fn(),
       },
       auditLog: {
         create: jest.fn(),
@@ -123,6 +144,147 @@ describe('WebsiteLeadsService', () => {
     });
   });
 
+  it('creates a contact-form CRM lead linked to its rental and unit', async () => {
+    const prisma = prismaMock();
+    prisma.property.findFirst.mockResolvedValue({
+      id: 'property-1',
+      status: 'active',
+    });
+    prisma.unit.findFirst.mockResolvedValue({ id: 'unit-1' });
+    prisma.websiteLead.create.mockResolvedValue({
+      id: 'lead-contact-1',
+      status: WebsiteLeadStatus.NEW,
+    });
+    prisma.auditLog.create.mockResolvedValue({ id: 'audit-contact-1' });
+    prisma.$transaction.mockImplementation(
+      (callback: (tx: typeof prisma) => unknown) =>
+        Promise.resolve(callback(prisma)),
+    );
+    const service = new WebsiteLeadsService(prisma as never);
+
+    const result = await service.createFromContact(
+      {
+        name: 'Taylor Renter',
+        email: 'Taylor@Example.com',
+        phone: '555-0199',
+        message: 'I would like to tour this property next week.',
+        intent: WebsiteLeadIntent.RENTAL_TOUR,
+        propertyId: 'property-1',
+        unitId: 'unit-1',
+        moveInDate: '2099-09-01',
+      },
+      { ipAddress: '127.0.0.1', userAgent: 'jest' },
+      fingerprintSecret,
+    );
+
+    expect(result).toEqual({
+      id: 'lead-contact-1',
+      status: WebsiteLeadStatus.NEW,
+    });
+    expect(prisma.property.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'property-1',
+        listingType: ListingType.RENT,
+        publishStatus: PublishStatus.PUBLISHED,
+      },
+      select: { id: true, status: true },
+    });
+    expect(prisma.unit.findFirst).toHaveBeenCalledWith({
+      where: {
+        id: 'unit-1',
+        propertyId: 'property-1',
+        status: 'vacant',
+      },
+      select: { id: true },
+    });
+    const expectedContactLeadData = expect.objectContaining({
+      name: 'Taylor Renter',
+      email: 'taylor@example.com',
+      source: WebsiteLeadSource.CONTACT_FORM,
+      intent: WebsiteLeadIntent.RENTAL_TOUR,
+      status: WebsiteLeadStatus.NEW,
+      propertyId: 'property-1',
+      unitId: 'unit-1',
+      moveInDate: new Date('2099-09-01T00:00:00.000Z'),
+    }) as unknown as object;
+    expect(prisma.websiteLead.create).toHaveBeenCalledWith({
+      data: expectedContactLeadData,
+      select: { id: true, status: true },
+    });
+    const expectedContactAuditData = expect.objectContaining({
+      action: 'PUBLIC_WEBSITE_CONTACT_LEAD_CREATED',
+      resourceId: 'lead-contact-1',
+    }) as unknown as object;
+    expect(prisma.auditLog.create).toHaveBeenCalledWith({
+      data: expectedContactAuditData,
+    });
+  });
+
+  it('requires a published property for tour and application requests', async () => {
+    const prisma = prismaMock();
+    const service = new WebsiteLeadsService(prisma as never);
+
+    await expect(
+      service.createFromContact({
+        name: 'Taylor Renter',
+        email: 'taylor@example.com',
+        message: 'Please send application details.',
+        intent: WebsiteLeadIntent.RENTAL_APPLICATION,
+        moveInDate: '2099-09-01',
+      }),
+    ).rejects.toThrow('A published rental property is required');
+
+    expect(prisma.websiteLead.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects a unit that does not belong to the selected rental', async () => {
+    const prisma = prismaMock();
+    prisma.property.findFirst.mockResolvedValue({
+      id: 'property-1',
+      status: 'active',
+    });
+    prisma.unit.findFirst.mockResolvedValue(null);
+    const service = new WebsiteLeadsService(prisma as never);
+
+    await expect(
+      service.createFromContact({
+        name: 'Taylor Renter',
+        email: 'taylor@example.com',
+        message: 'I would like to tour this unit.',
+        intent: WebsiteLeadIntent.RENTAL_TOUR,
+        propertyId: 'property-1',
+        unitId: 'unit-from-another-property',
+        moveInDate: '2099-09-01',
+      }),
+    ).rejects.toThrow('Rental unit is not available for this property');
+
+    expect(prisma.websiteLead.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects rental leads without a future move-in date', async () => {
+    const prisma = prismaMock();
+    const service = new WebsiteLeadsService(prisma as never);
+
+    await expect(
+      service.createFromContact({
+        name: 'Taylor Renter',
+        email: 'taylor@example.com',
+        message: 'I am interested in a rental.',
+        intent: WebsiteLeadIntent.RENTAL_INQUIRY,
+      }),
+    ).rejects.toThrow('Preferred move-in date is required');
+
+    await expect(
+      service.createFromContact({
+        name: 'Taylor Renter',
+        email: 'taylor@example.com',
+        message: 'I am interested in a rental.',
+        intent: WebsiteLeadIntent.RENTAL_INQUIRY,
+        moveInDate: '2000-01-01',
+      }),
+    ).rejects.toThrow('Move-in date cannot be in the past');
+  });
+
   it('lists leads with cursor pagination', async () => {
     const prisma = prismaMock();
     prisma.websiteLead.findMany.mockResolvedValue([
@@ -152,31 +314,30 @@ describe('WebsiteLeadsService', () => {
     });
   });
 
-  it('updates lead status and writes an audit log', async () => {
+  it('scopes rental-admin lead lists and badges to rental requests', async () => {
     const prisma = prismaMock();
-    prisma.websiteLead.findUnique.mockResolvedValue({
-      id: 'lead-4',
-      status: WebsiteLeadStatus.NEW,
-    });
-    prisma.websiteLead.update.mockResolvedValue({
-      id: 'lead-4',
-      status: WebsiteLeadStatus.CONTACTED,
-    });
-    prisma.auditLog.create.mockResolvedValue({ id: 'audit-4' });
+    prisma.websiteLead.findMany.mockResolvedValue([]);
+    prisma.websiteLead.count.mockResolvedValue(2);
     const service = new WebsiteLeadsService(prisma as never);
 
-    const updated = await service.updateStatus(
-      'lead-4',
-      WebsiteLeadStatus.CONTACTED,
-    );
+    await service.listForAdmin({}, Role.TENANT_ADMIN);
+    await service.getNewCount(Role.TENANT_ADMIN);
 
-    expect(updated.status).toBe(WebsiteLeadStatus.CONTACTED);
-    const expectedAuditData = expect.objectContaining({
-      action: 'WEBSITE_LEAD_STATUS_UPDATED',
-      resourceId: 'lead-4',
-    }) as unknown as object;
-    expect(prisma.auditLog.create).toHaveBeenCalledWith({
-      data: expectedAuditData,
+    const rentalScope = {
+      intent: {
+        in: [
+          WebsiteLeadIntent.RENTAL_INQUIRY,
+          WebsiteLeadIntent.RENTAL_TOUR,
+          WebsiteLeadIntent.RENTAL_APPLICATION,
+          WebsiteLeadIntent.SIMILAR_RENTAL,
+        ],
+      },
+    };
+    expect(prisma.websiteLead.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: rentalScope }),
+    );
+    expect(prisma.websiteLead.count).toHaveBeenCalledWith({
+      where: { status: WebsiteLeadStatus.NEW, ...rentalScope },
     });
   });
 
@@ -186,7 +347,7 @@ describe('WebsiteLeadsService', () => {
       (callback: (tx: typeof prisma) => unknown) =>
         Promise.resolve(callback(prisma)),
     );
-    prisma.websiteLead.findUnique.mockResolvedValue({ id: 'lead-5' });
+    prisma.websiteLead.findFirst.mockResolvedValue({ id: 'lead-5' });
     prisma.websiteLead.delete.mockResolvedValue({ id: 'lead-5' });
     prisma.auditLog.create.mockResolvedValue({ id: 'audit-5' });
     const service = new WebsiteLeadsService(prisma as never);
