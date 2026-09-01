@@ -3,11 +3,14 @@ import {
   Bath,
   BedDouble,
   CalendarDays,
+  CalendarCheck2,
   Check,
   CircleDollarSign,
+  ClipboardPenLine,
   Clock3,
   Home,
   MapPin,
+  MessageCircle,
   MessageSquareText,
   Ruler,
   ShieldCheck,
@@ -24,6 +27,7 @@ const rentalDateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "long",
   day: "numeric",
   year: "numeric",
+  timeZone: "UTC",
 });
 
 const supportItems = [
@@ -159,17 +163,27 @@ function InquiryPanel({ property }: RentalDetailContentProps) {
   const rented = property.status === "rented";
   const unit = property.units[0];
   const price = rentalPrice(property);
+  const canApply = !rented && price != null;
   const availability = formatDate(
     unit?.availableDate ?? property.availabilityDate,
   );
-  const search = new URLSearchParams({
-    intent: rented ? "similar-rental" : "rent",
-    property: property.name,
-    address: `${property.address}, ${property.city}, ${property.state} ${property.zip}`,
-  });
+  const address = `${property.address}, ${property.city}, ${property.state} ${property.zip}`;
+  const contactHref = (intent: string) => {
+    const search = new URLSearchParams({
+      intent,
+      rentalId: property.id,
+      property: property.name,
+      address,
+    });
+    if (unit) search.set("unitId", unit.id);
+    return `/contact?${search.toString()}`;
+  };
 
   return (
-    <aside className="lg:col-start-2 lg:row-span-2 lg:row-start-1">
+    <aside
+      id="rental-inquiry"
+      className="scroll-mt-28 lg:col-start-2 lg:row-span-2 lg:row-start-1"
+    >
       <div className="rounded-[1.25rem] border border-border bg-card p-6 lg:sticky lg:top-24 lg:p-7">
         <p className="text-sm font-semibold text-primary">
           {rented ? "Rental history" : "Current availability"}
@@ -197,20 +211,34 @@ function InquiryPanel({ property }: RentalDetailContentProps) {
                 {availability ?? "Confirm with team"}
               </dd>
             </div>
-            {unit ? (
-              <div className="flex items-start justify-between gap-5">
-                <dt className="flex items-center gap-2 text-muted-foreground">
-                  <CircleDollarSign
-                    className="size-4 text-primary"
-                    aria-hidden="true"
-                  />
-                  Deposit
-                </dt>
-                <dd className="text-right font-semibold">
-                  {formatCurrency(unit.depositAmount)}
-                </dd>
-              </div>
-            ) : null}
+            <div className="flex items-start justify-between gap-5">
+              <dt className="flex items-center gap-2 text-muted-foreground">
+                <CircleDollarSign
+                  className="size-4 text-primary"
+                  aria-hidden="true"
+                />
+                Deposit
+              </dt>
+              <dd className="text-right font-semibold">
+                {unit
+                  ? formatCurrency(unit.depositAmount)
+                  : "Confirm with team"}
+              </dd>
+            </div>
+            <div className="flex items-start justify-between gap-5">
+              <dt className="flex items-center gap-2 text-muted-foreground">
+                <ClipboardPenLine
+                  className="size-4 text-primary"
+                  aria-hidden="true"
+                />
+                Application fee
+              </dt>
+              <dd className="text-right font-semibold">
+                {Number(property.applicationFeeAmount) > 0
+                  ? formatCurrency(Number(property.applicationFeeAmount))
+                  : "No fee"}
+              </dd>
+            </div>
           </dl>
         ) : (
           <p className="mt-4 text-sm leading-6 text-muted-foreground">
@@ -218,15 +246,56 @@ function InquiryPanel({ property }: RentalDetailContentProps) {
           </p>
         )}
 
-        <Link
-          href={`/contact?${search.toString()}`}
-          transitionTypes={["nav-forward"]}
-          className={buttonVariants({ className: "mt-6 w-full" })}
-        >
-          {rented ? "Find a similar rental" : "Ask about availability"}
-        </Link>
+        {rented ? (
+          <Link
+            href={contactHref("similar-rental")}
+            transitionTypes={["nav-forward"]}
+            className={buttonVariants({ className: "mt-6 w-full" })}
+          >
+            Find a similar rental
+          </Link>
+        ) : (
+          <div className="mt-6 grid gap-3">
+            {canApply ? (
+              <Link
+                href={`/rentals/${property.id}/apply${unit ? `?unitId=${encodeURIComponent(unit.id)}` : ""}`}
+                transitionTypes={["nav-forward"]}
+                className={buttonVariants({ className: "w-full" })}
+              >
+                <ClipboardPenLine aria-hidden="true" />
+                Apply now
+              </Link>
+            ) : null}
+            <Link
+              href={contactHref("rent-tour")}
+              transitionTypes={["nav-forward"]}
+              className={buttonVariants({
+                variant: canApply ? "outline" : "default",
+                className: "w-full",
+              })}
+            >
+              <CalendarCheck2 aria-hidden="true" />
+              Schedule a tour
+            </Link>
+            <Link
+              href={contactHref("rent")}
+              transitionTypes={["nav-forward"]}
+              className={buttonVariants({
+                variant: "ghost",
+                className: "w-full",
+              })}
+            >
+              <MessageCircle aria-hidden="true" />
+              Contact rental team
+            </Link>
+          </div>
+        )}
         <p className="mt-4 text-center text-xs leading-5 text-muted-foreground">
-          No payment is required to ask about this property.
+          {rented
+            ? "No payment is required to ask about similar rentals."
+            : canApply
+              ? "No payment is required to ask, tour, or start an application."
+              : "No payment is required to ask a question or request a tour."}
         </p>
 
         <div className="mt-6 border-t border-border pt-6">
@@ -234,11 +303,11 @@ function InquiryPanel({ property }: RentalDetailContentProps) {
           <ol className="mt-4 space-y-4 text-sm text-muted-foreground">
             <li className="flex gap-3">
               <span className="font-semibold text-primary">1.</span>
-              The rental team confirms current availability and lease terms.
+              Choose whether to apply, request a tour, or ask a question.
             </li>
             <li className="flex gap-3">
               <span className="font-semibold text-primary">2.</span>
-              You can discuss a tour and the appropriate next step.
+              The rental team confirms availability and explains the next step.
             </li>
           </ol>
         </div>
