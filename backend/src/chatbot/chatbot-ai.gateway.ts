@@ -58,12 +58,24 @@ function firstChoice(payload: JsonRecord) {
   return Array.isArray(choices) ? asRecord(choices[0]) : undefined;
 }
 
-function readDeltaContent(choice: JsonRecord | undefined) {
-  const delta = asRecord(choice?.delta);
-  const message = asRecord(choice?.message);
-  return (
-    readString(delta, 'content') ?? readString(message, 'content') ?? undefined
-  );
+function completedGeneration(
+  text: string,
+  payload: JsonRecord,
+): ChatbotGeneration {
+  const choice = firstChoice(payload);
+  const completion = Promise.resolve({
+    text,
+    finishReason: readString(choice, 'finish_reason') ?? 'stop',
+    inputTokens: readNumber(asRecord(payload.usage), 'prompt_tokens'),
+    outputTokens: readNumber(asRecord(payload.usage), 'completion_tokens'),
+  });
+  return {
+    textStream: (async function* () {
+      await Promise.resolve();
+      yield text;
+    })(),
+    completion,
+  };
 }
 
 function promptGuardChunks(message: string) {
@@ -219,8 +231,7 @@ export class GroqChatbotGateway implements ChatbotAiGateway {
           { role: 'system', content: input.instructions },
           ...input.messages,
         ],
-        stream: true,
-        stream_options: { include_usage: true },
+        stream: false,
         max_completion_tokens: 500,
         reasoning_effort: 'low',
         include_reasoning: false,
@@ -228,84 +239,12 @@ export class GroqChatbotGateway implements ChatbotAiGateway {
       },
       input.abortSignal,
     );
-    if (!response.body) throw new Error('Groq returned no response stream');
-
-    let resolveCompletion!: (
-      value: Awaited<ChatbotGeneration['completion']>,
-    ) => void;
-    let rejectCompletion!: (reason?: unknown) => void;
-    const completion = new Promise<Awaited<ChatbotGeneration['completion']>>(
-      (resolve, reject) => {
-        resolveCompletion = resolve;
-        rejectCompletion = reject;
-      },
-    );
-
-    const textStream = (async function* () {
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let text = '';
-      let finishReason = 'stop';
-      let inputTokens: number | undefined;
-      let outputTokens: number | undefined;
-      let settled = false;
-
-      const consumeEvent = (event: string) => {
-        const data = event
-          .split(/\r?\n/)
-          .filter((line) => line.startsWith('data:'))
-          .map((line) => line.slice(5).trimStart())
-          .join('\n');
-        if (!data || data === '[DONE]') return undefined;
-        const payload = asRecord(JSON.parse(data));
-        if (!payload) return undefined;
-        const choice = firstChoice(payload);
-        const delta = readDeltaContent(choice);
-        const reason = readString(choice, 'finish_reason');
-        if (reason) finishReason = reason;
-        const usage = asRecord(payload.usage);
-        inputTokens = readNumber(usage, 'prompt_tokens') ?? inputTokens;
-        outputTokens = readNumber(usage, 'completion_tokens') ?? outputTokens;
-        return delta;
-      };
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          buffer += decoder.decode(value, { stream: !done });
-          const events = buffer.split(/\r?\n\r?\n/);
-          buffer = events.pop() ?? '';
-          for (const event of events) {
-            const delta = consumeEvent(event);
-            if (delta) {
-              text += delta;
-              yield delta;
-            }
-          }
-          if (done) break;
-        }
-        if (buffer.trim()) {
-          const delta = consumeEvent(buffer);
-          if (delta) {
-            text += delta;
-            yield delta;
-          }
-        }
-        settled = true;
-        resolveCompletion({ text, finishReason, inputTokens, outputTokens });
-      } catch (error) {
-        settled = true;
-        rejectCompletion(error);
-        throw error;
-      } finally {
-        reader.releaseLock();
-        if (!settled) {
-          rejectCompletion(new Error('Groq response stream was interrupted'));
-        }
-      }
-    })();
-
-    return { textStream, completion };
+    const payload = asRecord(await response.json());
+    if (!payload) throw new Error('Groq returned an empty response');
+    const text =
+      readString(asRecord(firstChoice(payload)?.message), 'content')?.trim() ??
+      '';
+    if (!text) throw new Error('Groq returned no assistant text');
+    return completedGeneration(text, payload);
   }
 }

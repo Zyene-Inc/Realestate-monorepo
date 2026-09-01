@@ -73,52 +73,66 @@ export async function streamChatbotReply(input: {
   signal?: AbortSignal;
   onDelta: (text: string) => void;
 }) {
-  const response = await fetch(`${API_URL}/public/chatbot/messages`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ message: input.message, website: "" }),
-    signal: input.signal,
-  });
-  if (!response.ok) throw new Error(await responseError(response));
-  if (!response.body) throw new Error("The assistant stream was unavailable.");
+  const timeoutSignal = AbortSignal.timeout(45_000);
+  const signal = input.signal
+    ? AbortSignal.any([input.signal, timeoutSignal])
+    : timeoutSignal;
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let streamError: string | null = null;
+  try {
+    const response = await fetch(`${API_URL}/public/chatbot/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ message: input.message, website: "" }),
+      signal,
+    });
+    if (!response.ok) throw new Error(await responseError(response));
+    if (!response.body) throw new Error("The assistant stream was unavailable.");
 
-  const consume = (block: string) => {
-    const parsed = parseEvent(block);
-    if (!parsed) return;
-    if (
-      parsed.event === "delta" &&
-      parsed.data &&
-      typeof parsed.data === "object" &&
-      "text" in parsed.data &&
-      typeof parsed.data.text === "string"
-    ) {
-      input.onDelta(parsed.data.text);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let streamError: string | null = null;
+
+    const consume = (block: string) => {
+      const parsed = parseEvent(block);
+      if (!parsed) return;
+      if (
+        parsed.event === "delta" &&
+        parsed.data &&
+        typeof parsed.data === "object" &&
+        "text" in parsed.data &&
+        typeof parsed.data.text === "string"
+      ) {
+        input.onDelta(parsed.data.text);
+      }
+      if (parsed.event === "error") streamError = eventMessage(parsed.data);
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer = (buffer + decoder.decode(value, { stream: !done })).replace(
+        /\r\n/g,
+        "\n",
+      );
+      let boundary = buffer.indexOf("\n\n");
+      while (boundary >= 0) {
+        consume(buffer.slice(0, boundary));
+        buffer = buffer.slice(boundary + 2);
+        boundary = buffer.indexOf("\n\n");
+      }
+      if (done) break;
     }
-    if (parsed.event === "error") streamError = eventMessage(parsed.data);
-  };
-
-  while (true) {
-    const { done, value } = await reader.read();
-    buffer = (buffer + decoder.decode(value, { stream: !done })).replace(
-      /\r\n/g,
-      "\n",
-    );
-    let boundary = buffer.indexOf("\n\n");
-    while (boundary >= 0) {
-      consume(buffer.slice(0, boundary));
-      buffer = buffer.slice(boundary + 2);
-      boundary = buffer.indexOf("\n\n");
+    if (buffer.trim()) consume(buffer);
+    if (streamError) throw new Error(streamError);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new Error(
+        "The assistant took too long to respond. Please try again or contact our team.",
+      );
     }
-    if (done) break;
+    throw error;
   }
-  if (buffer.trim()) consume(buffer);
-  if (streamError) throw new Error(streamError);
 }
 
 export type SubmitWebsiteLeadInput = {

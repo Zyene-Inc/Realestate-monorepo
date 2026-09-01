@@ -59,15 +59,9 @@ describe('GroqChatbotGateway', () => {
       )
       .mockResolvedValueOnce(
         new Response(
-          new ReadableStream({
-            start(controller) {
-              controller.enqueue(
-                new TextEncoder().encode(
-                  'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\ndata: [DONE]\n\n',
-                ),
-              );
-              controller.close();
-            },
+          JSON.stringify({
+            choices: [{ message: { content: 'Hello' }, finish_reason: 'stop' }],
+            usage: { prompt_tokens: 12, completion_tokens: 3 },
           }),
           { status: 200 },
         ),
@@ -98,11 +92,12 @@ describe('GroqChatbotGateway', () => {
       expect(guardBody.model).toBe('meta-llama/llama-prompt-guard-2-86m');
       expect(guardBody.messages).toEqual([{ role: 'user', content: 'hello' }]);
       const chatBody = JSON.parse(fetchRequestBody(fetchMock, 1)) as {
+        stream?: boolean;
         include_reasoning?: boolean;
         reasoning_format?: string;
       };
+      expect(chatBody.stream).toBe(false);
       expect(chatBody.include_reasoning).toBe(false);
-      expect(chatBody.reasoning_format).toBeUndefined();
     } finally {
       global.fetch = originalFetch;
     }
