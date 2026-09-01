@@ -474,7 +474,7 @@ export class AuthService {
         `${firstName} ${lastName}`,
         tenant.id,
       );
-      return { success: true, message: 'Invitation sent' };
+      return { success: true, message: 'Invitation sent', tenantId: tenant.id };
     } catch (error) {
       await this.adminClient().auth.admin.deleteUser(invited.user.id);
       throw error;

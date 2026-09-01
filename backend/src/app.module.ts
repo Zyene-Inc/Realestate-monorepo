@@ -27,6 +27,9 @@ import { ReportsModule } from './reports/reports.module';
 import { ChatbotModule } from './chatbot/chatbot.module';
 import { StripeModule } from './stripe/stripe.module';
 import { PropertyOwnersModule } from './property-owners/property-owners.module';
+import { RentalApplicationsModule } from './rental-applications/rental-applications.module';
+import { MoveInInspectionsModule } from './move-in-inspections/move-in-inspections.module';
+import { LeaseLifecycleModule } from './lease-lifecycle/lease-lifecycle.module';
 
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -45,6 +48,9 @@ import { APP_GUARD } from '@nestjs/core';
     AuthModule,
     PropertiesModule,
     PropertyOwnersModule,
+    RentalApplicationsModule,
+    MoveInInspectionsModule,
+    LeaseLifecycleModule,
     UnitsModule,
     TenantsModule,
     LeasesModule,
