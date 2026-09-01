@@ -12,7 +12,7 @@ import {
   Min,
 } from 'class-validator';
 
-const LEASE_STATUSES = ['active', 'expiring', 'renewed', 'terminated'] as const;
+const LEASE_STATUSES = ['active', 'expiring'] as const;
 
 export class CreateLeaseDto {
   @IsString() @Length(1, 64) tenantId!: string;

@@ -8,13 +8,42 @@ import { ListingType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailsService } from '../emails/emails.service';
 import { CreateLeaseDto, UpdateLeaseDto } from './dto/lease.dto';
+import { standardMoveInChargeData } from '../payments/move-in-charge.policy';
+import { defaultMoveInInspectionData } from '../move-in-inspections/move-in-inspection.template';
+
+const OCCUPANCY_BLOCKING_LEASE_STATUSES = [
+  'pending_signature',
+  'signature_action_required',
+  'active',
+  'expiring',
+  'renewed',
+];
+
+export type PendingApplicationLeaseInput = {
+  unitId: string;
+  startDate: string;
+  endDate: string;
+  monthlyRent: number;
+  securityDeposit: number;
+  rentDueDay: number;
+  gracePeriodDays: number;
+  lateFeeAmount: number;
+};
 
 const leaseInclude = {
   tenant: {
     select: { id: true, firstName: true, lastName: true, email: true },
   },
   unit: {
-    include: { property: { select: { id: true, name: true } } },
+    include: {
+      property: {
+        select: {
+          id: true,
+          name: true,
+          owner: { select: { id: true, commissionRate: true } },
+        },
+      },
+    },
   },
 } satisfies Prisma.LeaseInclude;
 
@@ -74,14 +103,14 @@ export class LeasesService {
         this.prisma.lease.findFirst({
           where: {
             tenantId: data.tenantId,
-            status: { in: ['active', 'expiring', 'renewed'] },
+            status: { in: OCCUPANCY_BLOCKING_LEASE_STATUSES },
           },
           select: { id: true },
         }),
         this.prisma.lease.findFirst({
           where: {
             unitId: data.unitId,
-            status: { in: ['active', 'expiring', 'renewed'] },
+            status: { in: OCCUPANCY_BLOCKING_LEASE_STATUSES },
           },
           select: { id: true },
         }),
@@ -125,13 +154,42 @@ export class LeasesService {
         },
         include: leaseInclude,
       });
+      const moveInCharges = standardMoveInChargeData({
+        tenantId: lease.tenantId,
+        leaseId: lease.id,
+        unitId: lease.unitId,
+        startDate: lease.startDate,
+        monthlyRent: lease.monthlyRent,
+        securityDeposit: lease.securityDeposit,
+        propertyOwnerId: lease.unit.property.owner?.id ?? null,
+        commissionRate: lease.unit.property.owner?.commissionRate ?? null,
+        postedByUserId: userId,
+      });
+      if (moveInCharges.length) {
+        await tx.moveInCharge.createMany({ data: moveInCharges });
+      }
+      const inspection = await tx.moveInInspection.create({
+        data: defaultMoveInInspectionData({
+          leaseId: lease.id,
+          tenantId: lease.tenantId,
+          unitId: lease.unitId,
+          startDate: lease.startDate,
+          preparedByUserId: userId,
+        }),
+        select: { id: true },
+      });
       await tx.auditLog.create({
         data: {
           userId,
           action: 'RENTAL_LEASE_CREATED',
           resource: 'lease',
           resourceId: lease.id,
-          newValue: JSON.stringify({ tenantId: tenant.id, unitId: unit.id }),
+          newValue: JSON.stringify({
+            tenantId: tenant.id,
+            unitId: unit.id,
+            moveInChargesPosted: moveInCharges.length,
+            moveInInspectionId: inspection.id,
+          }),
         },
       });
       return lease;
@@ -147,18 +205,161 @@ export class LeasesService {
       },
       lease.id,
     );
+    const moveInTotal = lease.monthlyRent + lease.securityDeposit;
+    if (moveInTotal > 0) {
+      await this.emails.sendMoveInChargesPosted(
+        lease.tenant.email,
+        {
+          name: `${lease.tenant.firstName} ${lease.tenant.lastName}`,
+          propertyName: lease.unit.property.name,
+          amount: moveInTotal,
+        },
+        `lease-activation-${lease.id}`,
+      );
+    }
     return lease;
+  }
+
+  async createPendingFromApplication(
+    userId: string,
+    applicationId: string,
+    tenantId: string,
+    data: PendingApplicationLeaseInput,
+  ) {
+    const startDate = new Date(data.startDate);
+    const endDate = new Date(data.endDate);
+    this.assertDateOrder(startDate, endDate);
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "RentalApplication" WHERE "id" = ${applicationId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT "id" FROM "Unit" WHERE "id" = ${data.unitId} FOR UPDATE`;
+      const recovered = await tx.lease.findUnique({
+        where: { rentalApplicationId: applicationId },
+        include: leaseInclude,
+      });
+      if (recovered) {
+        if (
+          recovered.tenantId !== tenantId ||
+          recovered.unitId !== data.unitId
+        ) {
+          throw new ConflictException(
+            'This application is already linked to a different lease',
+          );
+        }
+        return recovered;
+      }
+
+      const [application, tenant, unit, tenantLease, unitLease] =
+        await Promise.all([
+          tx.rentalApplication.findUnique({
+            where: { id: applicationId },
+            select: { id: true, propertyId: true, status: true },
+          }),
+          tx.tenant.findUnique({ where: { id: tenantId } }),
+          tx.unit.findFirst({
+            where: {
+              id: data.unitId,
+              property: { listingType: ListingType.RENT },
+            },
+          }),
+          tx.lease.findFirst({
+            where: {
+              tenantId,
+              status: { in: OCCUPANCY_BLOCKING_LEASE_STATUSES },
+            },
+            select: { id: true },
+          }),
+          tx.lease.findFirst({
+            where: {
+              unitId: data.unitId,
+              status: { in: OCCUPANCY_BLOCKING_LEASE_STATUSES },
+            },
+            select: { id: true },
+          }),
+        ]);
+      if (!application || application.status !== 'APPROVED') {
+        throw new ConflictException(
+          'Only an approved application can become a lease',
+        );
+      }
+      if (!tenant) throw new BadRequestException('Tenant not found');
+      if (!unit || unit.propertyId !== application.propertyId) {
+        throw new BadRequestException(
+          'Select an available unit from the application property',
+        );
+      }
+      if (tenant.unitId && tenant.unitId !== unit.id) {
+        throw new ConflictException('Resident is assigned to a different unit');
+      }
+      if (tenantLease) {
+        throw new ConflictException('Resident already has a current lease');
+      }
+      if (unitLease || unit.status !== 'vacant') {
+        throw new ConflictException('Unit is no longer available');
+      }
+
+      const reservedUnit = await tx.unit.updateMany({
+        where: { id: unit.id, status: 'vacant' },
+        data: { status: 'reserved', availableDate: null },
+      });
+      if (reservedUnit.count !== 1) {
+        throw new ConflictException('Unit is no longer available');
+      }
+      const assignedTenant = await tx.tenant.updateMany({
+        where: { id: tenant.id, OR: [{ unitId: null }, { unitId: unit.id }] },
+        data: { unitId: unit.id, status: 'invited' },
+      });
+      if (assignedTenant.count !== 1) {
+        throw new ConflictException('Resident is no longer available');
+      }
+
+      const lease = await tx.lease.create({
+        data: {
+          tenantId,
+          unitId: unit.id,
+          rentalApplicationId: applicationId,
+          startDate,
+          endDate,
+          monthlyRent: data.monthlyRent,
+          securityDeposit: data.securityDeposit,
+          rentDueDay: data.rentDueDay,
+          gracePeriodDays: data.gracePeriodDays,
+          lateFeeAmount: data.lateFeeAmount,
+          status: 'pending_signature',
+        },
+        include: leaseInclude,
+      });
+      await tx.auditLog.create({
+        data: {
+          userId,
+          action: 'RENTAL_LEASE_PENDING_SIGNATURE_CREATED',
+          resource: 'lease',
+          resourceId: lease.id,
+          newValue: JSON.stringify({
+            applicationId,
+            tenantId,
+            unitId: unit.id,
+          }),
+        },
+      });
+      return lease;
+    });
   }
 
   async update(userId: string, id: string, data: UpdateLeaseDto) {
     const current = await this.findOne(id);
     if (
-      current.status === 'terminated' &&
-      data.status &&
-      data.status !== 'terminated'
+      ['pending_signature', 'signature_action_required'].includes(
+        current.status,
+      )
     ) {
       throw new ConflictException(
-        'A terminated lease cannot be reactivated; create a new lease instead',
+        'This lease is controlled by the application signing workflow',
+      );
+    }
+    if (current.status === 'renewed' || current.status === 'terminated') {
+      throw new ConflictException(
+        'Signed renewals and completed move-outs cannot be edited from the basic lease form',
       );
     }
     const startDate = data.startDate
@@ -176,19 +377,7 @@ export class LeasesService {
         },
         include: leaseInclude,
       });
-      if (data.status === 'terminated') {
-        await tx.tenant.updateMany({
-          where: { id: current.tenantId, unitId: current.unitId },
-          data: { unitId: null, status: 'inactive' },
-        });
-        await tx.unit.update({
-          where: { id: current.unitId },
-          data: { status: 'vacant', availableDate: new Date() },
-        });
-      } else if (
-        data.status &&
-        ['active', 'expiring', 'renewed'].includes(data.status)
-      ) {
+      if (data.status && ['active', 'expiring'].includes(data.status)) {
         await tx.tenant.update({
           where: { id: current.tenantId },
           data: { unitId: current.unitId, status: 'active' },
@@ -227,9 +416,21 @@ export class LeasesService {
 
   async remove(userId: string, id: string) {
     const lease = await this.findOne(id);
+    if (
+      ['active', 'expiring', 'renewed', 'terminated'].includes(lease.status)
+    ) {
+      throw new ConflictException(
+        'Current and completed leases must remain in lifecycle history; use the move-out workflow instead',
+      );
+    }
+    if (lease.rentalApplicationId) {
+      throw new ConflictException(
+        'An application-generated lease must remain in its signing history',
+      );
+    }
     if (lease.payments.length > 0) {
       throw new ConflictException(
-        'A lease with payment history cannot be deleted; terminate it instead',
+        'A lease with payment history cannot be deleted',
       );
     }
     await this.prisma.$transaction(async (tx) => {
