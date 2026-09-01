@@ -40,7 +40,7 @@ export function OwnerReportTable({
               Historical owner and rate snapshots from each received payment.
             </p>
           </div>
-          <Badge variant="outline">Manual ledger</Badge>
+          <Badge variant="outline">Income and expenses</Badge>
         </div>
       </CardHeader>
       <CardContent className="p-0">
@@ -54,6 +54,8 @@ export function OwnerReportTable({
                 <TableHead className="text-right">Rent received</TableHead>
                 <TableHead className="text-right">JR commission</TableHead>
                 <TableHead className="text-right">Owner proceeds</TableHead>
+                <TableHead className="text-right">Maintenance</TableHead>
+                <TableHead className="text-right">Net position</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -82,12 +84,18 @@ export function OwnerReportTable({
                   <TableCell className="text-right font-medium tabular-nums">
                     {money.format(Number(owner.ownerProceeds))}
                   </TableCell>
+                  <TableCell className="text-right tabular-nums text-destructive">
+                    {money.format(Number(owner.maintenanceExpenses))}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold tabular-nums">
+                    {money.format(Number(owner.netOwnerPosition))}
+                  </TableCell>
                 </TableRow>
               ))}
               {owners.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={8}
                     className="h-28 text-center text-muted-foreground"
                   >
                     No property owners have been added.

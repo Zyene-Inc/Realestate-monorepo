@@ -39,6 +39,8 @@ function downloadOwnerReport(rows: OwnerReportRow[], from: string, to: string) {
     "Rent collected",
     "Johnson Realty commission",
     "Owner proceeds",
+    "Maintenance expenses",
+    "Net owner position",
   ];
   const body = rows.map((row) =>
     [
@@ -51,6 +53,8 @@ function downloadOwnerReport(rows: OwnerReportRow[], from: string, to: string) {
       row.rentCollected,
       row.managementCommission,
       row.ownerProceeds,
+      row.maintenanceExpenses,
+      row.netOwnerPosition,
     ]
       .map(csvCell)
       .join(","),
@@ -126,8 +130,8 @@ export function ReportHeader({
         </h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
           One view across sales, rentals, owner attribution, occupancy, approval
-          queues, and operational events. Financial figures reflect manually
-          recorded receipts; no funds move from this screen.
+          queues, and operational events. Financial figures reflect recorded
+          online and offline receipts; no funds move from this screen.
         </p>
       </div>
       <div className="flex flex-wrap items-end gap-3">
@@ -196,7 +200,7 @@ export function FinancialSummary({ overview }: { overview: ReportOverview }) {
           <MetricCard
             label="Owner proceeds"
             value={money.format(Number(overview.rentRevenue.ownerProceeds))}
-            detail={`${money.format(Number(overview.rentRevenue.managementCommission))} retained as management commission`}
+            detail={`${money.format(Number(overview.rentRevenue.maintenanceExpenses))} in posted maintenance expenses`}
             icon={Building2}
           />
           <MetricCard
