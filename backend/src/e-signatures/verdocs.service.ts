@@ -27,6 +27,24 @@ export type VerdocsCreateEnvelopeInput = {
   email: string;
   expiresAt: string;
   metadata: Record<string, string>;
+  fields?: Array<{
+    name: string;
+    roleName: string;
+    defaultValue: string;
+  }>;
+};
+
+type VerdocsCreateEnvelopeRequest = Omit<
+  ICreateEnvelopeFromTemplateRequest,
+  'fields'
+> & {
+  fields?: Array<{
+    name: string;
+    role_name: string;
+    readonly: boolean;
+    required: boolean;
+    default: string;
+  }>;
 };
 
 @Injectable()
@@ -168,7 +186,7 @@ export class VerdocsService {
 
   async create(input: VerdocsCreateEnvelopeInput) {
     const endpoint = await this.endpoint();
-    const request: ICreateEnvelopeFromTemplateRequest = {
+    const request: VerdocsCreateEnvelopeRequest = {
       template_id: input.templateId,
       name: input.title,
       sender_name:
@@ -185,6 +203,13 @@ export class VerdocsService {
       locale: 'en-US',
       timezone: 'America/New_York',
       data: input.metadata,
+      fields: input.fields?.map((field) => ({
+        name: field.name,
+        role_name: field.roleName,
+        readonly: true,
+        required: false,
+        default: field.defaultValue,
+      })),
       recipients: [
         {
           role_name: input.roleName,
@@ -198,7 +223,10 @@ export class VerdocsService {
       ],
     };
     return this.call('create-envelope', () =>
-      createEnvelope(endpoint, request),
+      createEnvelope(
+        endpoint,
+        request as unknown as ICreateEnvelopeFromTemplateRequest,
+      ),
     );
   }
 

@@ -34,6 +34,8 @@ import {
   ESignatureListQueryDto,
 } from './dto/e-signature.dto';
 import { VerdocsService } from './verdocs.service';
+import { ESignatureRentalLifecycleService } from './e-signature-rental-lifecycle.service';
+import { canonicalJson, rawJsonProperty } from './e-signature-webhook-payload';
 import type { IEnvelope, IEnvelopeDocument } from '@verdocs/js-sdk';
 
 const SIGNED_DOCUMENT_BUCKET = 'signed-documents';
@@ -43,60 +45,6 @@ const TERMINAL_STATUSES: ESignatureEnvelopeStatus[] = [
   ESignatureEnvelopeStatus.CANCELED,
   ESignatureEnvelopeStatus.EXPIRED,
 ];
-
-function rawJsonProperty(payload: Buffer, property: string) {
-  const json = payload.toString('utf8');
-  const marker = `"${property}"`;
-  const propertyIndex = json.indexOf(marker);
-  if (propertyIndex < 0) return null;
-  const colonIndex = json.indexOf(':', propertyIndex + marker.length);
-  if (colonIndex < 0) return null;
-  let start = colonIndex + 1;
-  while (/\s/.test(json[start] ?? '')) start += 1;
-  const opening = json[start];
-  if (opening !== '{' && opening !== '[' && opening !== '"') {
-    const end = json.slice(start).search(/[,}]/);
-    return end < 0
-      ? json.slice(start).trim()
-      : json.slice(start, start + end).trim();
-  }
-  let depth = 0;
-  let inString = false;
-  let escaped = false;
-  for (let index = start; index < json.length; index += 1) {
-    const character = json[index];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (character === '\\') escaped = true;
-      else if (character === '"') {
-        inString = false;
-        if (opening === '"') return json.slice(start, index + 1);
-      }
-      continue;
-    }
-    if (character === '"') inString = true;
-    else if (character === '{' || character === '[') depth += 1;
-    else if (character === '}' || character === ']') {
-      depth -= 1;
-      if (depth === 0) return json.slice(start, index + 1);
-    }
-  }
-  return null;
-}
-
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => canonicalJson(item)).join(',')}]`;
-  }
-  if (value && typeof value === 'object') {
-    const record = value as Record<string, unknown>;
-    return `{${Object.keys(record)
-      .sort()
-      .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
-      .join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
-}
 
 const envelopeInclude = {
   tenant: {
@@ -146,6 +94,8 @@ type VerdocsWebhookPayload = {
   body?: unknown;
 };
 
+export type PreparedEnvelopeFields = Record<string, string>;
+
 @Injectable()
 export class ESignaturesService {
   private readonly logger = new Logger(ESignaturesService.name);
@@ -154,6 +104,7 @@ export class ESignaturesService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly verdocs: VerdocsService,
+    private readonly rentalLifecycle: ESignatureRentalLifecycleService,
   ) {}
 
   configuration() {
@@ -304,7 +255,11 @@ export class ESignaturesService {
     };
   }
 
-  async create(user: CurrentUser, data: CreateESignatureDto) {
+  async create(
+    user: CurrentUser,
+    data: CreateESignatureDto,
+    preparedFields?: PreparedEnvelopeFields,
+  ) {
     this.assertAdminTarget(user.role, data.targetType);
     if (this.verdocs.templateIdFor(data.documentType) !== data.templateId) {
       throw new BadRequestException(
@@ -348,6 +303,11 @@ export class ESignaturesService {
         'Phase 9 portal templates must contain exactly one signer or approver role',
       );
     }
+    const prepared = this.preparedFields(
+      template.fields ?? [],
+      data.recipientRoleName.trim(),
+      preparedFields,
+    );
 
     const expiresAt = this.expiration(data.expiresAt);
     const local = await this.prisma.eSignatureEnvelope.create({
@@ -386,6 +346,7 @@ export class ESignaturesService {
           document_type: local.documentType,
           target_type: local.targetType,
         },
+        fields: prepared,
       });
     } catch (error) {
       await this.prisma.$transaction([
@@ -464,6 +425,37 @@ export class ESignaturesService {
     ]);
     await this.recordProviderHistory(local.id, providerEnvelope);
     return this.getAdmin(user, local.id);
+  }
+
+  async findByClientRequestId(clientRequestId: string) {
+    return this.prisma.eSignatureEnvelope.findUnique({
+      where: { clientRequestId },
+      include: envelopeInclude,
+    });
+  }
+
+  private preparedFields(
+    templateFields: Array<{ name: string; role_name: string }>,
+    roleName: string,
+    values?: PreparedEnvelopeFields,
+  ) {
+    if (!values) return undefined;
+    const available = new Set(
+      templateFields
+        .filter((field) => field.role_name === roleName)
+        .map((field) => field.name),
+    );
+    const missing = Object.keys(values).filter((name) => !available.has(name));
+    if (missing.length) {
+      throw new BadRequestException(
+        `The lease template is missing required fields: ${missing.join(', ')}`,
+      );
+    }
+    return Object.entries(values).map(([name, defaultValue]) => ({
+      name,
+      roleName,
+      defaultValue,
+    }));
   }
 
   private expiration(value?: string) {
@@ -718,6 +710,7 @@ export class ESignaturesService {
           },
         });
       }
+      await this.rentalLifecycle.apply(tx, id, nextStatus, now);
     });
   }
 
@@ -1147,15 +1140,25 @@ export class ESignaturesService {
     const providerEnvelope = await this.verdocs.envelope(providerEnvelopeId);
     await this.applyProviderEnvelope(local.id, providerEnvelope);
     if (eventType === 'envelope_expired') {
-      await this.prisma.eSignatureEnvelope.updateMany({
-        where: {
-          id: local.id,
-          status: { not: ESignatureEnvelopeStatus.COMPLETED },
-        },
-        data: {
-          status: ESignatureEnvelopeStatus.EXPIRED,
-          expiredAt: occurredAt,
-        },
+      await this.prisma.$transaction(async (tx) => {
+        const expired = await tx.eSignatureEnvelope.updateMany({
+          where: {
+            id: local.id,
+            status: { not: ESignatureEnvelopeStatus.COMPLETED },
+          },
+          data: {
+            status: ESignatureEnvelopeStatus.EXPIRED,
+            expiredAt: occurredAt,
+          },
+        });
+        if (expired.count === 1) {
+          await this.rentalLifecycle.apply(
+            tx,
+            local.id,
+            ESignatureEnvelopeStatus.EXPIRED,
+            occurredAt,
+          );
+        }
       });
     }
     return { received: true, verified: true, tracked: true };

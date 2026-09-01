@@ -6,6 +6,7 @@ import {
   VerdocsWebhookController,
 } from './e-signatures.controller';
 import { ESignaturesService } from './e-signatures.service';
+import { ESignatureRentalLifecycleService } from './e-signature-rental-lifecycle.service';
 import { VerdocsService } from './verdocs.service';
 
 @Module({
@@ -15,6 +16,11 @@ import { VerdocsService } from './verdocs.service';
     AgentESignaturesController,
     VerdocsWebhookController,
   ],
-  providers: [ESignaturesService, VerdocsService],
+  providers: [
+    ESignaturesService,
+    ESignatureRentalLifecycleService,
+    VerdocsService,
+  ],
+  exports: [ESignaturesService, VerdocsService],
 })
 export class ESignaturesModule {}

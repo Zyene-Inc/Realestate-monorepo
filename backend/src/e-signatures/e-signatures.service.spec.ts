@@ -27,6 +27,7 @@ describe('ESignaturesService', () => {
     listTemplates: jest.fn(),
     templateIdFor: jest.fn(),
   };
+  const rentalLifecycle = { apply: jest.fn() };
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -36,6 +37,7 @@ describe('ESignaturesService', () => {
       prisma as never,
       new ConfigService({}),
       verdocs as never,
+      rentalLifecycle as never,
     );
   }
 
