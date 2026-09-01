@@ -23,6 +23,13 @@ type ReceiptPayment = {
   paidAt?: string | null;
   paymentMethod?: string | null;
   referenceNumber?: string | null;
+  purpose: "RENT" | "MOVE_IN";
+  refundedAmount?: number;
+  allocations?: Array<{
+    amount: number;
+    refundedAmount: number;
+    moveInCharge: { label: string };
+  }>;
   tenant: { firstName: string; lastName: string; email: string };
   lease: { id: string };
   unit: { unitNumber: string; property: { name: string; address?: string | null } };
@@ -83,7 +90,11 @@ export default function TenantPaymentReceipt() {
           <div className="flex flex-wrap justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-primary">Coach Johnson Realty</p>
-              <CardTitle className="mt-2 text-3xl">Rent payment receipt</CardTitle>
+              <CardTitle className="mt-2 text-3xl">
+                {payment.purpose === "MOVE_IN"
+                  ? "Move-in payment receipt"
+                  : "Rent payment receipt"}
+              </CardTitle>
               <p className="mt-2 text-sm text-muted-foreground">Payment ID {payment.id}</p>
             </div>
             <div className="text-right text-sm">
@@ -119,10 +130,25 @@ export default function TenantPaymentReceipt() {
               <span>Payment detail</span>
               <span className="text-right">Amount</span>
             </div>
-            <ReceiptRow label="Base rent" amount={payment.rentAmount} />
-            <ReceiptRow label="Late fee" amount={payment.lateFee} />
+            {payment.purpose === "MOVE_IN" ? (
+              payment.allocations?.map((allocation) => (
+                <ReceiptRow
+                  key={allocation.moveInCharge.label}
+                  label={allocation.moveInCharge.label}
+                  amount={allocation.amount - allocation.refundedAmount}
+                />
+              ))
+            ) : (
+              <>
+                <ReceiptRow label="Base rent" amount={payment.rentAmount} />
+                <ReceiptRow label="Late fee" amount={payment.lateFee} />
+              </>
+            )}
             <ReceiptRow label="Total charge" amount={payment.totalAmount} emphasized />
             <ReceiptRow label="Amount received" amount={payment.paidAmount} emphasized />
+            {Number(payment.refundedAmount || 0) > 0 ? (
+              <ReceiptRow label="Refunded" amount={Number(payment.refundedAmount)} />
+            ) : null}
             <ReceiptRow label="Remaining balance" amount={payment.balanceDue} emphasized />
           </div>
           <div className="grid gap-4 rounded-xl bg-secondary/30 p-4 text-sm sm:grid-cols-2">

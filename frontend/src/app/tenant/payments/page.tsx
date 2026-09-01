@@ -37,6 +37,13 @@ type Payment = {
   paidAt?: string | null;
   dueDate: string;
   paymentMethod?: string | null;
+  purpose: "RENT" | "MOVE_IN";
+  refundedAmount?: number;
+  allocations?: Array<{
+    amount: number;
+    refundedAmount: number;
+    moveInCharge: { label: string };
+  }>;
 };
 
 const receiptStatuses = new Set(["PAID", "PARTIAL", "WAIVED", "REFUNDED"]);
@@ -62,7 +69,11 @@ export default function TenantPayments() {
         (payment) =>
           payment.paidAt && new Date(payment.paidAt).getFullYear() === currentYear,
       )
-      .reduce((sum, payment) => sum + payment.paidAmount, 0);
+      .reduce(
+        (sum, payment) =>
+          sum + payment.paidAmount - Number(payment.refundedAmount || 0),
+        0,
+      );
   }, [payments]);
 
   if (loading) {
@@ -81,7 +92,7 @@ export default function TenantPayments() {
             Payment history
           </h1>
           <p className="mt-2 font-medium text-muted-foreground">
-            Review rent charges, payments received, balances, and printable receipts.
+            Review monthly rent and categorized move-in payments, balances, and printable receipts.
           </p>
         </div>
         <Button nativeButton={false} render={<Link href="/tenant/pay-rent" />}>
@@ -133,7 +144,11 @@ export default function TenantPayments() {
                 payments.map((payment) => (
                   <TableRow key={payment.id} className="border-border hover:bg-secondary/30">
                     <TableCell className="py-5">
-                      <p className="font-semibold">Rent payment</p>
+                      <p className="font-semibold">
+                        {payment.purpose === "MOVE_IN"
+                          ? "Move-in payment"
+                          : "Rent payment"}
+                      </p>
                       <p className="mt-1 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
                         Due {format(new Date(payment.dueDate), "MMM d, yyyy")}
                       </p>
@@ -143,7 +158,11 @@ export default function TenantPayments() {
                         ${payment.totalAmount.toFixed(2)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Rent ${payment.rentAmount.toFixed(2)} · Fee ${payment.lateFee.toFixed(2)}
+                        {payment.purpose === "MOVE_IN"
+                          ? payment.allocations
+                              ?.map((item) => item.moveInCharge.label)
+                              .join(" · ")
+                          : `Rent $${payment.rentAmount.toFixed(2)} · Fee $${payment.lateFee.toFixed(2)}`}
                       </p>
                     </TableCell>
                     <TableCell className="py-5">

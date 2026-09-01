@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { toast } from "sonner";
+import { MoveInPaymentPanel } from "./_components/move-in-payment-panel";
 
 type Payment = {
   id: string;
@@ -88,6 +89,7 @@ export default function TenantPayRent() {
           </div>
         </CardContent>
       </Card>
+      <MoveInPaymentPanel />
       {loading ? (
         <div className="flex min-h-48 items-center justify-center">
           <Loader2 className="size-7 animate-spin text-primary" />
