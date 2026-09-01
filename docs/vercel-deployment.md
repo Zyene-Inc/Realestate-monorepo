@@ -67,12 +67,13 @@ Configure these production environment variables in Vercel:
 - `VERDOCS_CLIENT_SECRET`: server-only Verdocs API client secret.
 - `VERDOCS_WEBHOOK_SECRET`: server-only HMAC secret shown when Verdocs webhooks are configured.
 - `VERDOCS_LEASE_TEMPLATE_ID`: UUID of the legal-approved residential lease template.
+- The lease template's single signer/approver role must own these exact prefill field names: `lease_tenant_name`, `lease_property_address`, `lease_unit_number`, `lease_start_date`, `lease_end_date`, `lease_monthly_rent`, `lease_security_deposit`, `lease_rent_due_day`, `lease_grace_period_days`, and `lease_late_fee`.
 - `VERDOCS_DISCLOSURE_TEMPLATE_ID`: UUID of the legal-approved disclosure template.
 - `VERDOCS_AGREEMENT_TEMPLATE_ID`: UUID of the legal-approved agent/company agreement template.
 - `VERDOCS_SENDER_NAME`: `Coach Johnson Realty`.
 - `VERDOCS_SENDER_EMAIL`: `noreply@coachjohnsonrealty.com` (used in the envelope UI/certificate; Verdocs still sends notifications from its own delivery domain).
 - `CHATBOT_ENABLED`: keep `false` until the chatbot migration and key are present; then set `true`.
-- `OPENROUTER_API_KEY`: server-only OpenRouter key. Never add this to the web project or use a `NEXT_PUBLIC_` prefix.
+- `GROQ_API_KEY`: server-only Groq key. Never add this to the web project or use a `NEXT_PUBLIC_` prefix.
 - `CHATBOT_FINGERPRINT_SECRET`: server-only random value of at least 32 characters, generated independently from every other secret (for example, `openssl rand -hex 32`).
 - `STRIPE_RENT_PAYMENTS_ENABLED`: set to `true` only after the reviewed rental-payment migration and Stripe webhook are live; otherwise keep `false`.
 - `STRIPE_SECRET_KEY`: sensitive server-only restricted live Stripe key (`rk_live_` preferred). Never expose this to the web project.
@@ -83,25 +84,25 @@ Do not run Prisma migrations as part of every Vercel build. Apply reviewed migra
 
 ### Rental payments and owner payouts
 
-The rent flow is tenant-initiated only: the portal creates a one-time Stripe-hosted Checkout Session after a tenant explicitly clicks pay. It does not store a payment method or create a subscription/off-session debit. A destination charge automatically places owner proceeds in the owner’s Stripe Connect balance while Johnson Realty retains the owner-specific management commission. Configure the Snapshot payment destination at `https://coach-johnson-realty-api-nu.vercel.app/api/stripe/webhook` and the separate Accounts v2 Thin capability destination at `https://coach-johnson-realty-api-nu.vercel.app/api/stripe/connect-webhook`, as documented in [Stripe rental payments](stripe-rental-payments.md). Apply `20260823183000_add_tenant_initiated_stripe_rent_payments.sql` before setting the feature flag to `true`.
+The rent flow is tenant-initiated only: the portal creates a one-time Stripe-hosted Checkout Session after a tenant explicitly clicks pay. It does not store a payment method or create a subscription/off-session debit. A destination charge automatically places owner proceeds in the owner’s Stripe Connect balance while Johnson Realty retains the owner-specific management commission. Configure the Snapshot payment destination at `https://coach-johnson-realty-api-nu.vercel.app/api/stripe/webhook` and the separate Accounts v2 Thin capability destination at `https://coach-johnson-realty-api-nu.vercel.app/api/stripe/connect-webhook`, as documented in [Stripe rental payments](stripe-rental-payments.md). The production schema is present and reconciliation migration `20260825022918_stripe_rent_payment_reconciliation` is applied; do not replay the older `20260823183000` local migration merely to repair migration history.
 
 ### Rental billing and late fees
 
-Apply `20260823193000_complete_rental_billing_workflow.sql` through the Supabase migration integration after the API deployment is ready. It adds a retry-safe monthly billing-period key and schedules a daily `08:13 UTC` protected callback to `POST /api/internal/rental-billing/run`, authenticated with the existing `email_retry_cron_secret` Vault value that matches `CRON_SECRET` in the API project. The callback creates a ledger charge only; it never opens Stripe Checkout or debits a tenant. It applies each lease's configured late fee once when the grace period ends.
+Production already contains the reviewed `20260823193000_complete_rental_billing_workflow.sql` changes. They provide the retry-safe monthly billing-period key and the active daily `08:13 UTC` protected callback to `POST /api/internal/rental-billing/run`, authenticated with the existing `email_retry_cron_secret` Vault value that matches `CRON_SECRET` in the API project. Do not replay this migration unless a database audit proves the schema or cron job is absent. The callback creates a ledger charge only; it never opens Stripe Checkout or debits a tenant. It applies each lease's configured late fee once when the grace period ends.
 
-After the migration is live, a Rental Admin or Super Admin can use **Rental payments → Run billing check** to safely verify the current month. The operation is idempotent, so it can be repeated after a deploy or transient failure. Lease billing terms are managed through **Leases → Edit terms**; changes affect future charges and intentionally do not rewrite a previously issued payment record.
+A Rental Admin or Super Admin can use **Rental payments → Run billing check** to verify the current month. The operation is idempotent, so it can be repeated after a deploy or transient failure. Lease billing terms are managed through **Leases → Edit terms**; changes affect future charges and intentionally do not rewrite a previously issued payment record.
 
 ### Public chatbot activation
 
-The chatbot implementation is disabled safely when its feature flag or OpenRouter key is absent. To activate it:
+The chatbot implementation is disabled safely when its feature flag or Groq key is absent. To activate it:
 
 1. Review and apply `20260823164507_add_public_chatbot.sql` to Supabase through the migration integration.
 2. Confirm RLS is enabled and `anon`/`authenticated` have no direct privileges on `ChatConversation` or `ChatMessage`; confirm the daily expired-conversation cron exists.
-3. Add `OPENROUTER_API_KEY` and a unique `CHATBOT_FINGERPRINT_SECRET` to the API project's encrypted Production environment, then set `CHATBOT_ENABLED=true`.
+3. Add `GROQ_API_KEY` and a unique `CHATBOT_FINGERPRINT_SECRET` to the API project's encrypted Production environment, then set `CHATBOT_ENABLED=true`.
 4. Redeploy the API first and the web project second. The web project requires no AI secret and continues using the same-origin `/api` rewrite.
 5. Verify `/api/public/chatbot/status`, one streamed reply, browser refresh history, a public property link, the `/contact` fallback, and absence of the widget on every role portal.
 
-The implementation pins the router ID to `openrouter/free`; it cannot be changed through environment configuration to a paid model. Database-backed limits allow 12 visitor messages and 45 total messages per UTC day, preserving headroom under the base free-account quota. NestJS also permits at most five message starts per minute per caller.
+The implementation pins replies to `openai/gpt-oss-20b` and input screening to `meta-llama/llama-prompt-guard-2-86m`; neither can be changed through environment configuration. Database-backed limits allow 12 visitor messages and 45 total messages per UTC day, preserving headroom under the Groq free-plan quota. NestJS also permits at most five message starts per minute per caller.
 
 ## Web project
 

@@ -4,7 +4,7 @@
 
 Coach Johnson Realty runs two Vercel projects: the Next.js web project and the NestJS API project. Supabase is the only authentication, PostgreSQL, and object-storage provider. Resend sends transactional email. Verdocs is feature-gated and must remain disabled in production until Johnson Realty approves the three legal templates.
 
-The platform records rent receipts and sale commissions manually. It does not move home-sale funds, originate loans, process escrow, or confirm owner payouts.
+The platform records offline rent receipts manually and also supports tenant-initiated, one-time Stripe rent payments. Stripe Connect routes owner proceeds after the configured Johnson Realty commission; the CRM records the Stripe charge, transfer, refund, and dispute-reversal references but does not claim that a connected bank payout has settled. Sale commissions remain manual. The platform does not move home-sale funds, originate loans, or process escrow.
 
 ## Daily checks
 
@@ -64,6 +64,26 @@ The deterministic delivery address is only for verification. Before launch commu
 Every manual rent receipt and sale commission requires a client request UUID. Retrying the same request returns one record; reusing the UUID with different values is rejected. Reference numbers are unique for rent receipts. Corrections must use the supported status/correction/void workflows so audit history remains intact. Never delete financial records to correct them, and never represent a manual record as proof that a bank, owner, escrow agent, or closing party moved funds.
 
 The daily rental-billing callback is idempotent: it creates at most one payment record per lease/month and transitions an unpaid record to overdue only once. A five-day grace period on rent due the first applies a late fee on the sixth; a zero-day period applies it the next day. Staff may run **Rental payments → Run billing check** after a deployment, then confirm the returned created/overdue counts. Staff can adjust a late fee only with an audit reason. Lease-term changes apply to future payment cycles; do not edit an issued payment to make it match a new lease term. Automatic tenant debits are prohibited—every Stripe checkout requires an explicit tenant action.
+
+For a Stripe-confirmed rent correction, open **Rental payments → Manage → Refund online payment**, enter the approved amount and reason, and submit once. Do not edit the paid amount manually and do not create a second offline correction. The local ledger remains unchanged until the signed Stripe refund webhook arrives; then confirm the cumulative refunded amount, reopened balance, reduced Johnson Realty commission, reduced owner proceeds, and stored audit event. Escalate any failed webhook or transfer reversal before issuing another refund.
+
+The move-in ledger is separate from monthly rent. Confirm that first-month rent and security deposit were posted when the lease became active, then add only approved pet, utility, move-in, or other charges. Record each offline receipt against its exact category. Edit only untouched charges; use a reasoned waive or void action for corrections, and never delete financial history. A Stripe refund reopens the categorized balance automatically. Review [Categorized move-in charge workflow](move-in-charge-workflow.md) before production reconciliation.
+
+## Renewals and move-outs
+
+Use **Residents & payments → Renewals & move-outs** as the only operational path for a current lease. Prepare renewal terms as a draft, verify the effective dates and response deadline, then send the Verdocs package. A signed offer is recorded immediately, but the new rent policy activates only on the proposed start date during the daily billing run.
+
+For a move-out, record tenant, management, or mutual notice and schedule the final walkthrough. Do not mark a unit vacant from the basic lease page. Complete every condition item, record actual move-out, choose whether turnover maintenance is required, verify the forwarding address, and confirm all keys/access devices were returned. That single transaction terminates the lease, detaches the resident, and releases the unit.
+
+The deposit statement starts from the verified paid security-deposit charge, not a typed balance. Add documented deductions, finalize the statement, record the actual check/ACH/cash/other return reference, upload proof, then mark it returned. The portal tracks the 30-day operational deadline requested by Johnson Realty. This configuration is not legal advice; management remains responsible for confirming the deadline and permitted deductions for the property's jurisdiction and lease. Never delete or rewrite deposit-ledger entries.
+
+## Maintenance work orders and owner expenses
+
+Use **Service & communication → Maintenance** as the maintenance source of truth. Triage the request, assign a vendor before moving it to assigned, scheduled, or in-progress, and enter a schedule before selecting scheduled. Do not put reusable access codes or unnecessary financial or identity data in internal notes. Vendor assignment or scheduling changes send the vendor a new work-order email when the vendor has an email address.
+
+Enter the verified final cost before selecting completed. A positive completed cost requires the rental property to have a property owner; otherwise correct the property ownership record first. Completion appends an immutable maintenance charge to the owner-expense ledger. Changing a completed cost appends only the signed difference, and moving a completed request back to an active status appends a reversing adjustment. Never delete or edit ledger history to make a correction. Once the tenant confirms completion, staff cannot move the request backward; create a new request for additional work.
+
+After a correction, verify the request's **Owner expense posted** value, the **Owner expense ledger** row, and the owner's maintenance expense/net position in **Reports**. If these disagree, stop further edits, preserve the request ID and API request ID, and escalate as a financial-data incident.
 
 ## Severity and escalation
 

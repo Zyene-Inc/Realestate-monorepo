@@ -154,6 +154,85 @@
         "supabase/migrations/20260823193000_complete_rental_billing_workflow.sql",
         "backend/prisma/migrations/20260823193000_complete_rental_billing_workflow/migration.sql"
       ]
+    },
+    {
+      "version": "20260824190951",
+      "name": "add_property_contact_crm_leads",
+      "sources": [
+        "supabase/migrations/20260824190039_add_property_contact_crm_leads.sql",
+        "backend/prisma/migrations/20260824190039_add_property_contact_crm_leads/migration.sql"
+      ]
+    },
+    {
+      "version": "20260824191343",
+      "name": "index_website_lead_conversation",
+      "sources": [
+        "supabase/migrations/20260824191120_index_website_lead_conversation.sql",
+        "backend/prisma/migrations/20260824191120_index_website_lead_conversation/migration.sql"
+      ]
+    },
+    {
+      "version": "20260824195617",
+      "name": "complete_rental_lead_screening_tours",
+      "sources": [
+        "supabase/migrations/20260824193340_complete_rental_lead_screening_tours.sql",
+        "backend/prisma/migrations/20260824193340_complete_rental_lead_screening_tours/migration.sql"
+      ]
+    },
+    {
+      "version": "20260824210815",
+      "name": "complete_rental_application_workflow",
+      "sources": [
+        "backend/prisma/migrations/20260824210000_complete_rental_application_workflow/migration.sql"
+      ]
+    },
+    {
+      "version": "20260824215506",
+      "name": "complete_application_lease_signing_handoff",
+      "sources": [
+        "supabase/migrations/20260824212518_complete_application_lease_signing_handoff.sql",
+        "backend/prisma/migrations/20260824212518_complete_application_lease_signing_handoff/migration.sql"
+      ]
+    },
+    {
+      "version": "20260824230842",
+      "name": "complete_move_in_charge_ledger",
+      "sources": [
+        "supabase/migrations/20260824222906_complete_move_in_charge_ledger.sql",
+        "backend/prisma/migrations/20260824222906_complete_move_in_charge_ledger/migration.sql"
+      ]
+    },
+    {
+      "version": "20260825003726",
+      "name": "complete_move_in_inspection_and_key_handover",
+      "sources": [
+        "supabase/migrations/20260824231843_complete_move_in_inspection_and_key_handover.sql",
+        "backend/prisma/migrations/20260824231843_complete_move_in_inspection_and_key_handover/migration.sql"
+      ]
+    },
+    {
+      "version": "20260825022918",
+      "name": "stripe_rent_payment_reconciliation",
+      "sources": [
+        "supabase/migrations/20260825013018_stripe_rent_payment_reconciliation.sql",
+        "backend/prisma/migrations/20260825013018_stripe_rent_payment_reconciliation/migration.sql"
+      ]
+    },
+    {
+      "version": "20260825031731",
+      "name": "complete_maintenance_vendor_owner_expense_workflow",
+      "sources": [
+        "supabase/migrations/20260825030029_complete_maintenance_vendor_owner_expense_workflow.sql",
+        "backend/prisma/migrations/20260825030029_complete_maintenance_vendor_owner_expense_workflow/migration.sql"
+      ]
+    },
+    {
+      "version": "20260825040009",
+      "name": "complete_lease_renewal_and_move_out_workflow",
+      "sources": [
+        "supabase/migrations/20260825033045_complete_lease_renewal_and_move_out_workflow.sql",
+        "backend/prisma/migrations/20260825033045_complete_lease_renewal_and_move_out_workflow/migration.sql"
+      ]
     }
   ],
   "pending": [
@@ -165,15 +244,6 @@
         "backend/prisma/migrations/20260823164507_add_public_chatbot/migration.sql"
       ],
       "reason": "Phase 12 implementation is validated locally; production application awaits an explicit migration approval."
-    },
-    {
-      "version": "20260823183000",
-      "name": "add_tenant_initiated_stripe_rent_payments",
-      "sources": [
-        "supabase/migrations/20260823183000_add_tenant_initiated_stripe_rent_payments.sql",
-        "backend/prisma/migrations/20260823183000_add_tenant_initiated_stripe_rent_payments/migration.sql"
-      ],
-      "reason": "Stripe Connect implementation is validated locally; production application awaits an explicit migration approval and sensitive Vercel configuration."
     }
   ],
   "legacyExceptions": [
@@ -201,6 +271,16 @@
       "source": "backend/prisma/migrations/20260823210000_fix_website_lead_email_constraint/migration.sql",
       "status": "schema_present_history_unreconciled",
       "reason": "The corrected WebsiteLead email constraint is present in the connected database, but this local timestamp is absent from the authoritative Supabase migration ledger. Repairing applied history requires an explicit production migration-history decision."
+    },
+    {
+      "source": "supabase/migrations/20260823183000_add_tenant_initiated_stripe_rent_payments.sql",
+      "status": "schema_present_history_unreconciled",
+      "reason": "The tenant-initiated Stripe payment tables, columns, indexes, and manual-only AutoPay constraint are present in the connected database, but this local timestamp is absent from the authoritative Supabase migration ledger. Do not replay the DDL solely to repair history."
+    },
+    {
+      "source": "backend/prisma/migrations/20260823183000_add_tenant_initiated_stripe_rent_payments/migration.sql",
+      "status": "schema_present_history_unreconciled",
+      "reason": "The tenant-initiated Stripe payment tables, columns, indexes, and manual-only AutoPay constraint are present in the connected database, but this local timestamp is absent from the authoritative Supabase migration ledger. Do not replay the DDL solely to repair history."
     }
   ]
 }
