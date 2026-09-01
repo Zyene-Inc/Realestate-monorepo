@@ -18,6 +18,7 @@ import {
   MaintenancePhotoUploadDto,
   UpdateMaintenanceRequestDto,
 } from './dto/maintenance.dto';
+import { MaintenanceExpenseLedgerService } from './maintenance-expense-ledger.service';
 
 const MAINTENANCE_BUCKET = 'maintenance-media';
 const maintenanceInclude = {
@@ -25,8 +26,18 @@ const maintenanceInclude = {
     select: { id: true, firstName: true, lastName: true, email: true },
   },
   unit: { select: { id: true, unitNumber: true } },
-  property: { select: { id: true, name: true, address: true } },
-  vendor: { select: { id: true, name: true, companyName: true } },
+  property: { select: { id: true, name: true, address: true, ownerId: true } },
+  vendor: {
+    select: {
+      id: true,
+      name: true,
+      companyName: true,
+      email: true,
+      phone: true,
+      specialty: true,
+    },
+  },
+  expenseLedgerEntries: { select: { amount: true } },
 } satisfies Prisma.MaintenanceRequestInclude;
 
 type MaintenanceWithRelations = Prisma.MaintenanceRequestGetPayload<{
@@ -39,6 +50,7 @@ export class MaintenanceService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly emails: EmailsService,
+    private readonly expenseLedger: MaintenanceExpenseLedgerService,
   ) {}
 
   private storageClient() {
@@ -55,13 +67,23 @@ export class MaintenanceService {
   }
 
   private async withPhotoUrls(request: MaintenanceWithRelations) {
-    if (request.photos.length === 0) return { ...request, photoUrls: [] };
+    const { expenseLedgerEntries, ...record } = request;
+    const ownerExpenseTotal = expenseLedgerEntries
+      .reduce((total, entry) => total.plus(entry.amount), new Prisma.Decimal(0))
+      .toFixed(2);
+    const base = {
+      ...record,
+      cost: request.cost?.toFixed(2) ?? null,
+      ownerExpenseTotal,
+      ownerExpenseEntryCount: expenseLedgerEntries.length,
+    };
+    if (request.photos.length === 0) return { ...base, photoUrls: [] };
     const { data, error } = await this.storageClient()
       .storage.from(MAINTENANCE_BUCKET)
       .createSignedUrls(request.photos, 300);
-    if (error) return { ...request, photoUrls: [] };
+    if (error) return { ...base, photoUrls: [] };
     return {
-      ...request,
+      ...base,
       photoUrls: data.map((photo) => photo.signedUrl).filter(Boolean),
     };
   }
@@ -191,26 +213,104 @@ export class MaintenanceService {
       });
       if (!vendor) throw new BadRequestException('Vendor not found');
     }
+    if (data.status === 'tenant_confirmed') {
+      throw new BadRequestException(
+        'Only the tenant can confirm maintenance completion',
+      );
+    }
+    if (current.status === 'tenant_confirmed' && data.status) {
+      throw new ConflictException(
+        'A tenant-confirmed request cannot return to an earlier status',
+      );
+    }
+    const nextStatus = data.status ?? current.status;
+    const nextVendorId =
+      data.assignedVendorId !== undefined
+        ? data.assignedVendorId
+        : current.assignedVendorId;
+    const nextScheduledDate =
+      data.scheduledDate !== undefined
+        ? data.scheduledDate
+          ? new Date(data.scheduledDate)
+          : null
+        : current.scheduledDate;
+    const nextCost =
+      data.cost !== undefined
+        ? data.cost === null
+          ? null
+          : new Prisma.Decimal(data.cost.toFixed(2))
+        : current.cost;
+    if (
+      ['assigned', 'scheduled', 'in_progress'].includes(nextStatus) &&
+      !nextVendorId
+    ) {
+      throw new BadRequestException(
+        'Assign a vendor before using this maintenance status',
+      );
+    }
+    if (nextStatus === 'scheduled' && !nextScheduledDate) {
+      throw new BadRequestException(
+        'Choose a service date before scheduling this request',
+      );
+    }
+    if (
+      ['completed', 'tenant_confirmed'].includes(nextStatus) &&
+      nextCost === null
+    ) {
+      throw new BadRequestException(
+        'Enter the final maintenance cost before completing this request. Use 0 for no-charge work.',
+      );
+    }
+    const completedAt = ['completed', 'tenant_confirmed'].includes(nextStatus)
+      ? (current.completedAt ?? new Date())
+      : null;
     const updated = await this.prisma.$transaction(async (tx) => {
-      const request = await tx.maintenanceRequest.update({
-        where: { id },
+      const changed = await tx.maintenanceRequest.updateMany({
+        where: { id, updatedAt: current.updatedAt },
         data: {
-          ...data,
-          scheduledDate: data.scheduledDate
-            ? new Date(data.scheduledDate)
-            : undefined,
-          adminNotes: data.adminNotes?.trim(),
+          status: data.status,
+          assignedVendorId: data.assignedVendorId,
+          scheduledDate: nextScheduledDate,
+          cost: nextCost,
+          adminNotes:
+            data.adminNotes === null
+              ? null
+              : data.adminNotes?.trim() || undefined,
+          completedAt,
         },
+      });
+      if (changed.count !== 1) {
+        throw new ConflictException(
+          'This maintenance request changed. Refresh and review the latest values before saving.',
+        );
+      }
+      const request = await tx.maintenanceRequest.findUnique({
+        where: { id },
         include: maintenanceInclude,
       });
+      if (!request)
+        throw new NotFoundException('Maintenance request not found');
+      await this.expenseLedger.reconcile(tx, request, userId);
       await tx.auditLog.create({
         data: {
           userId,
           action: 'MAINTENANCE_REQUEST_UPDATED',
           resource: 'maintenance_request',
           resourceId: id,
-          oldValue: JSON.stringify({ status: current.status }),
-          newValue: JSON.stringify({ status: request.status }),
+          oldValue: JSON.stringify({
+            status: current.status,
+            assignedVendorId: current.assignedVendorId,
+            scheduledDate: current.scheduledDate,
+            cost: current.cost?.toFixed(2) ?? null,
+            adminNotes: current.adminNotes,
+          }),
+          newValue: JSON.stringify({
+            status: request.status,
+            assignedVendorId: request.assignedVendorId,
+            scheduledDate: request.scheduledDate,
+            cost: request.cost?.toFixed(2) ?? null,
+            adminNotes: request.adminNotes,
+          }),
         },
       });
       return request;
@@ -222,6 +322,32 @@ export class MaintenanceService {
         updated.status,
         updated.category,
         `${updated.tenant.firstName} ${updated.tenant.lastName}`,
+      );
+    }
+    const vendorAssignmentChanged =
+      updated.assignedVendorId !== current.assignedVendorId;
+    const scheduleChanged =
+      updated.scheduledDate?.getTime() !== current.scheduledDate?.getTime();
+    if (updated.vendor?.email && (vendorAssignmentChanged || scheduleChanged)) {
+      const scheduledAt = updated.scheduledDate
+        ? new Intl.DateTimeFormat('en-US', {
+            dateStyle: 'full',
+            timeStyle: 'short',
+            timeZone: 'America/Chicago',
+          }).format(updated.scheduledDate)
+        : undefined;
+      await this.emails.sendMaintenanceVendorAssignment(
+        updated.vendor.email,
+        {
+          name: updated.vendor.name,
+          category: updated.category,
+          description: updated.description,
+          propertyName: updated.property.name,
+          propertyAddress: updated.property.address,
+          unitNumber: updated.unit.unitNumber,
+          scheduledAt,
+        },
+        `${updated.id}-${updated.assignedVendorId}-${updated.scheduledDate?.toISOString() ?? 'unscheduled'}`,
       );
     }
     return this.withPhotoUrls(updated);

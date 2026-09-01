@@ -41,15 +41,15 @@ export class CreateMaintenanceRequestDto {
 
 export class UpdateMaintenanceRequestDto {
   @IsOptional() @IsIn(STATUSES) status?: (typeof STATUSES)[number];
-  @IsOptional() @IsString() @Length(1, 64) assignedVendorId?: string;
-  @IsOptional() @IsDateString() scheduledDate?: string;
+  @IsOptional() @IsString() @Length(1, 64) assignedVendorId?: string | null;
+  @IsOptional() @IsDateString() scheduledDate?: string | null;
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
   @Max(9999999999.99)
-  cost?: number;
-  @IsOptional() @IsString() @MaxLength(4000) adminNotes?: string;
+  cost?: number | null;
+  @IsOptional() @IsString() @MaxLength(4000) adminNotes?: string | null;
 }
 
 export class MaintenancePhotoUploadDto {
@@ -66,4 +66,11 @@ export class AttachMaintenancePhotoDto {
 export class MaintenanceListQueryDto {
   @IsOptional() @IsIn(STATUSES) status?: (typeof STATUSES)[number];
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit?: number;
+}
+
+export class OwnerExpenseListQueryDto {
+  @IsOptional() @IsString() @MaxLength(500) cursor?: string;
+  @IsOptional() @IsString() @Length(1, 64) propertyOwnerId?: string;
+  @IsOptional() @IsString() @Length(1, 64) propertyId?: string;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 50;
 }

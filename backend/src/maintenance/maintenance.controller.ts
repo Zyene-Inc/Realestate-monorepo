@@ -18,8 +18,10 @@ import {
   CreateMaintenanceRequestDto,
   MaintenanceListQueryDto,
   MaintenancePhotoUploadDto,
+  OwnerExpenseListQueryDto,
   UpdateMaintenanceRequestDto,
 } from './dto/maintenance.dto';
+import { MaintenanceExpenseLedgerService } from './maintenance-expense-ledger.service';
 import { MaintenanceService } from './maintenance.service';
 import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 
@@ -27,11 +29,19 @@ import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN)
 export class MaintenanceController {
-  constructor(private readonly maintenance: MaintenanceService) {}
+  constructor(
+    private readonly maintenance: MaintenanceService,
+    private readonly expenses: MaintenanceExpenseLedgerService,
+  ) {}
 
   @Get()
   list(@Query() query: MaintenanceListQueryDto) {
     return this.maintenance.listForAdmin(query);
+  }
+
+  @Get('expenses')
+  listExpenses(@Query() query: OwnerExpenseListQueryDto) {
+    return this.expenses.list(query);
   }
 
   @Get(':id')

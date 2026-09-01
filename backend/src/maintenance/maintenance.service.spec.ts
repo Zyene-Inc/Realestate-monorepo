@@ -14,6 +14,8 @@ describe('MaintenanceService tenant workflow', () => {
       category: 'plumbing',
       priority: 'high',
       photos: [],
+      cost: null,
+      expenseLedgerEntries: [],
       tenant: {
         firstName: 'Taylor',
         lastName: 'Resident',
@@ -44,6 +46,7 @@ describe('MaintenanceService tenant workflow', () => {
       prisma as never,
       { get: jest.fn() } as never,
       { sendMaintenanceCreated: jest.fn() } as never,
+      { reconcile: jest.fn() } as never,
     );
 
     await service.create('tenant-user', {
@@ -74,8 +77,20 @@ describe('MaintenanceService tenant workflow', () => {
           },
         },
         unit: { select: { id: true, unitNumber: true } },
-        property: { select: { id: true, name: true, address: true } },
-        vendor: { select: { id: true, name: true, companyName: true } },
+        property: {
+          select: { id: true, name: true, address: true, ownerId: true },
+        },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+            companyName: true,
+            email: true,
+            phone: true,
+            specialty: true,
+          },
+        },
+        expenseLedgerEntries: { select: { amount: true } },
       },
     });
     expect(tx.auditLog.create).toHaveBeenCalledWith({
@@ -107,6 +122,7 @@ describe('MaintenanceService tenant workflow', () => {
         prisma as never,
         { get: jest.fn() } as never,
         {} as never,
+        { reconcile: jest.fn() } as never,
       ).confirmCompletion('tenant-user', 'request-1'),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(prisma.$transaction).not.toHaveBeenCalled();
