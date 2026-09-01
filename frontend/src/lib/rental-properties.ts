@@ -19,6 +19,7 @@ export type RentalProperty = {
   propertyType: string;
   description?: string | null;
   rentAmount?: string | number | null;
+  applicationFeeAmount: string | number;
   bedrooms?: number | null;
   bathrooms?: number | null;
   squareFeet?: number | null;

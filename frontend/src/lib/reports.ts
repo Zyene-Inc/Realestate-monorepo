@@ -36,6 +36,8 @@ export type ReportOverview = {
     paymentCount: number;
     unassignedCollected: string;
     unassignedPaymentCount: number;
+    maintenanceExpenses: string;
+    maintenanceExpenseEntryCount: number;
   };
   saleRevenue: { commission: string; receiptCount: number };
   companyRevenue: { combined: string };
@@ -62,6 +64,12 @@ export type OwnerReportRow = {
   managementCommission: string;
   ownerProceeds: string;
   paymentCount: number;
+  moveInCollected: string;
+  moveInOwnerProceeds: string;
+  moveInPaymentCount: number;
+  maintenanceExpenses: string;
+  maintenanceExpenseEntryCount: number;
+  netOwnerPosition: string;
 };
 
 export type OwnerReportPage = {

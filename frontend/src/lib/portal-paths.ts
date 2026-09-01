@@ -5,8 +5,9 @@ const salesPaths = [
   "/admin/agents",
   "/admin/listings",
   "/admin/inquiries",
-  "/admin/leads",
 ];
+
+const sharedOperationsPaths = ["/admin/leads"];
 
 const rentalPaths = [
   "/admin/dashboard",
@@ -14,6 +15,7 @@ const rentalPaths = [
   "/admin/units",
   "/admin/tenants",
   "/admin/leases",
+  "/admin/move-in-inspections",
   "/admin/payments",
   "/admin/owners",
   "/admin/maintenance",
@@ -37,6 +39,7 @@ export function canonicalPortalForPath(pathname: string): Portal | null {
     return "tenant";
   }
   if (startsWithAny(pathname, salesPaths)) return "propertiesAdmin";
+  if (startsWithAny(pathname, sharedOperationsPaths)) return "propertiesAdmin";
   if (startsWithAny(pathname, rentalPaths)) return "rentalAdmin";
   if (startsWithAny(pathname, superAdminPaths)) return "superAdmin";
   if (pathname === "/admin" || startsWithAny(pathname, sharedAdminPaths)) {
@@ -56,11 +59,13 @@ export function portalAllowsPath(portal: Portal, pathname: string) {
   if (portal === "propertiesAdmin") {
     return (
       startsWithAny(pathname, salesPaths) ||
+      startsWithAny(pathname, sharedOperationsPaths) ||
       startsWithAny(pathname, sharedAdminPaths)
     );
   }
   return (
     startsWithAny(pathname, rentalPaths) ||
+    startsWithAny(pathname, sharedOperationsPaths) ||
     startsWithAny(pathname, sharedAdminPaths)
   );
 }
