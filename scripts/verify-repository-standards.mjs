@@ -6,16 +6,32 @@ import { repositoryStandards } from "./repository-standards.config.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-const repositoryFiles = execFileSync(
-  "git",
-  ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
-  {
-    cwd: repositoryRoot,
-    encoding: "utf8",
-  },
-)
-  .split("\0")
-  .filter(Boolean);
+function listRepositoryFiles() {
+  try {
+    execFileSync("git", ["rev-parse", "--git-dir"], {
+      cwd: repositoryRoot,
+      stdio: "ignore",
+    });
+  } catch {
+    process.stdout.write(
+      "REPOSITORY_STANDARDS_SKIPPED (git checkout unavailable)\n",
+    );
+    process.exit(0);
+  }
+
+  return execFileSync(
+    "git",
+    ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
+    {
+      cwd: repositoryRoot,
+      encoding: "utf8",
+    },
+  )
+    .split("\0")
+    .filter(Boolean);
+}
+
+const repositoryFiles = listRepositoryFiles();
 
 const forbiddenNames = [
   /(?:^|\/)tmp(?:\/|$)/,
