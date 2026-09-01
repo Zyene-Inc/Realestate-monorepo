@@ -158,7 +158,7 @@ export async function submitWebsiteLead(input: SubmitWebsiteLeadInput) {
   return (await response.json()) as { id: string; status: string };
 }
 
-export const CHATBOT_LEAD_FORM_THRESHOLD = 6;
+export const CHATBOT_LEAD_FORM_THRESHOLD = 3;
 export const CHATBOT_LEAD_SUBMITTED_KEY = "jr_chatbot_lead_submitted";
 export const CHATBOT_WELCOME_DISMISSED_KEY = "jr_chatbot_welcome_dismissed";
 export const CHATBOT_VISITOR_DAILY_LIMIT_MESSAGE =

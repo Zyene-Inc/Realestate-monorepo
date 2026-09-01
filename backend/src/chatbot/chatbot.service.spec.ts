@@ -100,6 +100,9 @@ describe('ChatbotService', () => {
         create: jest.fn().mockResolvedValue(conversation),
         update: jest.fn().mockResolvedValue(conversation),
       },
+      websiteLead: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
     };
     const prisma = {
       $transaction: transactionMock(tx),
@@ -224,6 +227,43 @@ describe('ChatbotService', () => {
     expect(tx.chatConversation.create).not.toHaveBeenCalled();
   });
 
+  it('skips the visitor daily limit after a chatbot lead has been submitted', async () => {
+    const conversation = {
+      id: 'chat-1',
+      accessTokenHash: 'hash',
+      expiresAt: new Date('2026-09-22T00:00:00.000Z'),
+    };
+    const tx = {
+      $executeRaw: jest.fn().mockResolvedValue(1),
+      chatMessage: {
+        count: jest.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(12),
+        create: jest.fn().mockResolvedValue({ id: 'message-1' }),
+      },
+      chatConversation: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn().mockResolvedValue(conversation),
+        update: jest.fn().mockResolvedValue(conversation),
+      },
+      websiteLead: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'lead-1' }),
+      },
+    };
+    const service = new ChatbotService(
+      { $transaction: transactionMock(tx) } as never,
+      config(),
+      ai(),
+    );
+
+    await expect(
+      service.startReply({
+        message: 'Hello again',
+        fingerprint: { ipAddress: '203.0.113.11', userAgent: 'test-browser' },
+      }),
+    ).resolves.toMatchObject({
+      conversationId: conversation.id,
+    });
+  });
+
   it('does not send prompt-injection or unrelated general-assistant requests to the model', async () => {
     const conversation = {
       id: 'chat-1',
@@ -240,6 +280,9 @@ describe('ChatbotService', () => {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue(conversation),
         update: jest.fn().mockResolvedValue(conversation),
+      },
+      websiteLead: {
+        findFirst: jest.fn().mockResolvedValue(null),
       },
     };
     const generate = jest.fn();
@@ -282,6 +325,9 @@ describe('ChatbotService', () => {
         create: jest.fn().mockResolvedValue(conversation),
         update: jest.fn().mockResolvedValue(conversation),
       },
+      websiteLead: {
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
     };
     const generate = jest.fn();
     const service = new ChatbotService(
@@ -321,6 +367,9 @@ describe('ChatbotService', () => {
         findFirst: jest.fn().mockResolvedValue(conversation),
         create: jest.fn(),
         update: jest.fn().mockResolvedValue(conversation),
+      },
+      websiteLead: {
+        findFirst: jest.fn().mockResolvedValue(null),
       },
     };
     const generate = jest.fn().mockResolvedValue(completedGeneration);
@@ -378,6 +427,9 @@ describe('ChatbotService', () => {
         findFirst: jest.fn().mockResolvedValue(null),
         create: jest.fn().mockResolvedValue(conversation),
         update: jest.fn().mockResolvedValue(conversation),
+      },
+      websiteLead: {
+        findFirst: jest.fn().mockResolvedValue(null),
       },
     };
     const leaked =

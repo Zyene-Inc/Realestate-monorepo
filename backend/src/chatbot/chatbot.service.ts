@@ -11,7 +11,9 @@ import {
   ListingStatus,
   ListingType,
   PublishStatus,
+  WebsiteLeadSource,
 } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -136,6 +138,33 @@ export class ChatbotService {
     return new Date(Date.now() + CHATBOT_SESSION_TTL_MS);
   }
 
+  private async visitorLeadGateCleared(
+    tx: Prisma.TransactionClient,
+    accessToken: string | undefined,
+    visitorDayHash: string,
+  ) {
+    const token = this.validAccessToken(accessToken);
+    if (token) {
+      const linkedConversation = await tx.chatConversation.findFirst({
+        where: {
+          accessTokenHash: this.hash(token),
+          expiresAt: { gt: new Date() },
+          websiteLeads: { some: { source: WebsiteLeadSource.CHATBOT } },
+        },
+        select: { id: true },
+      });
+      if (linkedConversation) return true;
+    }
+    const lead = await tx.websiteLead.findFirst({
+      where: {
+        visitorDayHash,
+        source: WebsiteLeadSource.CHATBOT,
+      },
+      select: { id: true },
+    });
+    return Boolean(lead);
+  }
+
   private needsScopeRefusal(message: string) {
     // Hard-block only clear attacks and clearly unrelated requests. Realty
     // follow-ups, greetings, typos, and booking/contact questions go to the
@@ -227,7 +256,12 @@ export class ChatbotService {
           HttpStatus.TOO_MANY_REQUESTS,
         );
       }
-      if (visitorCount >= CHATBOT_VISITOR_DAILY_LIMIT) {
+      const leadGateCleared = await this.visitorLeadGateCleared(
+        tx,
+        validToken,
+        visitorDayHash,
+      );
+      if (!leadGateCleared && visitorCount >= CHATBOT_VISITOR_DAILY_LIMIT) {
         throw new HttpException(
           CHATBOT_VISITOR_DAILY_LIMIT_MESSAGE,
           HttpStatus.TOO_MANY_REQUESTS,
