@@ -1,6 +1,7 @@
 export const CHATBOT_AI_GATEWAY = Symbol('CHATBOT_AI_GATEWAY');
 export const CHATBOT_COOKIE_NAME = 'jr_public_chat';
-export const CHATBOT_MODEL = 'openrouter/free';
+export const CHATBOT_MODEL = 'openai/gpt-oss-20b';
+export const CHATBOT_PROMPT_GUARD_MODEL = 'meta-llama/llama-prompt-guard-2-86m';
 
 export const CHATBOT_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const CHATBOT_GLOBAL_DAILY_LIMIT = 45;

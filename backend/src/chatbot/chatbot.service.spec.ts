@@ -30,7 +30,7 @@ describe('ChatbotService', () => {
   function config(enabled = true) {
     return new ConfigService({
       CHATBOT_ENABLED: enabled ? 'true' : 'false',
-      OPENROUTER_API_KEY: enabled ? 'sk-or-v1-test-key' : '',
+      GROQ_API_KEY: enabled ? 'gsk-test-key' : '',
       CHATBOT_FINGERPRINT_SECRET:
         'chatbot-test-fingerprint-secret-with-more-than-32-characters',
       PUBLIC_SITE_URL: 'https://coachjohnsonrealty.com',
@@ -63,12 +63,12 @@ describe('ChatbotService', () => {
     });
   }
 
-  it('reports availability without exposing the OpenRouter key', () => {
+  it('reports availability without exposing the Groq key', () => {
     const service = new ChatbotService({} as never, config(), ai());
     const status = service.status();
 
     expect(status).toEqual({ available: true, model: CHATBOT_MODEL });
-    expect(JSON.stringify(status)).not.toContain('sk-or');
+    expect(JSON.stringify(status)).not.toContain('gsk-');
   });
 
   it('returns no history for malformed browser credentials without querying', async () => {

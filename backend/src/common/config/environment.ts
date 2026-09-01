@@ -41,7 +41,7 @@ export function validateEnvironment(config: Record<string, unknown>) {
     );
   }
   if (value(config, 'CHATBOT_ENABLED').toLowerCase() === 'true') {
-    required.push('OPENROUTER_API_KEY', 'CHATBOT_FINGERPRINT_SECRET');
+    required.push('GROQ_API_KEY', 'CHATBOT_FINGERPRINT_SECRET');
   }
   if (value(config, 'STRIPE_RENT_PAYMENTS_ENABLED').toLowerCase() === 'true') {
     required.push(
@@ -49,6 +49,11 @@ export function validateEnvironment(config: Record<string, unknown>) {
       'STRIPE_WEBHOOK_SECRET',
       'STRIPE_CONNECT_WEBHOOK_SECRET',
     );
+  }
+  if (
+    value(config, 'STRIPE_APPLICATION_FEES_ENABLED').toLowerCase() === 'true'
+  ) {
+    required.push('STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET');
   }
   const missing = required.filter((key) => !value(config, key));
   if (missing.length > 0) {
@@ -119,16 +124,16 @@ export function validateEnvironment(config: Record<string, unknown>) {
         'CHATBOT_FINGERPRINT_SECRET must be at least 32 characters',
       );
     }
-    const openRouterKey = value(config, 'OPENROUTER_API_KEY');
-    if (
-      openRouterKey === 'sk-or-v1-replace-with-openrouter-key' ||
-      openRouterKey.length < 20
-    ) {
-      throw new Error('OPENROUTER_API_KEY is not a usable OpenRouter API key');
+    const groqKey = value(config, 'GROQ_API_KEY');
+    if (groqKey === 'gsk_replace_with_groq_key' || groqKey.length < 20) {
+      throw new Error('GROQ_API_KEY is not a usable Groq API key');
     }
   }
 
-  if (value(config, 'STRIPE_RENT_PAYMENTS_ENABLED').toLowerCase() === 'true') {
+  if (
+    value(config, 'STRIPE_RENT_PAYMENTS_ENABLED').toLowerCase() === 'true' ||
+    value(config, 'STRIPE_APPLICATION_FEES_ENABLED').toLowerCase() === 'true'
+  ) {
     const stripeKey = value(config, 'STRIPE_SECRET_KEY');
     if (!/^(rk|sk)_live_/.test(stripeKey)) {
       throw new Error(
@@ -138,7 +143,10 @@ export function validateEnvironment(config: Record<string, unknown>) {
     if (!value(config, 'STRIPE_WEBHOOK_SECRET').startsWith('whsec_')) {
       throw new Error('STRIPE_WEBHOOK_SECRET must be a Stripe webhook secret');
     }
-    if (!value(config, 'STRIPE_CONNECT_WEBHOOK_SECRET').startsWith('whsec_')) {
+    if (
+      value(config, 'STRIPE_RENT_PAYMENTS_ENABLED').toLowerCase() === 'true' &&
+      !value(config, 'STRIPE_CONNECT_WEBHOOK_SECRET').startsWith('whsec_')
+    ) {
       throw new Error(
         'STRIPE_CONNECT_WEBHOOK_SECRET must be a Stripe webhook secret',
       );

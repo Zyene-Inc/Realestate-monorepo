@@ -1,20 +1,30 @@
 import { ConfigService } from '@nestjs/config';
-import { OpenRouterChatbotGateway } from './chatbot-ai.gateway';
+import {
+  GroqChatbotGateway,
+  promptGuardDetectedAttack,
+} from './chatbot-ai.gateway';
 
-describe('OpenRouterChatbotGateway', () => {
+describe('GroqChatbotGateway', () => {
   it('requires both the explicit feature flag and server-only key', () => {
     expect(
-      new OpenRouterChatbotGateway(
+      new GroqChatbotGateway(
         new ConfigService({
           CHATBOT_ENABLED: 'true',
-          OPENROUTER_API_KEY: 'sk-or-v1-test',
+          GROQ_API_KEY: 'gsk_test',
         }),
       ).isEnabled(),
     ).toBe(true);
     expect(
-      new OpenRouterChatbotGateway(
+      new GroqChatbotGateway(
         new ConfigService({ CHATBOT_ENABLED: 'false' }),
       ).isEnabled(),
     ).toBe(false);
+  });
+
+  it('accepts explicit safe Prompt Guard JSON and blocks attack labels', () => {
+    expect(promptGuardDetectedAttack('{"promptAttack":false}')).toBe(false);
+    expect(promptGuardDetectedAttack('{"promptAttack":true}')).toBe(true);
+    expect(promptGuardDetectedAttack('prompt injection')).toBe(true);
+    expect(promptGuardDetectedAttack('unrecognized output')).toBeUndefined();
   });
 });
