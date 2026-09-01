@@ -58,6 +58,16 @@ function firstChoice(payload: JsonRecord) {
   return Array.isArray(choices) ? asRecord(choices[0]) : undefined;
 }
 
+function readDeltaContent(choice: JsonRecord | undefined) {
+  const delta = asRecord(choice?.delta);
+  const message = asRecord(choice?.message);
+  return (
+    readString(delta, 'content') ??
+    readString(message, 'content') ??
+    undefined
+  );
+}
+
 function promptGuardChunks(message: string) {
   if (message.length <= PROMPT_GUARD_CHUNK_CHARS) return [message];
   const chunks: string[] = [];
@@ -215,7 +225,7 @@ export class GroqChatbotGateway implements ChatbotAiGateway {
         stream_options: { include_usage: true },
         max_completion_tokens: 500,
         reasoning_effort: 'low',
-        reasoning_format: 'hidden',
+        include_reasoning: false,
         temperature: 0.2,
       },
       input.abortSignal,
@@ -253,7 +263,7 @@ export class GroqChatbotGateway implements ChatbotAiGateway {
         const payload = asRecord(JSON.parse(data));
         if (!payload) return undefined;
         const choice = firstChoice(payload);
-        const delta = readString(asRecord(choice?.delta), 'content');
+        const delta = readDeltaContent(choice);
         const reason = readString(choice, 'finish_reason');
         if (reason) finishReason = reason;
         const usage = asRecord(payload.usage);

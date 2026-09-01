@@ -82,6 +82,11 @@ describe('GroqChatbotGateway', () => {
       expect(guardBody.messages).toEqual([
         { role: 'user', content: 'hello' },
       ]);
+      const chatBody = JSON.parse(
+        String(fetchMock.mock.calls[1]?.[1]?.body),
+      ) as { include_reasoning?: boolean; reasoning_format?: string };
+      expect(chatBody.include_reasoning).toBe(false);
+      expect(chatBody.reasoning_format).toBeUndefined();
     } finally {
       global.fetch = originalFetch;
     }
