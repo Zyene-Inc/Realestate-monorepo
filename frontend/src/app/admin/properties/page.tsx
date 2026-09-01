@@ -27,6 +27,9 @@ function propertyPayload(form: RentalPropertyForm) {
   return {
     ...form,
     rentAmount: form.rentAmount ? Number(form.rentAmount) : undefined,
+    applicationFeeAmount: form.applicationFeeAmount
+      ? Number(form.applicationFeeAmount)
+      : 0,
     bedrooms: form.bedrooms ? Number(form.bedrooms) : undefined,
     bathrooms: form.bathrooms ? Number(form.bathrooms) : undefined,
     squareFeet: form.squareFeet ? Number(form.squareFeet) : undefined,

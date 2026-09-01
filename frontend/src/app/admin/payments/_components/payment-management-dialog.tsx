@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { toast } from "sonner";
+import { StripeRentRefundDialog } from "./stripe-rent-refund-dialog";
 
 const staffStatuses = ["PENDING", "OVERDUE", "PARTIAL", "PAID", "WAIVED"] as const;
 
@@ -33,6 +34,7 @@ export type AdminPayment = {
   referenceNumber?: string | null;
   notes?: string | null;
   stripeCheckoutStatus?: string;
+  refundedAmount?: number;
   tenant: { firstName: string; lastName: string };
 };
 
@@ -132,10 +134,19 @@ export function PaymentManagementDialog({
             </DialogDescription>
           </DialogHeader>
           {stripeConfirmed ? (
-            <p className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
-              This payment was confirmed by Stripe. Financial changes are locked
-              here; use Stripe&apos;s refund workflow if a correction is required.
-            </p>
+            <div className="flex flex-col gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                This payment was confirmed by Stripe. Financial changes are
+                locked here. Use the refund control to create an auditable
+                Stripe refund.
+              </p>
+              <StripeRentRefundDialog
+                paymentId={payment.id}
+                paidAmount={payment.paidAmount}
+                refundedAmount={payment.refundedAmount}
+                onRequested={onSaved}
+              />
+            </div>
           ) : null}
 
           <div className="grid gap-4 rounded-xl border border-border bg-secondary/30 p-4 text-sm sm:grid-cols-3">

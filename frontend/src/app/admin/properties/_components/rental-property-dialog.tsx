@@ -37,6 +37,7 @@ const identityFields = [
 
 const detailFields = [
   ["rentAmount", "Monthly rent", "number"],
+  ["applicationFeeAmount", "Application fee", "number"],
   ["bedrooms", "Bedrooms", "number"],
   ["bathrooms", "Bathrooms", "number"],
   ["squareFeet", "Square feet", "number"],

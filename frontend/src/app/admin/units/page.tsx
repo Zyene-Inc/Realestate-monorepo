@@ -28,7 +28,8 @@ type Unit = {
   squareFeet: number;
   rentAmount: number;
   depositAmount: number;
-  status: "vacant" | "occupied" | "under_maintenance" | "off_market";
+  status:
+    "vacant" | "reserved" | "occupied" | "under_maintenance" | "off_market";
   property: Property;
   tenants: Array<{ id: string; firstName: string; lastName: string }>;
 };
@@ -240,7 +241,7 @@ export default function AdminUnits() {
                         event.target.value as Unit["status"],
                       )
                     }
-                    disabled={unit.status === "occupied"}
+                    disabled={["occupied", "reserved"].includes(unit.status)}
                   >
                     <option value="vacant">Vacant</option>
                     <option value="under_maintenance">Under maintenance</option>
@@ -248,11 +249,16 @@ export default function AdminUnits() {
                     {unit.status === "occupied" ? (
                       <option value="occupied">Occupied</option>
                     ) : null}
+                    {unit.status === "reserved" ? (
+                      <option value="reserved">Reserved for signing</option>
+                    ) : null}
                   </select>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {unit.status === "occupied"
-                    ? "Occupied is set by the active lease and cannot be changed here."
+                  {["occupied", "reserved"].includes(unit.status)
+                    ? unit.status === "occupied"
+                      ? "Occupied is set by the active lease and cannot be changed here."
+                      : "Reserved while an approved applicant signs the lease."
                     : "Use this for availability only. Occupied is set automatically when a lease starts."}
                 </p>
               </CardContent>

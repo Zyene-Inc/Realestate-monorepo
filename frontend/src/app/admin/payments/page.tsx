@@ -21,12 +21,14 @@ import {
   type AdminPayment,
 } from "./_components/payment-management-dialog";
 import { toast } from "sonner";
+import { MoveInChargeLedger } from "./_components/move-in-charge-ledger";
 
 type Payment = AdminPayment & {
   dueDate: string;
   billingPeriod?: string | null;
   managementCommissionAmount?: number | null;
   ownerProceedsAmount?: number | null;
+  refundedAmount?: number;
 };
 
 type BillingRun = {
@@ -105,7 +107,7 @@ export default function AdminPayments() {
     );
   }, [payments, query]);
   const collected = payments.reduce(
-    (total, payment) => total + payment.paidAmount,
+    (total, payment) => total + payment.paidAmount - (payment.refundedAmount || 0),
     0,
   );
   const outstanding = payments.reduce(
@@ -256,6 +258,7 @@ export default function AdminPayments() {
           </Table>
         </div>
       </Card>
+      <MoveInChargeLedger />
     </div>
   );
 }

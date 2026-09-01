@@ -8,6 +8,7 @@ export type RentalProperty = {
   propertyType: string;
   description: string | null;
   rentAmount: string | number | null;
+  applicationFeeAmount: string | number;
   bedrooms: number | null;
   bathrooms: number | null;
   squareFeet: number | null;
@@ -29,6 +30,7 @@ export type RentalPropertyForm = {
   propertyType: string;
   description: string;
   rentAmount: string;
+  applicationFeeAmount: string;
   bedrooms: string;
   bathrooms: string;
   squareFeet: string;
@@ -47,6 +49,7 @@ export const emptyRentalPropertyForm: RentalPropertyForm = {
   propertyType: "Single Family",
   description: "",
   rentAmount: "",
+  applicationFeeAmount: "0",
   bedrooms: "",
   bathrooms: "",
   squareFeet: "",
@@ -69,6 +72,7 @@ export function rentalPropertyFormFor(
     propertyType: property.propertyType,
     description: property.description ?? "",
     rentAmount: property.rentAmount == null ? "" : String(property.rentAmount),
+    applicationFeeAmount: String(property.applicationFeeAmount ?? 0),
     bedrooms: property.bedrooms == null ? "" : String(property.bedrooms),
     bathrooms: property.bathrooms == null ? "" : String(property.bathrooms),
     squareFeet: property.squareFeet == null ? "" : String(property.squareFeet),
