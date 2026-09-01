@@ -10,7 +10,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { getErrorMessage } from "@/lib/errors";
+import {
+  submitWebsiteContactLead,
+  type WebsiteLeadIntent,
+} from "@/lib/website-leads";
 import { toast } from "sonner";
+
+function contactLeadIntent(intent: string | null): WebsiteLeadIntent {
+  if (intent === "rent") return "RENTAL_INQUIRY";
+  if (intent === "rent-tour") return "RENTAL_TOUR";
+  if (intent === "rent-apply") return "RENTAL_APPLICATION";
+  if (intent === "similar-rental") return "SIMILAR_RENTAL";
+  if (intent === "buy-similar") return "BUYER_INQUIRY";
+  if (intent === "sell") return "SELLER_INQUIRY";
+  if (intent === "market-report") return "MARKET_REPORT";
+  return "GENERAL";
+}
+
+const rentalLeadIntents = new Set<WebsiteLeadIntent>([
+  "RENTAL_INQUIRY",
+  "RENTAL_TOUR",
+  "RENTAL_APPLICATION",
+  "SIMILAR_RENTAL",
+]);
 
 export default function ContactPage() {
   return (
@@ -22,17 +45,30 @@ export default function ContactPage() {
 
 function ContactPageContent() {
   const searchParams = useSearchParams();
+  const intent = searchParams.get("intent");
+  const property = searchParams.get("property");
+  const address = searchParams.get("address");
+  const propertyId = searchParams.get("rentalId");
+  const unitId = searchParams.get("unitId");
+  const crmIntent = contactLeadIntent(intent);
+  const needsMoveInDate = rentalLeadIntents.has(crmIntent);
+  const isTourRequest = intent === "rent-tour";
+  const isRentalApplication = intent === "rent-apply";
+  const [minimumMoveInDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState(() => {
-    const intent = searchParams.get("intent");
     if (intent === "rent") {
-      const property = searchParams.get("property");
-      const address = searchParams.get("address");
       return `I am interested in renting${property ? ` ${property}` : " a home"}${address ? ` at ${address}` : ""}. Please share current availability and next steps.`;
     }
+    if (intent === "rent-tour") {
+      return `I would like to schedule a tour${property ? ` of ${property}` : ""}${address ? ` at ${address}` : ""}. My preferred dates and times are: `;
+    }
+    if (intent === "rent-apply") {
+      return `I would like to apply${property ? ` for ${property}` : " for this rental"}${address ? ` at ${address}` : ""}. Please send me the application requirements and next steps.`;
+    }
     if (intent === "similar-rental") {
-      const property = searchParams.get("property");
-      const address = searchParams.get("address");
       return `I saw that${property ? ` ${property}` : " a property"}${address ? ` at ${address}` : ""} has been rented. Please help me find a similar available home.`;
     }
     if (intent === "buy-similar")
@@ -44,16 +80,39 @@ function ContactPageContent() {
     return "";
   });
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
+    const data = new FormData(form);
     setSending(true);
-    window.setTimeout(() => {
-      setSending(false);
-      toast.success("Message prepared. Our team will follow up shortly.");
+    try {
+      await submitWebsiteContactLead({
+        name: String(data.get("name") ?? "").trim(),
+        email: String(data.get("email") ?? "").trim(),
+        phone: String(data.get("phone") ?? "").trim() || undefined,
+        message: message.trim(),
+        intent: crmIntent,
+        propertyId: propertyId ?? undefined,
+        unitId: unitId ?? undefined,
+        moveInDate: needsMoveInDate
+          ? String(data.get("moveInDate") ?? "")
+          : undefined,
+        website: String(data.get("website") ?? ""),
+      });
+      toast.success(
+        isTourRequest
+          ? "Tour request sent to the rental team."
+          : isRentalApplication
+            ? "Application request sent to the rental team."
+            : "Message sent to Johnson Realty.",
+      );
       form.reset();
       setMessage("");
-    }, 500);
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, "Unable to send your request"));
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -123,10 +182,18 @@ function ContactPageContent() {
 
           <section className="rounded-[1.75rem] border border-border bg-card p-5 sm:p-8 lg:p-10">
             <h2 className="text-2xl font-semibold tracking-[-0.03em]">
-              Send a message
+              {isTourRequest
+                ? "Request a property tour"
+                : isRentalApplication
+                  ? "Start your rental application"
+                  : "Send a message"}
             </h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Share enough context for us to respond usefully.
+              {isTourRequest
+                ? "Share your contact details and preferred times. The rental team will confirm the appointment."
+                : isRentalApplication
+                  ? "Share your contact details. The rental team will confirm availability and send the secure application requirements."
+                  : "Share enough context for us to respond usefully."}
             </p>
             <form onSubmit={submit} className="mt-8 grid gap-5 sm:grid-cols-2">
               <div className="grid gap-2">
@@ -157,6 +224,18 @@ function ContactPageContent() {
                   autoComplete="tel"
                 />
               </div>
+              {needsMoveInDate ? (
+                <div className="grid gap-2 sm:col-span-2">
+                  <Label htmlFor="move-in-date">Preferred move-in date</Label>
+                  <Input
+                    id="move-in-date"
+                    name="moveInDate"
+                    type="date"
+                    min={minimumMoveInDate}
+                    required
+                  />
+                </div>
+              ) : null}
               <div className="grid gap-2 sm:col-span-2">
                 <Label htmlFor="message">How can we help?</Label>
                 <Textarea
@@ -168,6 +247,14 @@ function ContactPageContent() {
                   onChange={(event) => setMessage(event.target.value)}
                 />
               </div>
+              <input
+                name="website"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                className="absolute -left-[10000px] size-px overflow-hidden"
+              />
               <div className="sm:col-span-2">
                 <Button
                   type="submit"
@@ -175,7 +262,13 @@ function ContactPageContent() {
                   className="w-full sm:w-auto"
                   disabled={sending}
                 >
-                  {sending ? "Sending…" : "Send message"}
+                  {sending
+                    ? "Sending…"
+                    : isTourRequest
+                      ? "Request tour"
+                      : isRentalApplication
+                        ? "Request application"
+                        : "Send message"}
                   {!sending && <ArrowRight aria-hidden="true" />}
                 </Button>
               </div>

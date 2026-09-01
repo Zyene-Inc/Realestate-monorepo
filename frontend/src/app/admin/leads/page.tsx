@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, Loader2, Mail, Phone, Trash2 } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  Eye,
+  Loader2,
+  Mail,
+  Phone,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,19 +23,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getErrorMessage } from "@/lib/errors";
+import { LeadNotesPanel } from "./_components/lead-notes-panel";
+import { LeadWorkflowPanel } from "./_components/lead-workflow-panel";
 import {
   getWebsiteLead,
   deleteWebsiteLead,
   leadTime,
   listWebsiteLeads,
-  phoneSnippet,
-  updateWebsiteLeadStatus,
+  moveInDateLabel,
+  websiteLeadIntentLabel,
+  websiteLeadSourceLabel,
+  websiteLeadStatusLabel,
   type WebsiteLeadDetail,
-  type WebsiteLeadStatus,
   type WebsiteLeadSummary,
 } from "@/lib/website-leads";
-
-const statusActions: WebsiteLeadStatus[] = ["NEW", "CONTACTED", "CLOSED"];
 
 export default function WebsiteLeadsPage() {
   const [items, setItems] = useState<WebsiteLeadSummary[]>([]);
@@ -35,7 +44,6 @@ export default function WebsiteLeadsPage() {
   const [loading, setLoading] = useState(true);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -74,23 +82,13 @@ export default function WebsiteLeadsPage() {
     }
   };
 
-  const setStatus = async (status: WebsiteLeadStatus) => {
-    if (!selected) return;
-    setUpdatingStatus(true);
-    try {
-      const updated = await updateWebsiteLeadStatus(selected.id, status);
-      setSelected((current) => (current ? { ...current, status } : current));
-      setItems((current) =>
-        current.map((item) =>
-          item.id === updated.id ? { ...item, status: updated.status } : item,
-        ),
-      );
-      toast.success(`Lead marked ${status.toLowerCase()}`);
-    } catch (error: unknown) {
-      toast.error(getErrorMessage(error, "Unable to update lead status"));
-    } finally {
-      setUpdatingStatus(false);
-    }
+  const workflowUpdated = (updated: WebsiteLeadDetail) => {
+    setSelected(updated);
+    setItems((current) =>
+      current.map((item) =>
+        item.id === updated.id ? { ...item, ...updated } : item,
+      ),
+    );
   };
 
   const deleteLead = async () => {
@@ -122,7 +120,7 @@ export default function WebsiteLeadsPage() {
           Website leads
         </h1>
         <p className="mt-2 text-muted-foreground">
-          Chatbot contact requests from the public website.
+          Contact requests and assistant handoffs from the public website.
         </p>
       </div>
       <div className="grid min-h-[650px] gap-6 lg:grid-cols-[360px_1fr]">
@@ -141,15 +139,24 @@ export default function WebsiteLeadsPage() {
                   className={`w-full p-5 text-left hover:bg-secondary ${selected?.id === item.id ? "bg-secondary" : ""}`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <strong className="truncate">{item.email}</strong>
-                    <Badge variant="outline">{item.status}</Badge>
+                    <strong className="truncate">
+                      {item.name || item.email}
+                    </strong>
+                    <Badge variant="outline">
+                      {websiteLeadStatusLabel(item.status)}
+                    </Badge>
                   </div>
                   <p className="mt-1 truncate text-sm text-muted-foreground">
-                    {phoneSnippet(item.phone)}
+                    {websiteLeadIntentLabel(item.intent)} · {item.email}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {leadTime(item.createdAt)}
                   </p>
+                  {item.assignedTo ? (
+                    <p className="mt-1 truncate text-xs text-muted-foreground">
+                      Assigned to {item.assignedTo.email}
+                    </p>
+                  ) : null}
                 </button>
               ))
             )}
@@ -180,8 +187,10 @@ export default function WebsiteLeadsPage() {
             <div>
               <div className="border-b p-6">
                 <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-xl font-bold">{selected.email}</h2>
-                  <Badge>{selected.status}</Badge>
+                  <h2 className="text-xl font-bold">
+                    {selected.name || selected.email}
+                  </h2>
+                  <Badge>{websiteLeadStatusLabel(selected.status)}</Badge>
                 </div>
                 <p className="mt-2 text-xs">
                   <Mail className="mr-1 inline h-3 w-3" />
@@ -195,27 +204,14 @@ export default function WebsiteLeadsPage() {
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
                   Submitted {leadTime(selected.createdAt)} · Source{" "}
-                  {selected.source}
+                  {websiteLeadSourceLabel(selected.source)}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {statusActions.map((status) => (
-                    <Button
-                      key={status}
-                      size="sm"
-                      variant={
-                        selected.status === status ? "default" : "outline"
-                      }
-                      disabled={updatingStatus || selected.status === status}
-                      onClick={() => void setStatus(status)}
-                    >
-                      {status}
-                    </Button>
-                  ))}
                   <Button
                     size="sm"
                     variant="outline"
                     className="border-destructive/30 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                    disabled={updatingStatus || deleting}
+                    disabled={deleting}
                     onClick={() => setDeleteDialogOpen(true)}
                   >
                     <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -224,9 +220,57 @@ export default function WebsiteLeadsPage() {
                 </div>
               </div>
               <div className="space-y-4 bg-secondary/20 p-6">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border bg-card p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      Request
+                    </p>
+                    <p className="mt-2 text-sm font-semibold">
+                      {websiteLeadIntentLabel(selected.intent)}
+                    </p>
+                  </div>
+                  {selected.moveInDate ? (
+                    <div className="rounded-2xl border bg-card p-4">
+                      <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        <CalendarDays className="size-4" aria-hidden="true" />
+                        Preferred move-in
+                      </p>
+                      <p className="mt-2 text-sm font-semibold">
+                        {moveInDateLabel(selected.moveInDate)}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+                {selected.property ? (
+                  <div className="rounded-2xl border bg-card p-4">
+                    <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      <Building2 className="size-4" aria-hidden="true" />
+                      Linked rental
+                    </p>
+                    <p className="mt-2 text-sm font-semibold">
+                      {selected.property.name}
+                      {selected.unit
+                        ? ` · Unit ${selected.unit.unitNumber}`
+                        : ""}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {selected.property.address}
+                    </p>
+                  </div>
+                ) : null}
                 <div className="rounded-2xl border bg-card p-4 text-sm leading-6">
                   {selected.message}
                 </div>
+                <LeadWorkflowPanel
+                  key={`${selected.id}:${selected.updatedAt}`}
+                  lead={selected}
+                  onUpdated={workflowUpdated}
+                />
+                <LeadNotesPanel
+                  key={selected.id}
+                  leadId={selected.id}
+                  initialCount={selected._count.notes}
+                />
                 {selected.conversation?.messages.length ? (
                   <div className="space-y-3">
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
