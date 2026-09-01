@@ -402,7 +402,7 @@ export class EmailsService {
     return { received: true, tracked: true };
   }
 
-  private portal(
+  portal(
     path: string,
     portal: 'tenant' | 'rentalAdmin' | 'propertiesAdmin' | 'agent',
   ) {
@@ -702,6 +702,32 @@ export class EmailsService {
     );
   }
 
+  sendMoveInChargesPosted(
+    email: string,
+    values: EmailTemplateVariables,
+    eventKey: string,
+  ) {
+    return this.sendTemplate(
+      email,
+      'move_in.charges_posted',
+      { ...values, url: this.portal('/tenant/pay-rent', 'tenant') },
+      eventKey,
+    );
+  }
+
+  sendMoveInPaymentRecorded(
+    email: string,
+    values: EmailTemplateVariables,
+    eventKey: string,
+  ) {
+    return this.sendTemplate(
+      email,
+      'move_in.payment_recorded',
+      { ...values, url: this.portal('/tenant/payments', 'tenant') },
+      eventKey,
+    );
+  }
+
   sendMaintenanceCreated(
     email: string,
     values: EmailTemplateVariables,
@@ -740,6 +766,15 @@ export class EmailsService {
       },
       `${requestId}-${status}`,
     );
+  }
+
+  sendMaintenanceVendorAssignment(
+    email: string,
+    values: EmailTemplateVariables,
+    eventKey: string,
+  ) {
+    const key = 'maintenance.vendor_assigned' as const;
+    return this.sendTemplate(email, key, values, eventKey);
   }
 
   sendMaintenanceCompletionConfirmed(

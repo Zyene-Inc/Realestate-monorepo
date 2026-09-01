@@ -19,11 +19,21 @@ export const EMAIL_TEMPLATE_KEYS = [
   'rental.unpublished',
   'lease.created',
   'lease.status_updated',
+  'lease.renewal_offered',
+  'lease.vacate_notice_received',
+  'lease.move_out_inspection_scheduled',
+  'lease.deposit_itemized',
+  'lease.deposit_returned',
   'rent.reminder',
   'rent.late_notice',
   'rent.payment_recorded',
+  'move_in.charges_posted',
+  'move_in.payment_recorded',
+  'move_in.inspection_ready',
+  'move_in.inspection_acknowledged',
   'maintenance.created',
   'maintenance.updated',
+  'maintenance.vendor_assigned',
   'maintenance.completion_confirmed',
   'tenant_message.created',
   'tenant_message.admin_replied',
@@ -236,6 +246,46 @@ export function renderEmailTemplate(
         `${hello}<p>Your lease for <strong>${text(values.propertyName)}</strong>, unit ${text(values.unitNumber)}, is now <strong>${text(values.status)}</strong>.</p>${button('View lease', values.url)}`,
         true,
       );
+    case 'lease.renewal_offered':
+      return result(
+        key,
+        'Lease renewal ready for review — Coach Johnson Realty',
+        'Review your renewal offer',
+        `${hello}<p>A renewal offer for <strong>${text(values.propertyName)}</strong> is ready for signature.</p><p>New end date: <strong>${text(values.endDate)}</strong><br>Monthly rent: <strong>${money(values.monthlyRent)}</strong><br>Respond by: <strong>${text(values.responseDue)}</strong></p>${button('Review renewal', values.url)}`,
+        true,
+      );
+    case 'lease.vacate_notice_received':
+      return result(
+        key,
+        'Notice to vacate received — Coach Johnson Realty',
+        'Your notice was recorded',
+        `${hello}<p>We recorded the planned move-out from <strong>${text(values.propertyName)}</strong> on <strong>${text(values.moveOutDate)}</strong>.</p><p>Management will confirm the final inspection schedule in the resident portal.</p>${button('View move-out plan', values.url)}`,
+        true,
+      );
+    case 'lease.move_out_inspection_scheduled':
+      return result(
+        key,
+        'Final inspection scheduled — Coach Johnson Realty',
+        'Move-out walkthrough scheduled',
+        `${hello}<p>The final inspection for <strong>${text(values.propertyName)}</strong> is scheduled for <strong>${text(values.scheduledAt)}</strong>.</p>${button('View move-out plan', values.url)}`,
+        true,
+      );
+    case 'lease.deposit_itemized':
+      return result(
+        key,
+        'Security deposit statement ready — Coach Johnson Realty',
+        'Deposit itemization ready',
+        `${hello}<p>Your security deposit statement for <strong>${text(values.propertyName)}</strong> is ready.</p><p>Deductions: <strong>${money(values.deductions)}</strong><br>Return amount: <strong>${money(values.refund)}</strong><br>Return deadline: <strong>${text(values.dueDate)}</strong></p>${button('Review statement', values.url)}`,
+        true,
+      );
+    case 'lease.deposit_returned':
+      return result(
+        key,
+        'Security deposit return completed — Coach Johnson Realty',
+        'Deposit return recorded',
+        `${hello}<p>A security deposit return of <strong>${money(values.refund)}</strong> for <strong>${text(values.propertyName)}</strong> was completed by ${text(values.method)}.</p><p>Reference: <strong>${text(values.reference)}</strong></p>${button('View return record', values.url)}`,
+        true,
+      );
     case 'rent.reminder':
       return result(
         key,
@@ -260,6 +310,38 @@ export function renderEmailTemplate(
         `${hello}<p>A payment of <strong>${money(values.amount)}</strong> was recorded with status <strong>${text(values.status)}</strong>.</p><p>Balance due: <strong>${money(values.balanceDue)}</strong>.</p>${button('View payment history', values.url)}`,
         true,
       );
+    case 'move_in.charges_posted':
+      return result(
+        key,
+        'Move-in charges are ready — Coach Johnson Realty',
+        'Move-in balance posted',
+        `${hello}<p>Move-in charges totaling <strong>${money(values.amount)}</strong> were posted for <strong>${text(values.propertyName)}</strong>.</p><p>Review each categorized charge before making a one-time payment.</p>${button('Review move-in charges', values.url)}`,
+        true,
+      );
+    case 'move_in.payment_recorded':
+      return result(
+        key,
+        'Move-in payment recorded — Coach Johnson Realty',
+        'Move-in payment update',
+        `${hello}<p>A move-in payment of <strong>${money(values.amount)}</strong> was recorded for <strong>${text(values.propertyName)}</strong>.</p><p>Remaining move-in balance: <strong>${money(values.balanceDue)}</strong>.</p>${button('View payment details', values.url)}`,
+        true,
+      );
+    case 'move_in.inspection_ready':
+      return result(
+        key,
+        'Review your move-in inspection: Coach Johnson Realty',
+        'Move-in condition record ready',
+        `${hello}<p>Review the room-by-room condition record and key handover for <strong>${text(values.propertyName)}</strong>, unit ${text(values.unitNumber)}.</p><p>Add any observations or photos before acknowledging the record.</p>${button('Review move-in inspection', values.url)}`,
+        true,
+      );
+    case 'move_in.inspection_acknowledged':
+      return result(
+        key,
+        `Move-in inspection acknowledged: ${String(values.propertyName ?? '')}`,
+        'Move-in inspection completed',
+        `<p><strong>${text(values.tenantName)}</strong> acknowledged the condition record and key handover for <strong>${text(values.propertyName)}</strong>, unit ${text(values.unitNumber)}.</p>${button('Open inspection record', values.url)}`,
+        true,
+      );
     case 'maintenance.created':
       return result(
         key,
@@ -274,6 +356,14 @@ export function renderEmailTemplate(
         `Maintenance request update — #${String(values.requestId ?? '')}`,
         'Maintenance update',
         `${hello}<p>Your ${text(values.category)} request is now <strong>${text(values.status)}</strong>.</p>${button('View request', values.url)}`,
+      );
+    case 'maintenance.vendor_assigned':
+      return result(
+        key,
+        `Service assignment: ${String(values.propertyName ?? '')} unit ${String(values.unitNumber ?? '')}`,
+        'Maintenance service assignment',
+        `${hello}<p>You have been assigned a <strong>${text(values.category)}</strong> service request at <strong>${text(values.propertyName)}</strong>, ${text(values.propertyAddress)}, unit ${text(values.unitNumber)}.</p><p>${text(values.description)}</p>${values.scheduledAt ? `<p><strong>Scheduled:</strong> ${text(values.scheduledAt)}</p>` : ''}<p>Contact Coach Johnson Realty if the timing or scope needs clarification.</p>`,
+        true,
       );
     case 'maintenance.completion_confirmed':
       return result(
@@ -309,7 +399,7 @@ export function renderEmailTemplate(
         key,
         `Rental application update: ${String(values.propertyName ?? '')}`,
         'Application status updated',
-        `${hello}<p>Your application for <strong>${text(values.propertyName)}</strong> is now <strong>${text(values.status)}</strong>.</p>`,
+        `${hello}<p>Your application for <strong>${text(values.propertyName)}</strong> is now <strong>${text(values.status)}</strong>.</p>${values.reason ? `<p><strong>Johnson Realty message:</strong> ${text(values.reason)}</p>` : ''}${button('View secure application', values.url)}`,
         true,
       );
     case 'owner.stripe_onboarding_invited':
