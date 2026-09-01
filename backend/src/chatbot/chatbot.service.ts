@@ -23,12 +23,14 @@ import type {
 import {
   CHATBOT_AI_GATEWAY,
   CHATBOT_GLOBAL_DAILY_LIMIT,
+  CHATBOT_GLOBAL_DAILY_LIMIT_MESSAGE,
   CHATBOT_HISTORY_LIMIT,
   CHATBOT_MODEL,
   CHATBOT_MODEL_HISTORY_LIMIT,
   CHATBOT_SESSION_TTL_MS,
   CHATBOT_SCOPE_REFUSAL_MESSAGE,
   CHATBOT_VISITOR_DAILY_LIMIT,
+  CHATBOT_VISITOR_DAILY_LIMIT_MESSAGE,
 } from './chatbot.constants';
 
 const CHATBOT_ADVISORY_LOCK_ID = 1_278_226_431;
@@ -221,13 +223,13 @@ export class ChatbotService {
       ]);
       if (globalCount >= CHATBOT_GLOBAL_DAILY_LIMIT) {
         throw new HttpException(
-          'The assistant reached today’s free-model limit. Please contact our team.',
+          CHATBOT_GLOBAL_DAILY_LIMIT_MESSAGE,
           HttpStatus.TOO_MANY_REQUESTS,
         );
       }
       if (visitorCount >= CHATBOT_VISITOR_DAILY_LIMIT) {
         throw new HttpException(
-          'You reached today’s chat limit. Please contact our team for more help.',
+          CHATBOT_VISITOR_DAILY_LIMIT_MESSAGE,
           HttpStatus.TOO_MANY_REQUESTS,
         );
       }

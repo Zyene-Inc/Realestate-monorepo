@@ -24,6 +24,7 @@ import {
   CHATBOT_WELCOME_DISMISSED_KEY,
   chatbotHistory,
   chatbotStatus,
+  chatbotDailyLimitMessage,
   hasChatbotBookingIntent,
   isChatbotDailyLimitError,
   streamChatbotReply,
@@ -200,9 +201,11 @@ export function PublicChatbot() {
           caught instanceof Error
             ? caught.message
             : "The assistant is temporarily unavailable.";
-        setError(messageText);
         if (isChatbotDailyLimitError(messageText)) {
+          setError(chatbotDailyLimitMessage(messageText));
           setShowLeadForm(true);
+        } else {
+          setError(messageText);
         }
         setMessages((current) =>
           current.filter(
