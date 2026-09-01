@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  ClipboardCheck,
   CreditCard,
   FileText,
   Files,
   History,
   LayoutDashboard,
+  Repeat2,
   Megaphone,
   MessageSquare,
   User,
@@ -24,6 +26,12 @@ const items: PortalNavItem[] = [
   { title: "Payment history", icon: History, href: "/tenant/payments" },
   { title: "Maintenance", icon: Wrench, href: "/tenant/maintenance" },
   { title: "Lease", icon: FileText, href: "/tenant/lease" },
+  {
+    title: "Renewal & move-out",
+    icon: Repeat2,
+    href: "/tenant/lease-lifecycle",
+  },
+  { title: "Move-in record", icon: ClipboardCheck, href: "/tenant/move-in" },
   { title: "Documents", icon: Files, href: "/tenant/documents" },
   { title: "Messages", icon: MessageSquare, href: "/tenant/messages" },
   { title: "Announcements", icon: Megaphone, href: "/tenant/announcements" },
@@ -54,6 +62,21 @@ const tourSteps: ProductTourStep[] = [
     description:
       "Lease, Documents, Messages, Announcements, and Profile keep your rental records and communication in one place.",
     action: { label: "Open lease", href: "/tenant/lease" },
+  },
+  {
+    title: "Review your move-in record",
+    description:
+      "When management sends it, review room conditions, add your observations or photos, and acknowledge the key handover.",
+    action: { label: "Open move-in record", href: "/tenant/move-in" },
+  },
+  {
+    title: "Plan renewal or move-out",
+    description:
+      "Review renewal signatures, submit notice, follow the final inspection, and keep your deposit statement and return proof.",
+    action: {
+      label: "Open renewal and move-out",
+      href: "/tenant/lease-lifecycle",
+    },
   },
 ];
 

@@ -5,11 +5,13 @@ import {
   BarChart3,
   Building2,
   ClipboardCheck,
+  ClipboardList,
   CreditCard,
   Landmark,
   DoorOpen,
   FileText,
   FileSignature,
+  Repeat2,
   LayoutDashboard,
   ListChecks,
   MailCheck,
@@ -29,6 +31,7 @@ import {
 import type { ProductTourStep } from "@/components/portal/product-tour";
 import { useAuth } from "@/context/auth-context";
 import { getNewWebsiteLeadCount } from "@/lib/website-leads";
+import { getNewRentalApplicationCount } from "@/lib/admin-rental-applications";
 
 const items = [
   {
@@ -61,13 +64,6 @@ const items = [
     group: "Sales & listings",
   },
   {
-    title: "Website leads",
-    icon: MailCheck,
-    href: "/admin/leads",
-    area: "sales",
-    group: "Sales & listings",
-  },
-  {
     title: "Commission ledger",
     icon: ReceiptText,
     href: "/admin/sales/commissions",
@@ -75,11 +71,25 @@ const items = [
     group: "Sales & listings",
   },
   {
+    title: "Website leads",
+    icon: MailCheck,
+    href: "/admin/leads",
+    area: "shared",
+    group: "Leads & follow-up",
+  },
+  {
     title: "Rental overview",
     icon: LayoutDashboard,
     href: "/admin/dashboard",
     area: "rent",
     group: "Rental portfolio",
+  },
+  {
+    title: "Rental applications",
+    icon: ClipboardList,
+    href: "/admin/rental-applications",
+    area: "rent",
+    group: "Leads & follow-up",
   },
   {
     title: "Properties",
@@ -113,6 +123,20 @@ const items = [
     title: "Leases",
     icon: FileText,
     href: "/admin/leases",
+    area: "rent",
+    group: "Residents & payments",
+  },
+  {
+    title: "Renewals & move-outs",
+    icon: Repeat2,
+    href: "/admin/lease-lifecycle",
+    area: "rent",
+    group: "Residents & payments",
+  },
+  {
+    title: "Move-in inspections",
+    icon: ClipboardCheck,
+    href: "/admin/move-in-inspections",
     area: "rent",
     group: "Residents & payments",
   },
@@ -214,6 +238,21 @@ const rentalTour: ProductTourStep[] = [
     action: { label: "Open rental overview", href: "/admin/dashboard" },
   },
   {
+    title: "Follow up with rental prospects",
+    description:
+      "Website Leads contains new rental questions, tour requests, and application requests with the selected property and preferred move-in date.",
+    action: { label: "Open website leads", href: "/admin/leads" },
+  },
+  {
+    title: "Review completed applications",
+    description:
+      "Rental applications keeps identity and income documents private, records application-fee status, and prevents approval until required checks are complete.",
+    action: {
+      label: "Open rental applications",
+      href: "/admin/rental-applications",
+    },
+  },
+  {
     title: "Build the property inventory",
     description:
       "Create a rental property, then add its units. Units are what connect residents, leases, rent, and service requests.",
@@ -230,6 +269,24 @@ const rentalTour: ProductTourStep[] = [
     description:
       "Payments tracks rent charges, late fees, and tenant-initiated checkout. Property owners hold the commission rate and secure payout setup.",
     action: { label: "Open payments", href: "/admin/payments" },
+  },
+  {
+    title: "Document move-in handover",
+    description:
+      "Move-in inspections records room condition, private photos, utility readings, keys, and the resident acknowledgement before occupancy begins.",
+    action: {
+      label: "Open move-in inspections",
+      href: "/admin/move-in-inspections",
+    },
+  },
+  {
+    title: "Finish renewals and move-outs",
+    description:
+      "Use Renewals & move-outs for signed offers, notice, final inspection, key return, deposit deductions, deadlines, and proof of return.",
+    action: {
+      label: "Open renewals and move-outs",
+      href: "/admin/lease-lifecycle",
+    },
   },
   {
     title: "Keep residents informed",
@@ -259,6 +316,15 @@ const superAdminTour: ProductTourStep[] = [
     action: { label: "Open rental overview", href: "/admin/dashboard" },
   },
   {
+    title: "Review the leasing pipeline",
+    description:
+      "Rental applications is the controlled handoff from public applicant to approved resident. Review documents and fees before creating any tenant or lease.",
+    action: {
+      label: "Open rental applications",
+      href: "/admin/rental-applications",
+    },
+  },
+  {
     title: "Handle residents, rent, and owner payouts",
     description:
       "Invite a tenant, then create the lease. Payments manages rent and late fees, while Property owners stores the management commission and payout setup.",
@@ -281,8 +347,11 @@ const superAdminTour: ProductTourStep[] = [
 export function AdminSidebar() {
   const { user, logout } = useAuth();
   const [newLeadCount, setNewLeadCount] = useState(0);
+  const [newApplicationCount, setNewApplicationCount] = useState(0);
   const canReviewLeads =
-    user?.role === "SUPER_ADMIN" || user?.role === "SALES_ADMIN";
+    user?.role === "SUPER_ADMIN" ||
+    user?.role === "SALES_ADMIN" ||
+    user?.role === "TENANT_ADMIN";
 
   useEffect(() => {
     if (!canReviewLeads) return;
@@ -290,8 +359,16 @@ export function AdminSidebar() {
     let active = true;
     const refreshNewLeadCount = async () => {
       try {
-        const { count } = await getNewWebsiteLeadCount();
-        if (active) setNewLeadCount(count);
+        const [{ count }, applications] = await Promise.all([
+          getNewWebsiteLeadCount(),
+          user?.role === "SALES_ADMIN"
+            ? Promise.resolve({ count: 0 })
+            : getNewRentalApplicationCount(),
+        ]);
+        if (active) {
+          setNewLeadCount(count);
+          setNewApplicationCount(applications.count);
+        }
       } catch {
         // Navigation remains available if the non-critical badge request fails.
       }
@@ -306,7 +383,7 @@ export function AdminSidebar() {
       active = false;
       window.clearInterval(interval);
     };
-  }, [canReviewLeads]);
+  }, [canReviewLeads, user?.role]);
 
   const visibleItems = items.reduce<PortalNavItem[]>((visible, item) => {
     const allowed =
@@ -317,7 +394,11 @@ export function AdminSidebar() {
           : true;
     if (!allowed) return visible;
     visible.push(
-      item.href === "/admin/leads" ? { ...item, badge: newLeadCount } : item,
+      item.href === "/admin/leads"
+        ? { ...item, badge: newLeadCount }
+        : item.href === "/admin/rental-applications"
+          ? { ...item, badge: newApplicationCount }
+          : item,
     );
     return visible;
   }, []);

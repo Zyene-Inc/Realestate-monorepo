@@ -29,6 +29,7 @@ export default function AdminLayout({
     "/admin/units",
     "/admin/tenants",
     "/admin/leases",
+    "/admin/move-in-inspections",
     "/admin/payments",
     "/admin/owners",
     "/admin/maintenance",
