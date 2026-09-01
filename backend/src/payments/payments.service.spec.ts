@@ -1,7 +1,7 @@
 import {
   PaymentStatus,
+  PaymentPurpose,
   Prisma,
-  PropertyOwnerPayoutStatus,
   StripeCheckoutStatus,
 } from '@prisma/client';
 import { PaymentsService } from './payments.service';
@@ -31,6 +31,7 @@ describe('PaymentsService owner attribution', () => {
       payment: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'payment-1',
+          purpose: PaymentPurpose.RENT,
           status: PaymentStatus.PAID,
           paidAmount: 1800,
           lateFee: 0,
@@ -58,6 +59,7 @@ describe('PaymentsService owner attribution', () => {
   it('snapshots the owner and exact management split atomically on receipt', async () => {
     const created = {
       id: 'payment-1',
+      purpose: PaymentPurpose.RENT,
       ...input,
       paidAt: new Date('2026-08-22'),
       updatedAt: new Date('2026-08-22'),
@@ -121,6 +123,7 @@ describe('PaymentsService owner attribution', () => {
     const paidAt = new Date('2026-08-10');
     const payment = {
       id: 'payment-1',
+      purpose: PaymentPurpose.RENT,
       tenantId: 'tenant-1',
       leaseId: 'lease-1',
       unitId: 'unit-1',
@@ -197,6 +200,7 @@ describe('PaymentsService owner attribution', () => {
   it('creates a tenant-initiated one-time Checkout with the owner commission', async () => {
     const payment = {
       id: 'payment-1',
+      purpose: PaymentPurpose.RENT,
       status: PaymentStatus.PENDING,
       balanceDue: 1200,
       paidAmount: 0,
@@ -241,6 +245,17 @@ describe('PaymentsService owner attribution', () => {
       ),
     };
     const stripe = {
+      retrieveConnectedAccount: jest.fn().mockResolvedValue({
+        id: 'acct_owner_1',
+        configuration: {
+          recipient: {
+            capabilities: {
+              stripe_balance: { stripe_transfers: { status: 'active' } },
+            },
+          },
+        },
+      }),
+      recipientTransferStatus: jest.fn().mockReturnValue('active'),
       createCheckoutSession: jest.fn().mockResolvedValue(checkout),
     };
     const emails = { sendPaymentRecorded: jest.fn().mockResolvedValue({}) };
@@ -278,29 +293,65 @@ describe('PaymentsService owner attribution', () => {
     expect(updateData.ownerCommissionRate.toFixed(2)).toBe('12.50');
   });
 
-  it('synchronizes owner payout readiness from a Stripe Accounts v2 Thin event', async () => {
-    const owner = {
-      id: 'owner-1',
-      payoutStatus: PropertyOwnerPayoutStatus.PENDING_ONBOARDING,
-      onboardedAt: null,
-      contactEmail: 'owner@example.com',
-      ownerName: 'Olivia Owner',
-      companyName: null,
-    };
-    const tx = {
-      propertyOwner: { update: jest.fn().mockResolvedValue({}) },
+  it('requests a destination-charge refund without changing the ledger before Stripe confirms it', async () => {
+    const prisma = {
+      payment: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'payment-1',
+          purpose: PaymentPurpose.RENT,
+          paidAmount: 1200,
+          refundedAmount: 200,
+          stripeCheckoutStatus: StripeCheckoutStatus.COMPLETE,
+          stripePaymentIntentId: 'pi_rent_1',
+        }),
+      },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     };
+    const stripePaymentLedger = {
+      requestStripeRefund: jest.fn().mockResolvedValue({
+        refundId: 're_refund_1',
+        amount: 300,
+        status: 'submitted',
+      }),
+    };
+
+    const result = await new PaymentsService(
+      prisma as never,
+      {} as never,
+      undefined,
+      stripePaymentLedger as never,
+    ).requestStripeRefund(
+      'payment-1',
+      {
+        clientRequestId: '32345678-1234-4234-8234-123456789012',
+        amount: 300,
+        adjustmentReason: 'Duplicate payment correction',
+      },
+      'admin-1',
+    );
+
+    expect(stripePaymentLedger.requestStripeRefund).toHaveBeenCalledWith(
+      'payment-1',
+      {
+        clientRequestId: '32345678-1234-4234-8234-123456789012',
+        amount: 300,
+        adjustmentReason: 'Duplicate payment correction',
+      },
+      'admin-1',
+    );
+    expect(result).toEqual({
+      refundId: 're_refund_1',
+      amount: 300,
+      status: 'submitted',
+    });
+  });
+
+  it('routes an Accounts v2 Thin event through the owner payout synchronizer', async () => {
     const prisma = {
       stripeWebhookEvent: {
         create: jest.fn().mockResolvedValue({}),
         update: jest.fn().mockResolvedValue({}),
       },
-      propertyOwner: { findUnique: jest.fn().mockResolvedValue(owner) },
-      $transaction: jest.fn(
-        async (callback: (client: typeof tx) => Promise<unknown>) =>
-          callback(tx),
-      ),
     };
     const stripe = {
       retrieveConnectedAccount: jest.fn().mockResolvedValue({
@@ -314,14 +365,15 @@ describe('PaymentsService owner attribution', () => {
         },
       }),
     };
-    const emails = {
-      sendOwnerStripeOnboardingCompleted: jest.fn().mockResolvedValue({}),
+    const stripePaymentLedger = {
+      processOwnerAccount: jest.fn().mockResolvedValue({ ownerId: 'owner-1' }),
     };
 
     const result = await new PaymentsService(
       prisma as never,
-      emails as never,
+      {} as never,
       stripe as never,
+      stripePaymentLedger as never,
     ).processStripeConnectWebhook({
       id: 'evt_connect_1',
       type: 'v2.core.account[configuration.recipient].capability_status_updated',
@@ -333,18 +385,13 @@ describe('PaymentsService owner attribution', () => {
     expect(stripe.retrieveConnectedAccount).toHaveBeenCalledWith(
       'acct_owner_1',
     );
-    const ownerUpdate = (
-      tx.propertyOwner.update.mock.calls as unknown as Array<
-        [{ data: { payoutStatus: PropertyOwnerPayoutStatus } }]
-      >
-    )[0][0];
     const eventUpdate = (
       prisma.stripeWebhookEvent.update.mock.calls as unknown as Array<
         [{ data: { status: string } }]
       >
     )[0][0];
-    expect(ownerUpdate.data.payoutStatus).toBe(
-      PropertyOwnerPayoutStatus.ACTIVE,
+    expect(stripePaymentLedger.processOwnerAccount).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'acct_owner_1' }),
     );
     expect(eventUpdate.data.status).toBe('PROCESSED');
   });

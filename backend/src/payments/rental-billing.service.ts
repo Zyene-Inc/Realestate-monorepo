@@ -1,5 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { ListingType, PaymentStatus, Prisma } from '@prisma/client';
+import {
+  ListingType,
+  MoveInChargeCategory,
+  MoveInChargeStatus,
+  PaymentPurpose,
+  PaymentStatus,
+  Prisma,
+} from '@prisma/client';
 import { EmailsService } from '../emails/emails.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -104,6 +111,7 @@ export class RentalBillingService {
     actorUserId?: string,
     now = new Date(),
   ): Promise<RentalBillingRunResult> {
+    await this.activateSignedRenewals(now, actorUserId);
     const billingPeriod = this.startOfUtcMonth(now);
     const nextBillingPeriod = this.nextUtcMonth(billingPeriod);
     const leases = await this.prisma.lease.findMany({
@@ -165,6 +173,47 @@ export class RentalBillingService {
     };
   }
 
+  private async activateSignedRenewals(now: Date, actorUserId?: string) {
+    const renewals = await this.prisma.leaseRenewal.findMany({
+      where: {
+        status: 'SIGNED',
+        activatedAt: null,
+        proposedStartDate: { lte: now },
+      },
+      orderBy: [{ proposedStartDate: 'asc' }, { id: 'asc' }],
+      take: 250,
+    });
+    for (const renewal of renewals) {
+      await this.prisma.$transaction(async (tx) => {
+        const claimed = await tx.leaseRenewal.updateMany({
+          where: { id: renewal.id, status: 'SIGNED', activatedAt: null },
+          data: { activatedAt: now },
+        });
+        if (claimed.count !== 1) return;
+        await tx.lease.update({
+          where: { id: renewal.leaseId },
+          data: {
+            endDate: renewal.proposedEndDate,
+            monthlyRent: renewal.proposedMonthlyRent.toNumber(),
+            securityDeposit: renewal.proposedSecurityDeposit.toNumber(),
+            rentDueDay: renewal.proposedRentDueDay,
+            gracePeriodDays: renewal.proposedGracePeriodDays,
+            lateFeeAmount: renewal.proposedLateFeeAmount.toNumber(),
+            status: 'renewed',
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            userId: actorUserId,
+            action: 'LEASE_RENEWAL_TERMS_ACTIVATED',
+            resource: 'lease_renewal',
+            resourceId: renewal.id,
+          },
+        });
+      });
+    }
+  }
+
   private async createMonthlyCharge(
     lease: BillingLease,
     billingPeriod: Date,
@@ -178,6 +227,7 @@ export class RentalBillingService {
         const existing = await tx.payment.findFirst({
           where: {
             leaseId: lease.id,
+            purpose: PaymentPurpose.RENT,
             OR: [
               { billingPeriod },
               {
@@ -189,6 +239,16 @@ export class RentalBillingService {
           select: { id: true },
         });
         if (existing) return null;
+        const firstMonthCharge = await tx.moveInCharge.findFirst({
+          where: {
+            leaseId: lease.id,
+            category: MoveInChargeCategory.FIRST_MONTH_RENT,
+            billingPeriod,
+            status: { not: MoveInChargeStatus.VOID },
+          },
+          select: { id: true },
+        });
+        if (firstMonthCharge) return null;
 
         const rentAmount = lease.monthlyRent;
         const payment = await tx.payment.create({
@@ -208,6 +268,7 @@ export class RentalBillingService {
             ),
             billingPeriod,
             status: PaymentStatus.PENDING,
+            purpose: PaymentPurpose.RENT,
             notes: 'Automatically generated monthly rent charge.',
           },
           include: paymentWithBillingContextInclude,
@@ -247,6 +308,7 @@ export class RentalBillingService {
   ): Promise<BillingPayment[]> {
     const candidates = await this.prisma.payment.findMany({
       where: {
+        purpose: PaymentPurpose.RENT,
         status: { in: OPEN_PAYMENT_STATUSES },
         balanceDue: { gt: 0 },
         lease: { unit: { property: { listingType: ListingType.RENT } } },

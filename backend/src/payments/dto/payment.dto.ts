@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsDateString,
   IsNotEmpty,
+  MaxLength,
   Min,
   IsUUID,
 } from 'class-validator';
@@ -100,4 +101,18 @@ export class UpdatePaymentStatusDto {
   @IsString()
   @IsOptional()
   adjustmentReason?: string;
+}
+
+export class RefundStripePaymentDto {
+  @IsUUID()
+  clientRequestId: string;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
+  amount: number;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  adjustmentReason: string;
 }

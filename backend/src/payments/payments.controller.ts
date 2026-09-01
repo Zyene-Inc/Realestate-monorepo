@@ -13,7 +13,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
-import { RecordPaymentDto, UpdatePaymentStatusDto } from './dto/payment.dto';
+import {
+  RecordPaymentDto,
+  RefundStripePaymentDto,
+  UpdatePaymentStatusDto,
+} from './dto/payment.dto';
 import type { RequiredAuthenticatedRequest } from '../auth/authenticated-request';
 
 @Controller('payments')
@@ -50,6 +54,16 @@ export class PaymentsController {
     @Request() req: RequiredAuthenticatedRequest,
   ) {
     return this.paymentsService.updatePaymentStatus(id, data, req.user.sub);
+  }
+
+  @Post(':id/stripe-refund')
+  @Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN)
+  requestStripeRefund(
+    @Param('id') id: string,
+    @Body() data: RefundStripePaymentDto,
+    @Request() req: RequiredAuthenticatedRequest,
+  ) {
+    return this.paymentsService.requestStripeRefund(id, data, req.user.sub);
   }
 
   @Get('overdue')

@@ -36,9 +36,11 @@ describe('RentalBillingService', () => {
           .mockResolvedValueOnce({ id: 'payment-1' }),
         create: jest.fn().mockResolvedValue(created),
       },
+      moveInCharge: { findFirst: jest.fn().mockResolvedValue(null) },
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     };
     const prisma = {
+      leaseRenewal: { findMany: jest.fn().mockResolvedValue([]) },
       lease: { findMany: jest.fn().mockResolvedValue([lease]) },
       payment: { findMany: jest.fn().mockResolvedValue([]) },
       $transaction: jest.fn(
@@ -86,6 +88,12 @@ describe('RentalBillingService', () => {
       balanceDue: 1800,
     });
     expect(emails.sendRentReminder).toHaveBeenCalledTimes(1);
+    const moveInLookup = (
+      tx.moveInCharge.findFirst.mock.calls as unknown as Array<
+        [{ where: { category: string } }]
+      >
+    )[0][0];
+    expect(moveInLookup.where.category).toBe('FIRST_MONTH_RENT');
   });
 
   it('marks a genuinely late balance overdue once and applies the lease fee', async () => {
@@ -118,6 +126,7 @@ describe('RentalBillingService', () => {
       auditLog: { create: jest.fn().mockResolvedValue({}) },
     };
     const prisma = {
+      leaseRenewal: { findMany: jest.fn().mockResolvedValue([]) },
       lease: { findMany: jest.fn().mockResolvedValue([]) },
       payment: {
         findMany: jest
@@ -166,5 +175,113 @@ describe('RentalBillingService', () => {
       balanceDue: 1850,
     });
     expect(emails.sendLateNotice).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not duplicate first-month rent already posted by lease activation', async () => {
+    const lease = {
+      id: 'lease-1',
+      tenantId: tenant.id,
+      unitId: 'unit-1',
+      monthlyRent: 1800,
+      rentDueDay: 1,
+      gracePeriodDays: 5,
+      lateFeeAmount: 50,
+      startDate: new Date('2026-09-01T00:00:00.000Z'),
+      endDate: new Date('2027-08-31T00:00:00.000Z'),
+      tenant,
+    };
+    const tx = {
+      payment: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
+      },
+      moveInCharge: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'first-month-charge' }),
+      },
+    };
+    const prisma = {
+      leaseRenewal: { findMany: jest.fn().mockResolvedValue([]) },
+      lease: { findMany: jest.fn().mockResolvedValue([lease]) },
+      payment: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: jest.fn(
+        async (callback: (client: typeof tx) => Promise<unknown>) =>
+          callback(tx),
+      ),
+    };
+    const service = new RentalBillingService(
+      prisma as never,
+      {
+        sendRentReminder: jest.fn(),
+        sendLateNotice: jest.fn(),
+      } as never,
+    );
+
+    const result = await service.runDailyBillingCycle(
+      'admin-1',
+      new Date('2026-09-01T08:13:00.000Z'),
+    );
+
+    expect(result.createdCharges).toBe(0);
+    expect(tx.payment.create).not.toHaveBeenCalled();
+  });
+
+  it('activates signed renewal terms only on the effective date', async () => {
+    const renewal = {
+      id: 'renewal-1',
+      leaseId: 'lease-1',
+      proposedStartDate: new Date('2026-09-01T00:00:00.000Z'),
+      proposedEndDate: new Date('2027-08-31T00:00:00.000Z'),
+      proposedMonthlyRent: { toNumber: () => 1950 },
+      proposedSecurityDeposit: { toNumber: () => 1950 },
+      proposedRentDueDay: 1,
+      proposedGracePeriodDays: 5,
+      proposedLateFeeAmount: { toNumber: () => 75 },
+    };
+    const tx = {
+      leaseRenewal: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      lease: { update: jest.fn() },
+      auditLog: { create: jest.fn() },
+    };
+    const prisma = {
+      leaseRenewal: { findMany: jest.fn().mockResolvedValue([renewal]) },
+      lease: { findMany: jest.fn().mockResolvedValue([]) },
+      payment: { findMany: jest.fn().mockResolvedValue([]) },
+      $transaction: jest.fn(
+        async (callback: (client: typeof tx) => Promise<unknown>) =>
+          callback(tx),
+      ),
+    };
+    const service = new RentalBillingService(
+      prisma as never,
+      { sendRentReminder: jest.fn(), sendLateNotice: jest.fn() } as never,
+    );
+
+    await service.runDailyBillingCycle(
+      'admin-1',
+      new Date('2026-09-01T08:13:00.000Z'),
+    );
+
+    const update = (
+      tx.lease.update.mock.calls as unknown as Array<
+        [
+          {
+            where: { id: string };
+            data: {
+              endDate: Date;
+              monthlyRent: number;
+              securityDeposit: number;
+              status: string;
+            };
+          },
+        ]
+      >
+    )[0][0];
+    expect(update.where.id).toBe('lease-1');
+    expect(update.data).toMatchObject({
+      endDate: renewal.proposedEndDate,
+      monthlyRent: 1950,
+      securityDeposit: 1950,
+      status: 'renewed',
+    });
   });
 });

@@ -5,11 +5,10 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { verifyStripeWebhookPayload } from './stripe-webhook-verifier';
 
 const STRIPE_API_URL = 'https://api.stripe.com';
 const STRIPE_API_VERSION = '2026-07-29.dahlia';
-const WEBHOOK_TOLERANCE_SECONDS = 300;
 
 type StripeErrorResponse = {
   error?: { message?: string; type?: string; code?: string };
@@ -41,6 +40,19 @@ export type StripeThinEvent = {
 
 type StripeAccount = { id: string };
 
+type StripePaymentIntent = {
+  id: string;
+  metadata?: Record<string, string>;
+  latest_charge?:
+    | string
+    | { id?: string; transfer?: string | { id?: string } | null }
+    | null;
+};
+
+type StripeDispute = { id: string; amount: number };
+
+type StripeTransferReversal = { id: string };
+
 function appendFormValue(
   form: URLSearchParams,
   key: string,
@@ -62,11 +74,24 @@ export class StripeClient {
     );
   }
 
-  private secretKey() {
+  get applicationFeesEnabled() {
+    const configured = this.config.get<string>(
+      'STRIPE_APPLICATION_FEES_ENABLED',
+    );
+    return configured == null
+      ? this.enabled
+      : configured.toLowerCase() === 'true';
+  }
+
+  private secretKey(feature: 'rent' | 'application' = 'rent') {
     const key = this.config.get<string>('STRIPE_SECRET_KEY')?.trim();
-    if (!this.enabled || !key || key.includes('replace_with')) {
+    const featureEnabled =
+      feature === 'rent' ? this.enabled : this.applicationFeesEnabled;
+    if (!featureEnabled || !key || key.includes('replace_with')) {
       throw new ServiceUnavailableException(
-        'Online rent payments are not configured yet',
+        feature === 'rent'
+          ? 'Online rent payments are not configured yet'
+          : 'Online application fees are not configured yet',
       );
     }
     return key;
@@ -76,6 +101,7 @@ export class StripeClient {
     path: string,
     init: RequestInit,
     idempotencyKey?: string,
+    feature: 'rent' | 'application' = 'rent',
   ) {
     const timeout = new AbortController();
     const timeoutId = setTimeout(() => timeout.abort(), 15_000);
@@ -84,7 +110,7 @@ export class StripeClient {
         ...init,
         signal: timeout.signal,
         headers: {
-          Authorization: `Bearer ${this.secretKey()}`,
+          Authorization: `Bearer ${this.secretKey(feature)}`,
           'Stripe-Version': STRIPE_API_VERSION,
           ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
           ...init.headers,
@@ -115,6 +141,7 @@ export class StripeClient {
     path: string,
     form: URLSearchParams,
     idempotencyKey?: string,
+    feature: 'rent' | 'application' = 'rent',
   ) {
     return this.request<T>(
       path,
@@ -124,6 +151,7 @@ export class StripeClient {
         body: form.toString(),
       },
       idempotencyKey,
+      feature,
     );
   }
 
@@ -147,7 +175,7 @@ export class StripeClient {
     appendFormValue(
       form,
       'integration_identifier',
-      'coach_johnson_rent_checkout',
+      'coach_johnson_rent_checkout_qwfrtnks',
     );
     appendFormValue(form, 'metadata[payment_id]', input.paymentId);
     appendFormValue(
@@ -183,6 +211,122 @@ export class StripeClient {
       '/v1/checkout/sessions',
       form,
       input.idempotencyKey,
+    );
+  }
+
+  async createMoveInCheckoutSession(input: {
+    paymentId: string;
+    tenantEmail: string;
+    lineItems: Array<{ name: string; amountCents: number }>;
+    managementAmountCents: number;
+    destinationAccountId?: string;
+    successUrl: string;
+    cancelUrl: string;
+    idempotencyKey: string;
+  }) {
+    const form = new URLSearchParams();
+    appendFormValue(form, 'mode', 'payment');
+    appendFormValue(form, 'customer_email', input.tenantEmail);
+    appendFormValue(form, 'client_reference_id', input.paymentId);
+    appendFormValue(form, 'success_url', input.successUrl);
+    appendFormValue(form, 'cancel_url', input.cancelUrl);
+    appendFormValue(
+      form,
+      'integration_identifier',
+      'coach_johnson_move_in_checkout_ajqlvngp',
+    );
+    appendFormValue(form, 'metadata[move_in_payment_id]', input.paymentId);
+    appendFormValue(
+      form,
+      'payment_intent_data[metadata][move_in_payment_id]',
+      input.paymentId,
+    );
+    if (input.destinationAccountId) {
+      appendFormValue(
+        form,
+        'payment_intent_data[transfer_data][destination]',
+        input.destinationAccountId,
+      );
+      appendFormValue(
+        form,
+        'payment_intent_data[application_fee_amount]',
+        input.managementAmountCents,
+      );
+    }
+    input.lineItems.forEach((item, index) => {
+      appendFormValue(form, `line_items[${index}][quantity]`, 1);
+      appendFormValue(
+        form,
+        `line_items[${index}][price_data][currency]`,
+        'usd',
+      );
+      appendFormValue(
+        form,
+        `line_items[${index}][price_data][unit_amount]`,
+        item.amountCents,
+      );
+      appendFormValue(
+        form,
+        `line_items[${index}][price_data][product_data][name]`,
+        item.name.slice(0, 250),
+      );
+    });
+    // Dynamic payment methods remain controlled in Stripe Dashboard. This is
+    // always a tenant-initiated, one-time Checkout Session—never an auto debit.
+    return this.postForm<StripeCheckoutSession>(
+      '/v1/checkout/sessions',
+      form,
+      input.idempotencyKey,
+    );
+  }
+
+  async createApplicationFeeCheckoutSession(input: {
+    applicationId: string;
+    applicantEmail: string;
+    propertyName: string;
+    amountCents: number;
+    successUrl: string;
+    cancelUrl: string;
+    idempotencyKey: string;
+  }) {
+    const form = new URLSearchParams();
+    appendFormValue(form, 'mode', 'payment');
+    appendFormValue(form, 'customer_email', input.applicantEmail);
+    appendFormValue(form, 'client_reference_id', input.applicationId);
+    appendFormValue(form, 'success_url', input.successUrl);
+    appendFormValue(form, 'cancel_url', input.cancelUrl);
+    appendFormValue(
+      form,
+      'integration_identifier',
+      'coach_johnson_application_fee_applyfee_zmxpcrae',
+    );
+    appendFormValue(
+      form,
+      'metadata[rental_application_id]',
+      input.applicationId,
+    );
+    appendFormValue(
+      form,
+      'payment_intent_data[metadata][rental_application_id]',
+      input.applicationId,
+    );
+    appendFormValue(form, 'line_items[0][quantity]', 1);
+    appendFormValue(form, 'line_items[0][price_data][currency]', 'usd');
+    appendFormValue(
+      form,
+      'line_items[0][price_data][unit_amount]',
+      input.amountCents,
+    );
+    appendFormValue(
+      form,
+      'line_items[0][price_data][product_data][name]',
+      `Rental application fee — ${input.propertyName}`.slice(0, 250),
+    );
+    return this.postForm<StripeCheckoutSession>(
+      '/v1/checkout/sessions',
+      form,
+      input.idempotencyKey,
+      'application',
     );
   }
 
@@ -241,48 +385,10 @@ export class StripeClient {
     );
   }
 
-  private verifyWebhookPayload(
-    payload: Buffer,
-    signatureHeader: string | undefined,
-    signingSecretName:
-      | 'STRIPE_WEBHOOK_SECRET'
-      | 'STRIPE_CONNECT_WEBHOOK_SECRET',
-  ) {
-    const secret = this.config.get<string>(signingSecretName)?.trim();
-    if (!this.enabled || !secret || !signatureHeader) {
-      throw new BadRequestException('Invalid Stripe webhook signature');
-    }
-    const entries = signatureHeader.split(',').map((entry) => entry.split('='));
-    const timestamp = entries.find(([key]) => key === 't')?.[1];
-    const signatures = entries
-      .filter(([key]) => key === 'v1')
-      .map(([, signature]) => signature)
-      .filter((signature): signature is string => Boolean(signature));
-    const timestampNumber = Number(timestamp);
-    if (
-      !Number.isInteger(timestampNumber) ||
-      Math.abs(Date.now() / 1000 - timestampNumber) > WEBHOOK_TOLERANCE_SECONDS
-    ) {
-      throw new BadRequestException('Expired Stripe webhook signature');
-    }
-    const expected = createHmac('sha256', secret)
-      .update(`${timestamp}.${payload.toString('utf8')}`)
-      .digest('hex');
-    const expectedBuffer = Buffer.from(expected, 'hex');
-    const matches = signatures.some((signature) => {
-      const candidate = Buffer.from(signature, 'hex');
-      return (
-        candidate.length === expectedBuffer.length &&
-        timingSafeEqual(candidate, expectedBuffer)
-      );
-    });
-    if (!matches)
-      throw new BadRequestException('Invalid Stripe webhook signature');
-    return JSON.parse(payload.toString('utf8')) as Record<string, unknown>;
-  }
-
   verifyWebhook(payload: Buffer, signatureHeader?: string) {
-    const event = this.verifyWebhookPayload(
+    const event = verifyStripeWebhookPayload(
+      this.config,
+      this.enabled || this.applicationFeesEnabled,
       payload,
       signatureHeader,
       'STRIPE_WEBHOOK_SECRET',
@@ -294,7 +400,9 @@ export class StripeClient {
   }
 
   verifyConnectWebhook(payload: Buffer, signatureHeader?: string) {
-    const event = this.verifyWebhookPayload(
+    const event = verifyStripeWebhookPayload(
+      this.config,
+      this.enabled || this.applicationFeesEnabled,
       payload,
       signatureHeader,
       'STRIPE_CONNECT_WEBHOOK_SECRET',
@@ -309,6 +417,78 @@ export class StripeClient {
     return this.request<Record<string, unknown>>(
       `/v2/core/accounts/${encodeURIComponent(accountId)}`,
       { method: 'GET' },
+    );
+  }
+
+  recipientTransferStatus(account: Record<string, unknown>) {
+    const configuration = account.configuration;
+    const recipient =
+      configuration && typeof configuration === 'object'
+        ? (configuration as Record<string, unknown>).recipient
+        : undefined;
+    const capabilities =
+      recipient && typeof recipient === 'object'
+        ? (recipient as Record<string, unknown>).capabilities
+        : undefined;
+    const balance =
+      capabilities && typeof capabilities === 'object'
+        ? (capabilities as Record<string, unknown>).stripe_balance
+        : undefined;
+    const transfers =
+      balance && typeof balance === 'object'
+        ? (balance as Record<string, unknown>).stripe_transfers
+        : undefined;
+    if (!transfers || typeof transfers !== 'object') return undefined;
+    const status = (transfers as Record<string, unknown>).status;
+    return typeof status === 'string' ? status : undefined;
+  }
+
+  recipientTransfersActive(account: Record<string, unknown>) {
+    return this.recipientTransferStatus(account) === 'active';
+  }
+
+  async retrievePaymentIntent(paymentIntentId: string) {
+    return this.request<StripePaymentIntent>(
+      `/v1/payment_intents/${encodeURIComponent(paymentIntentId)}?expand[]=latest_charge`,
+      { method: 'GET' },
+    );
+  }
+
+  async createDestinationChargeRefund(input: {
+    paymentIntentId: string;
+    amountCents: number;
+    idempotencyKey: string;
+  }) {
+    const form = new URLSearchParams();
+    appendFormValue(form, 'payment_intent', input.paymentIntentId);
+    appendFormValue(form, 'amount', input.amountCents);
+    appendFormValue(form, 'reverse_transfer', true);
+    appendFormValue(form, 'refund_application_fee', true);
+    return this.postForm<{ id: string; status: string }>(
+      '/v1/refunds',
+      form,
+      input.idempotencyKey,
+    );
+  }
+
+  async retrieveDispute(disputeId: string) {
+    return this.request<StripeDispute>(
+      `/v1/disputes/${encodeURIComponent(disputeId)}`,
+      { method: 'GET' },
+    );
+  }
+
+  async createTransferReversal(input: {
+    transferId: string;
+    amountCents: number;
+    idempotencyKey: string;
+  }) {
+    const form = new URLSearchParams();
+    appendFormValue(form, 'amount', input.amountCents);
+    return this.postForm<StripeTransferReversal>(
+      `/v1/transfers/${encodeURIComponent(input.transferId)}/reversals`,
+      form,
+      input.idempotencyKey,
     );
   }
 }

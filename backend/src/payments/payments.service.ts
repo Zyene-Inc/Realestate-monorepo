@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EmailsService } from '../emails/emails.service';
 import {
   PaymentStatus,
+  PaymentPurpose,
   Prisma,
   PropertyOwnerPayoutStatus,
   StripeCheckoutStatus,
@@ -18,6 +19,7 @@ import {
   StripeEvent,
   StripeThinEvent,
 } from '../stripe/stripe-client.service';
+import { StripePaymentLedgerService } from './stripe-payment-ledger.service';
 import {
   isSamePaymentRecordRequest,
   paymentRecordFingerprint,
@@ -78,6 +80,7 @@ export class PaymentsService {
     private prisma: PrismaService,
     private emails: EmailsService,
     private readonly stripe?: StripeClient,
+    private readonly stripePaymentLedger?: StripePaymentLedgerService,
   ) {}
 
   private cents(amount: number) {
@@ -114,6 +117,33 @@ export class PaymentsService {
     return `${tenant.firstName} ${tenant.lastName}`;
   }
 
+  private async syncOwnerPayoutReadiness(
+    owner: { id: string; payoutStatus: PropertyOwnerPayoutStatus },
+    capabilityStatus: string | undefined,
+  ) {
+    const payoutStatus =
+      capabilityStatus === 'active'
+        ? PropertyOwnerPayoutStatus.ACTIVE
+        : capabilityStatus === 'inactive' || !capabilityStatus
+          ? PropertyOwnerPayoutStatus.PENDING_ONBOARDING
+          : PropertyOwnerPayoutStatus.RESTRICTED;
+    if (owner.payoutStatus === payoutStatus) return;
+    await this.prisma.$transaction(async (tx) => {
+      await tx.propertyOwner.update({
+        where: { id: owner.id },
+        data: { payoutStatus, stripeAccountLastSyncedAt: new Date() },
+      });
+      await tx.auditLog.create({
+        data: {
+          action: 'PROPERTY_OWNER_STRIPE_CAPABILITY_RECHECKED',
+          resource: 'property_owner',
+          resourceId: owner.id,
+          newValue: JSON.stringify({ payoutStatus }),
+        },
+      });
+    });
+  }
+
   private dueDate(value: Date) {
     return new Intl.DateTimeFormat('en-US', {
       month: 'long',
@@ -125,6 +155,7 @@ export class PaymentsService {
 
   async findAll() {
     return this.prisma.payment.findMany({
+      where: { purpose: PaymentPurpose.RENT },
       include: { tenant: true, lease: true, unit: true, propertyOwner: true },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: 500,
@@ -133,8 +164,24 @@ export class PaymentsService {
 
   async findByTenant(tenantId: string) {
     return this.prisma.payment.findMany({
-      where: { tenantId },
-      include: { lease: true, unit: true },
+      where: {
+        tenantId,
+        OR: [
+          { purpose: PaymentPurpose.RENT },
+          {
+            purpose: PaymentPurpose.MOVE_IN,
+            OR: [
+              { paidAmount: { gt: 0 } },
+              { stripeCheckoutStatus: StripeCheckoutStatus.OPEN },
+            ],
+          },
+        ],
+      },
+      include: {
+        lease: true,
+        unit: true,
+        allocations: { include: { moveInCharge: true } },
+      },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: 120,
     });
@@ -153,6 +200,7 @@ export class PaymentsService {
         tenant: true,
         lease: true,
         unit: { include: { property: true } },
+        allocations: { include: { moveInCharge: true } },
       },
     });
     if (!payment) throw new NotFoundException('Payment not found');
@@ -242,6 +290,7 @@ export class PaymentsService {
           const created = await tx.payment.create({
             data: {
               ...paymentData,
+              purpose: PaymentPurpose.RENT,
               idempotencyKey: clientRequestId,
               recordRequestFingerprint: requestFingerprint,
               paidAmount,
@@ -359,6 +408,11 @@ export class PaymentsService {
       include: paymentWithContextInclude,
     });
     if (!payment) throw new NotFoundException('Payment not found');
+    if (payment.purpose !== PaymentPurpose.RENT) {
+      throw new BadRequestException(
+        'Use the move-in charge workflow for this payment',
+      );
+    }
     if (payment.lastStatusRequestId === data.clientRequestId) return payment;
     if (payment.stripeCheckoutStatus === StripeCheckoutStatus.OPEN) {
       throw new ConflictException(
@@ -553,6 +607,11 @@ export class PaymentsService {
       include: paymentWithStripeContextInclude,
     });
     if (!payment) throw new NotFoundException('Payment not found');
+    if (payment.purpose !== PaymentPurpose.RENT) {
+      throw new BadRequestException(
+        'Use the categorized move-in checkout for this balance',
+      );
+    }
     if (
       !(
         [
@@ -578,11 +637,24 @@ export class PaymentsService {
       };
     }
 
+    if (!this.stripe) {
+      throw new BadRequestException(
+        'Online rent payments are not configured yet',
+      );
+    }
     const owner = payment.unit.property.owner;
-    if (
-      !owner?.stripeConnectedAccountId ||
-      owner.payoutStatus !== PropertyOwnerPayoutStatus.ACTIVE
-    ) {
+    if (!owner?.stripeConnectedAccountId) {
+      throw new BadRequestException(
+        'Online payment is unavailable until the property owner completes payout onboarding.',
+      );
+    }
+    const account = await this.stripe.retrieveConnectedAccount(
+      owner.stripeConnectedAccountId,
+    );
+    const capabilityStatus = this.stripe.recipientTransferStatus(account);
+    const payoutReady = capabilityStatus === 'active';
+    await this.syncOwnerPayoutReadiness(owner, capabilityStatus);
+    if (!payoutReady) {
       throw new BadRequestException(
         'Online payment is unavailable until the property owner completes payout onboarding.',
       );
@@ -598,11 +670,6 @@ export class PaymentsService {
     successUrl.searchParams.set('session_id', '{CHECKOUT_SESSION_ID}');
     const cancelUrl = new URL('/tenant/pay-rent', tenantUrl);
     cancelUrl.searchParams.set('checkout', 'cancelled');
-    if (!this.stripe) {
-      throw new BadRequestException(
-        'Online rent payments are not configured yet',
-      );
-    }
     const session = await this.stripe.createCheckoutSession({
       paymentId: payment.id,
       tenantEmail: payment.tenant.email,
@@ -668,6 +735,41 @@ export class PaymentsService {
     return metadata && typeof metadata === 'object'
       ? (metadata as Record<string, unknown>)
       : {};
+  }
+
+  private async reconcileCheckoutCharge(
+    paymentId: string,
+    paymentIntentId: string | undefined,
+  ) {
+    if (!paymentIntentId || !this.stripe) return;
+    const intent = await this.stripe.retrievePaymentIntent(paymentIntentId);
+    const latestCharge = intent.latest_charge;
+    const chargeId =
+      typeof latestCharge === 'string'
+        ? latestCharge
+        : latestCharge && typeof latestCharge.id === 'string'
+          ? latestCharge.id
+          : undefined;
+    const transfer =
+      latestCharge && typeof latestCharge === 'object'
+        ? latestCharge.transfer
+        : undefined;
+    const transferId =
+      typeof transfer === 'string'
+        ? transfer
+        : transfer && typeof transfer.id === 'string'
+          ? transfer.id
+          : undefined;
+    if (!chargeId && !transferId) return;
+    await this.prisma.payment.updateMany({
+      where: { id: paymentId },
+      data: {
+        stripePaymentIntentId: paymentIntentId,
+        ...(chargeId ? { stripeChargeId: chargeId } : {}),
+        ...(transferId ? { stripeTransferId: transferId } : {}),
+        stripeLastEventAt: new Date(),
+      },
+    });
   }
 
   private async settleCheckout(session: Record<string, unknown>) {
@@ -744,9 +846,13 @@ export class PaymentsService {
       });
       return { settled: true as const, payment: settled };
     });
-    if (!result.settled) return { paymentId, settled: false };
+    if (!result.settled) {
+      await this.reconcileCheckoutCharge(paymentId, paymentIntentId);
+      return { paymentId, settled: false };
+    }
 
     const settled = result.payment;
+    await this.reconcileCheckoutCharge(settled.id, paymentIntentId);
     const tenantName = this.tenantName(settled.tenant);
     await this.emails.sendPaymentRecorded(
       settled.tenant.email,
@@ -799,141 +905,69 @@ export class PaymentsService {
   }
 
   private async processCharge(record: Record<string, unknown>, type: string) {
-    const paymentId = this.value(this.metadata(record), 'payment_id');
-    if (!paymentId) return undefined;
-    const chargeId = this.value(record, 'id');
-    const transferId = this.value(record, 'transfer');
-    if (type === 'charge.succeeded') {
-      await this.prisma.payment.updateMany({
-        where: { id: paymentId },
-        data: {
-          stripeChargeId: chargeId,
-          stripeTransferId: transferId,
-          stripeLastEventAt: new Date(),
-        },
-      });
-      return { paymentId, action: 'charge_recorded' };
+    if (!this.stripePaymentLedger) {
+      throw new BadRequestException('Stripe payment ledger is unavailable');
     }
-    if (type === 'charge.refunded') {
-      const amount = this.numberValue(record, 'amount');
-      const refunded = this.numberValue(record, 'amount_refunded');
-      if (amount !== undefined && refunded === amount) {
-        await this.prisma.payment.updateMany({
-          where: { id: paymentId, status: PaymentStatus.PAID },
-          data: {
-            status: PaymentStatus.REFUNDED,
-            stripeLastEventAt: new Date(),
-          },
-        });
-      }
-      await this.prisma.auditLog.create({
-        data: {
-          action: 'STRIPE_RENT_PAYMENT_REFUND_RECORDED',
-          resource: 'payment',
-          resourceId: paymentId,
-          newValue: JSON.stringify({ chargeId, amount, refunded }),
-        },
-      });
-      return { paymentId, action: 'refund_recorded' };
-    }
-    if (type === 'charge.dispute.created') {
-      await this.prisma.auditLog.create({
-        data: {
-          action: 'STRIPE_RENT_PAYMENT_DISPUTE_OPENED',
-          resource: 'payment',
-          resourceId: paymentId,
-          newValue: JSON.stringify({ chargeId }),
-        },
-      });
-      return { paymentId, action: 'dispute_recorded' };
-    }
-    return undefined;
+    return this.stripePaymentLedger.processCharge(record, type);
   }
 
-  private async processOwnerAccount(record: Record<string, unknown>) {
-    const accountId = this.value(record, 'id');
-    if (!accountId) return undefined;
-    const configuration = record.configuration;
-    const recipient =
-      configuration && typeof configuration === 'object'
-        ? (configuration as Record<string, unknown>).recipient
-        : undefined;
-    const capabilities =
-      recipient && typeof recipient === 'object'
-        ? (recipient as Record<string, unknown>).capabilities
-        : undefined;
-    const balance =
-      capabilities && typeof capabilities === 'object'
-        ? (capabilities as Record<string, unknown>).stripe_balance
-        : undefined;
-    const transfers =
-      balance && typeof balance === 'object'
-        ? (balance as Record<string, unknown>).stripe_transfers
-        : undefined;
-    const capabilityStatus =
-      transfers && typeof transfers === 'object'
-        ? this.value(transfers as Record<string, unknown>, 'status')
-        : undefined;
-    const status =
-      capabilityStatus === 'active'
-        ? PropertyOwnerPayoutStatus.ACTIVE
-        : capabilityStatus === 'inactive' || !capabilityStatus
-          ? PropertyOwnerPayoutStatus.PENDING_ONBOARDING
-          : PropertyOwnerPayoutStatus.RESTRICTED;
-    const owner = await this.prisma.propertyOwner.findUnique({
-      where: { stripeConnectedAccountId: accountId },
-    });
-    if (!owner) return undefined;
-    const becameActive =
-      owner.payoutStatus !== PropertyOwnerPayoutStatus.ACTIVE &&
-      status === PropertyOwnerPayoutStatus.ACTIVE;
-    await this.prisma.$transaction(async (tx) => {
-      await tx.propertyOwner.update({
-        where: { id: owner.id },
-        data: {
-          payoutStatus: status,
-          stripeAccountLastSyncedAt: new Date(),
-          onboardedAt: becameActive ? new Date() : owner.onboardedAt,
-        },
-      });
-      await tx.auditLog.create({
-        data: {
-          action: 'PROPERTY_OWNER_STRIPE_CAPABILITY_UPDATED',
-          resource: 'property_owner',
-          resourceId: owner.id,
-          newValue: JSON.stringify({ capabilityStatus, payoutStatus: status }),
-        },
-      });
-    });
-    if (becameActive) {
-      await this.emails.sendOwnerStripeOnboardingCompleted(
-        owner.contactEmail,
-        { name: owner.ownerName ?? owner.companyName ?? 'Property owner' },
-        owner.id,
-      );
+  async requestStripeRefund(
+    paymentId: string,
+    data: { clientRequestId: string; amount: number; adjustmentReason: string },
+    userId: string,
+  ) {
+    if (!this.stripePaymentLedger) {
+      throw new BadRequestException('Stripe payment ledger is unavailable');
     }
-    return { ownerId: owner.id };
+    return this.stripePaymentLedger.requestStripeRefund(
+      paymentId,
+      data,
+      userId,
+    );
   }
 
-  async processStripeWebhook(event: StripeEvent) {
-    const eventPayload = JSON.stringify(event);
+  private async beginStripeWebhookEvent(event: StripeEvent | StripeThinEvent) {
+    const payload = JSON.stringify(event);
     try {
       await this.prisma.stripeWebhookEvent.create({
         data: {
           stripeEventId: event.id,
           type: event.type,
           livemode: event.livemode,
-          payload: eventPayload,
+          payload,
         },
       });
+      return true;
     } catch (error) {
       if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
+        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+        error.code !== 'P2002'
       ) {
-        return { received: true, duplicate: true };
+        throw error;
       }
-      throw error;
+      const existing = await this.prisma.stripeWebhookEvent.findUnique({
+        where: { stripeEventId: event.id },
+        select: { status: true },
+      });
+      if (existing?.status !== StripeWebhookEventStatus.FAILED) return false;
+      const claimed = await this.prisma.stripeWebhookEvent.updateMany({
+        where: {
+          stripeEventId: event.id,
+          status: StripeWebhookEventStatus.FAILED,
+        },
+        data: {
+          status: StripeWebhookEventStatus.RECEIVED,
+          processingError: null,
+          payload,
+        },
+      });
+      return claimed.count === 1;
+    }
+  }
+
+  async processStripeWebhook(event: StripeEvent) {
+    if (!(await this.beginStripeWebhookEvent(event))) {
+      return { received: true, duplicate: true };
     }
 
     try {
@@ -969,7 +1003,12 @@ export class PaymentsService {
         event.type === 'v2.core.account[updated]' ||
         event.type === 'account.updated'
       ) {
-        result = await this.processOwnerAccount(event.data.object);
+        if (!this.stripePaymentLedger) {
+          throw new BadRequestException('Stripe payment ledger is unavailable');
+        }
+        result = await this.stripePaymentLedger.processOwnerAccount(
+          event.data.object,
+        );
       }
       await this.prisma.stripeWebhookEvent.update({
         where: { stripeEventId: event.id },
@@ -996,24 +1035,8 @@ export class PaymentsService {
   }
 
   async processStripeConnectWebhook(event: StripeThinEvent) {
-    const eventPayload = JSON.stringify(event);
-    try {
-      await this.prisma.stripeWebhookEvent.create({
-        data: {
-          stripeEventId: event.id,
-          type: event.type,
-          livemode: event.livemode,
-          payload: eventPayload,
-        },
-      });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        return { received: true, duplicate: true };
-      }
-      throw error;
+    if (!(await this.beginStripeWebhookEvent(event))) {
+      return { received: true, duplicate: true };
     }
 
     try {
@@ -1028,7 +1051,10 @@ export class PaymentsService {
         const account = await this.stripe.retrieveConnectedAccount(
           event.related_object!.id!,
         );
-        result = await this.processOwnerAccount(account);
+        if (!this.stripePaymentLedger) {
+          throw new BadRequestException('Stripe payment ledger is unavailable');
+        }
+        result = await this.stripePaymentLedger.processOwnerAccount(account);
       }
       await this.prisma.stripeWebhookEvent.update({
         where: { stripeEventId: event.id },
@@ -1056,6 +1082,7 @@ export class PaymentsService {
   async findOverdue() {
     return this.prisma.payment.findMany({
       where: {
+        purpose: PaymentPurpose.RENT,
         status: { in: [PaymentStatus.PENDING, PaymentStatus.PARTIAL] },
         dueDate: { lt: new Date() },
       },
