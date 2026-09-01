@@ -19,7 +19,7 @@ A production-ready full-stack application for modern property management.
 - **Email**: Resend Integration
 - **Storage**: Supabase Storage signed uploads for agent, sale-listing, rental-listing, and private maintenance files
 - **Infrastructure**: Vercel deployments with Supabase-managed Auth and PostgreSQL
-- **Website AI**: Vercel AI SDK with OpenRouter's free-model router; keys remain in the API project
+- **Website AI**: Groq-hosted `openai/gpt-oss-20b` replies with `meta-llama/llama-prompt-guard-2-86m` input screening; keys remain in the API project
 
 ## Getting Started
 
@@ -60,7 +60,7 @@ npm run dev
 - **Transactional Email Operations**: Versioned Resend templates, durable delivery events, signed webhooks, bounded critical retries, and Super Admin delivery oversight.
 - **Sale Commission Ledger**: Sales/Super Admin recording against sold listings, exact decimal revenue, listing-derived agent attribution, correction/void history, and bounded revenue reporting without online home-sale payments.
 - **E-Signatures**: Verdocs envelope issuance for leases, disclosures, and agreements; tenant/agent embedded signing with email OTP; signed PDF/certificate archival in private Supabase Storage; and a cursor-bounded audit timeline.
-- **Public Property Assistant**: Main-site-only floating chat, OpenRouter `openrouter/free` streaming, approved sale/published rental context, HttpOnly sessions, database-backed quotas, 30-day retention, audit events, Fair Housing safeguards, and human handoff.
+- **Public Property Assistant**: Main-site-only floating chat, Groq `openai/gpt-oss-20b` streaming with Prompt Guard input screening, approved sale/published rental context, HttpOnly sessions, database-backed quotas, 30-day retention, audit events, Fair Housing safeguards, and human handoff.
 
 ## Environment Variables
 
