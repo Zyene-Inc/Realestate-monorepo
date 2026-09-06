@@ -40,6 +40,42 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        source: "/admin/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noimageindex" },
+        ],
+      },
+      {
+        source: "/agent/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noimageindex" },
+        ],
+      },
+      {
+        source: "/tenant/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noimageindex" },
+        ],
+      },
+      {
+        source: "/auth/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noimageindex" },
+        ],
+      },
+      {
+        source: "/rentals/applications/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noimageindex" },
+        ],
+      },
+      {
+        source: "/rentals/:id/apply",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow, noimageindex" },
+        ],
+      },
     ];
   },
 };
