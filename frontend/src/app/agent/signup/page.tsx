@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { api } from "@/lib/api";
 import { getErrorMessage } from "@/lib/errors";
 import { strongPasswordError } from "@/lib/password";
@@ -152,10 +153,9 @@ export default function AgentSignupPage() {
             />
           </Field>
           <Field id="application-password" label="Password">
-            <Input
+            <PasswordInput
               id="application-password"
               name="password"
-              type="password"
               autoComplete="new-password"
               placeholder="12+ mixed characters"
               value={form.password}
@@ -180,10 +180,9 @@ export default function AgentSignupPage() {
             </p>
           </Field>
           <Field id="application-confirm-password" label="Confirm password">
-            <Input
+            <PasswordInput
               id="application-confirm-password"
               name="confirmPassword"
-              type="password"
               autoComplete="new-password"
               placeholder="Enter it again"
               value={form.confirmPassword}

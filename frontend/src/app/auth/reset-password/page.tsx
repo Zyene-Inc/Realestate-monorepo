@@ -5,8 +5,8 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { supabase } from "@/lib/supabase";
 import { api, setAccessToken } from "@/lib/api";
 import { PORTAL_ORIGINS } from "@/lib/portal-domains";
@@ -74,10 +74,9 @@ export default function ResetPassword() {
         <form onSubmit={submit} className="grid gap-5">
           <div className="grid gap-2">
             <Label htmlFor="new-password">New password</Label>
-            <Input
+            <PasswordInput
               id="new-password"
               name="new-password"
-              type="password"
               autoComplete="new-password"
               placeholder="At least 12 characters"
               value={password}
@@ -89,10 +88,9 @@ export default function ResetPassword() {
           </div>
           <div className="grid gap-2">
             <Label htmlFor="confirm-password">Confirm password</Label>
-            <Input
+            <PasswordInput
               id="confirm-password"
               name="confirm-password"
-              type="password"
               autoComplete="new-password"
               placeholder="Enter it again"
               value={confirmPassword}

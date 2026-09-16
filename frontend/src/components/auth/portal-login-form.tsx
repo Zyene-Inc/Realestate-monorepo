@@ -8,6 +8,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/context/auth-context";
 import { navigateToUserPortal } from "@/lib/auth-routing";
 import { getErrorMessage } from "@/lib/errors";
@@ -68,7 +69,7 @@ export function PortalLoginForm({
             <Label htmlFor="portal-password">Password</Label>
             <Link href="/auth/forgot-password" transitionTypes={["nav-forward"]} data-testid={forgotTestId} className="rounded text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/25">Forgot password?</Link>
           </div>
-          <Input id="portal-password" name="password" type="password" autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+          <PasswordInput id="portal-password" name="password" autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(event) => setPassword(event.target.value)} required />
         </div>
         <Button type="submit" className="mt-1 w-full" disabled={loading || isAuthLoading}>
           {loading ? <><Loader2 className="animate-spin" aria-hidden="true" />Signing in</> : <>Continue<ArrowRight aria-hidden="true" /></>}
