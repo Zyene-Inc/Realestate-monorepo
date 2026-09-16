@@ -19,12 +19,16 @@ import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { LoginDto } from './dto/login.dto';
 import { TenantAdminInviteDto } from './dto/tenant-admin-invite.dto';
 import { TenantInviteDto } from './dto/tenant-invite.dto';
+import { TenantAdminProvisioningService } from './tenant-admin-provisioning.service';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import type { RequiredAuthenticatedRequest } from './authenticated-request';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly tenantAdminProvisioning: TenantAdminProvisioningService,
+  ) {}
 
   @Post('login')
   @HttpCode(200)
@@ -82,6 +86,6 @@ export class AuthController {
     @Body() body: TenantAdminInviteDto,
     @Request() request: RequiredAuthenticatedRequest,
   ) {
-    return this.authService.inviteTenantAdmin(body, request.user.sub);
+    return this.tenantAdminProvisioning.invite(body, request.user.sub);
   }
 }

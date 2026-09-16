@@ -5,11 +5,18 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
 import { PasswordSecurityService } from './password-security.service';
+import { TenantAdminProvisioningService } from './tenant-admin-provisioning.service';
 
 @Global()
 @Module({
   imports: [PrismaModule],
-  providers: [AuthService, JwtAuthGuard, RolesGuard, PasswordSecurityService],
+  providers: [
+    AuthService,
+    JwtAuthGuard,
+    RolesGuard,
+    PasswordSecurityService,
+    TenantAdminProvisioningService,
+  ],
   controllers: [AuthController],
   exports: [AuthService, JwtAuthGuard, RolesGuard],
 })
