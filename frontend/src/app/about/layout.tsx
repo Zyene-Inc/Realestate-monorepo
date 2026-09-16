@@ -3,9 +3,9 @@ import { BreadcrumbJsonLd } from "@/components/seo/breadcrumb-json-ld";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
-  title: "About Coach Johnson Realty",
+  title: "Kansas City Community Investment",
   description:
-    "Learn how Coach Johnson Realty serves Missouri buyers, sellers, renters, and property owners with steady local judgment, clear systems, and consistent care.",
+    "Learn how Coach Johnson Realty invests in Kansas City neighborhoods through quality homes, steady property care, and long-term community ownership.",
   path: "/about",
 });
 
