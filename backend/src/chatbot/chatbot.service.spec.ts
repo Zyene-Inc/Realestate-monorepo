@@ -37,7 +37,11 @@ describe('ChatbotService', () => {
     const prisma = {
       chatConversation: { findFirst: jest.fn() },
     };
-    const service = new ChatbotService(prisma as never, createTestConfig(), createTestAi());
+    const service = new ChatbotService(
+      prisma as never,
+      createTestConfig(),
+      createTestAi(),
+    );
 
     await expect(service.history('not-a-token')).resolves.toEqual({
       items: [],
@@ -102,7 +106,11 @@ describe('ChatbotService', () => {
       isEnabled: () => true,
       generate: (input) => generate(input) as Promise<ChatbotGeneration>,
     };
-    const service = new ChatbotService(prisma as never, createTestConfig(), gateway);
+    const service = new ChatbotService(
+      prisma as never,
+      createTestConfig(),
+      gateway,
+    );
 
     const started = await service.startReply({
       message: '  Show me a home  ',
@@ -170,7 +178,11 @@ describe('ChatbotService', () => {
       chatConversation: { create: jest.fn() },
     };
     const prisma = { $transaction: transactionMock(tx) };
-    const service = new ChatbotService(prisma as never, createTestConfig(), createTestAi());
+    const service = new ChatbotService(
+      prisma as never,
+      createTestConfig(),
+      createTestAi(),
+    );
 
     await service
       .startReply({
@@ -448,7 +460,11 @@ describe('ChatbotService', () => {
       auditLog: { create: jest.fn().mockReturnValue(operations[2]) },
       $transaction: jest.fn().mockResolvedValue(await Promise.all(operations)),
     };
-    const service = new ChatbotService(prisma as never, createTestConfig(), createTestAi());
+    const service = new ChatbotService(
+      prisma as never,
+      createTestConfig(),
+      createTestAi(),
+    );
 
     await service.completeReply('chat-1', await completedGeneration.completion);
 

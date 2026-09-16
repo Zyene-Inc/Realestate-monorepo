@@ -35,7 +35,10 @@ export function firstArgument(mock: { mock: { calls: unknown[][] } }) {
   return mock.mock.calls[0]?.[0];
 }
 
-export function argumentAt(mock: { mock: { calls: unknown[][] } }, index: number) {
+export function argumentAt(
+  mock: { mock: { calls: unknown[][] } },
+  index: number,
+) {
   return mock.mock.calls[index]?.[0];
 }
 

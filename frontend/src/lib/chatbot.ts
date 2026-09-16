@@ -161,9 +161,9 @@ export async function submitWebsiteLead(input: SubmitWebsiteLeadInput) {
 export const CHATBOT_LEAD_FORM_THRESHOLD = 3;
 export const CHATBOT_LEAD_SUBMITTED_KEY = "jr_chatbot_lead_submitted";
 export const CHATBOT_WELCOME_DISMISSED_KEY = "jr_chatbot_welcome_dismissed";
-export const CHATBOT_VISITOR_DAILY_LIMIT_MESSAGE =
+const CHATBOT_VISITOR_DAILY_LIMIT_MESSAGE =
   "You reached today’s chat limit. Please contact our team for more help.";
-export const CHATBOT_GLOBAL_DAILY_LIMIT_MESSAGE =
+const CHATBOT_GLOBAL_DAILY_LIMIT_MESSAGE =
   "The assistant reached today’s free-model limit. Please contact our team.";
 const CHATBOT_BOOKING_INTENT_PATTERN =
   /\b(book|schedule|tour|showing|appointment|contact)\b/i;
