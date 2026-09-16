@@ -592,6 +592,20 @@ export class EmailsService {
     return this.sendTemplate(email, 'tenant.invited', { name, url }, tenantId);
   }
 
+  sendTenantAdminInvite(
+    email: string,
+    url: string,
+    name?: string,
+    userId?: string,
+  ) {
+    return this.sendTemplate(
+      email,
+      'rental_admin.invited',
+      { name, url },
+      userId,
+    );
+  }
+
   sendPasswordReset(email: string, url: string) {
     return this.sendTemplate(email, 'account.password_reset', { url });
   }

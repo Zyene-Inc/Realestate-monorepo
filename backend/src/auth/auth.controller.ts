@@ -17,6 +17,7 @@ import { RolesGuard } from './roles.guard';
 import { AgentSignupDto } from './dto/agent-signup.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { LoginDto } from './dto/login.dto';
+import { TenantAdminInviteDto } from './dto/tenant-admin-invite.dto';
 import { TenantInviteDto } from './dto/tenant-invite.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import type { RequiredAuthenticatedRequest } from './authenticated-request';
@@ -71,5 +72,16 @@ export class AuthController {
     @Request() request: RequiredAuthenticatedRequest,
   ) {
     return this.authService.inviteTenant(body, request.user.sub);
+  }
+
+  @Post('tenant-admin-invite')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  inviteTenantAdmin(
+    @Body() body: TenantAdminInviteDto,
+    @Request() request: RequiredAuthenticatedRequest,
+  ) {
+    return this.authService.inviteTenantAdmin(body, request.user.sub);
   }
 }

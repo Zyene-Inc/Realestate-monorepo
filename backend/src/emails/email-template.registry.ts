@@ -14,6 +14,7 @@ export const EMAIL_TEMPLATE_KEYS = [
   'buyer_inquiry.buyer_replied',
   'buyer_inquiry.agent_replied',
   'tenant.invited',
+  'rental_admin.invited',
   'account.password_reset',
   'rental.published',
   'rental.unpublished',
@@ -208,6 +209,14 @@ export function renderEmailTemplate(
         'Welcome to Coach Johnson Realty — tenant portal invitation',
         'Complete your tenant account',
         `${hello}<p>You were invited to the tenant portal to view your lease, payments, maintenance requests, and messages.</p>${button('Complete account setup', values.url)}<p>This secure link expires according to the invitation policy.</p>`,
+        true,
+      );
+    case 'rental_admin.invited':
+      return result(
+        key,
+        'Complete your Coach Johnson Realty administrator account',
+        'Complete your rental administrator account',
+        `${hello}<p>You were invited to manage Coach Johnson Realty&apos;s rental operations. Use the secure link below to set your password and open the rental administration portal.</p>${button('Complete administrator setup', values.url)}<p>This secure link expires according to the invitation policy.</p>`,
         true,
       );
     case 'account.password_reset':

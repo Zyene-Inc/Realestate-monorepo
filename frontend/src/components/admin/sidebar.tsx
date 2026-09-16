@@ -22,6 +22,7 @@ import {
   Settings,
   Users,
   UserSquare2,
+  UserPlus,
   Wrench,
 } from "lucide-react";
 import {
@@ -192,6 +193,13 @@ const items = [
     title: "Email delivery",
     icon: MailCheck,
     href: "/admin/emails",
+    area: "super",
+    group: "Company tools",
+  },
+  {
+    title: "Tenant administrators",
+    icon: UserPlus,
+    href: "/admin/tenant-administrators",
     area: "super",
     group: "Company tools",
   },

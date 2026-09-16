@@ -39,7 +39,8 @@ export default function AdminLayout({
   ].some((route) => pathname.startsWith(route));
   const superRoute =
     pathname.startsWith("/admin/emails") ||
-    pathname.startsWith("/admin/reports");
+    pathname.startsWith("/admin/reports") ||
+    pathname.startsWith("/admin/tenant-administrators");
 
   useEffect(() => {
     if (isLoading) return;

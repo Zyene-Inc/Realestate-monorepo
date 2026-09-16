@@ -2,6 +2,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { AgentSignupDto } from './agent-signup.dto';
 import { LoginDto } from './login.dto';
+import { TenantAdminInviteDto } from './tenant-admin-invite.dto';
 import { TenantInviteDto } from './tenant-invite.dto';
 
 describe('auth input DTOs', () => {
@@ -28,6 +29,21 @@ describe('auth input DTOs', () => {
 
     const errors = await validate(dto);
     expect(errors.some((error) => error.property === 'firstName')).toBe(true);
+  });
+
+  it('normalizes a tenant administrator invitation', async () => {
+    const dto = plainToInstance(TenantAdminInviteDto, {
+      email: '  STAFF@Example.COM ',
+      firstName: ' Taylor ',
+      lastName: ' Admin ',
+    });
+
+    await expect(validate(dto)).resolves.toHaveLength(0);
+    expect(dto).toMatchObject({
+      email: 'staff@example.com',
+      firstName: 'Taylor',
+      lastName: 'Admin',
+    });
   });
 
   it('rejects markup in stored agent display fields', async () => {
