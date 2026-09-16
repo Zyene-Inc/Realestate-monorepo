@@ -354,6 +354,18 @@ export class AuthService {
     );
     if (error) throw new BadRequestException('Unable to update password');
 
+    // Completing a recovery link proves control of the mailbox. Clear any
+    // temporary login lock so an invited user can sign in with the password
+    // they have just established.
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        failedLoginAttempts: 0,
+        lastFailedLoginAt: null,
+        lockedUntil: null,
+      },
+    });
+
     await this.auditLogs.log({
       userId,
       action: 'PASSWORD_UPDATED',

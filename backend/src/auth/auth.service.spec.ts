@@ -3,13 +3,15 @@ import { Role } from '@prisma/client';
 
 const mockSignInWithPassword = jest.fn();
 const mockSignOut = jest.fn();
+const mockUpdateUserById = jest.fn();
+const mockAuditLog = jest.fn();
 
 jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => ({
     auth: {
       signInWithPassword: mockSignInWithPassword,
       signOut: mockSignOut,
-      admin: {},
+      admin: { updateUserById: mockUpdateUserById },
     },
   })),
 }));
@@ -39,7 +41,7 @@ describe('AuthService login protection', () => {
             : 'sb_secret_test',
         ),
       } as never,
-      {} as never,
+      { log: mockAuditLog } as never,
       {} as never,
       { assertNotCompromised: jest.fn() },
     );
@@ -197,5 +199,37 @@ describe('AuthService login protection', () => {
       }),
     ).rejects.toThrow('Incorrect email or password');
     expect(mockSignOut).toHaveBeenCalled();
+  });
+
+  it('clears login protection after a verified password reset', async () => {
+    const prisma = {
+      user: {
+        findUnique: jest.fn().mockResolvedValue({
+          authUserId: activeUser.authUserId,
+        }),
+        update: jest.fn().mockResolvedValue({}),
+      },
+    };
+    mockUpdateUserById.mockResolvedValue({ error: null });
+
+    await expect(
+      serviceWith(prisma).updatePassword('user-1', 'secure-password'),
+    ).resolves.toEqual({ success: true });
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: {
+        failedLoginAttempts: 0,
+        lastFailedLoginAt: null,
+        lockedUntil: null,
+      },
+    });
+    expect(mockAuditLog).toHaveBeenCalledWith({
+      userId: 'user-1',
+      action: 'PASSWORD_UPDATED',
+      resource: 'user',
+      resourceId: 'user-1',
+      newValue: { source: 'recovery' },
+    });
   });
 });
