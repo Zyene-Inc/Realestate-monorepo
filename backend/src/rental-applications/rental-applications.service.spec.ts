@@ -57,7 +57,7 @@ describe('RentalApplicationsService', () => {
         currentCity: 'Kansas City',
         currentState: 'MO',
         currentZip: '64101',
-        moveInDate: '2026-09-01',
+        moveInDate: '2099-09-01',
         householdSize: 1,
         employmentStatus: 'Full-time employment',
         monthlyGrossIncome: 5000,

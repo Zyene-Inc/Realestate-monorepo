@@ -222,8 +222,13 @@ describe('ChatbotService', () => {
         findFirst: jest.fn().mockResolvedValue({ id: 'lead-1' }),
       },
     };
+    const prisma = {
+      $transaction: transactionMock(tx),
+      chatMessage: { findMany: jest.fn().mockResolvedValue([]) },
+      property: { findMany: jest.fn().mockResolvedValue([]) },
+    };
     const service = new ChatbotService(
-      { $transaction: transactionMock(tx) } as never,
+      prisma as never,
       createTestConfig(),
       createTestAi(),
     );
