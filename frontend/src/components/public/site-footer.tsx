@@ -29,7 +29,10 @@ export function SiteFooter() {
               Services
             </Link>
             <Link className="hover:text-white" href="/about">
-              Our approach
+              About Coach Johnson
+            </Link>
+            <Link className="hover:text-white" href="/about#neyans-place">
+              Neyan&apos;s Place story
             </Link>
             <Link className="hover:text-white" href="/contact">
               Contact

@@ -300,7 +300,7 @@ export default function HomePage() {
                   <Link href="/about" transitionTypes={["nav-forward"]} />
                 }
               >
-                Our approach <ArrowRight aria-hidden="true" />
+                Meet Coach Johnson <ArrowRight aria-hidden="true" />
               </Button>
             </div>
             <div className="grid gap-5 rounded-[1.5rem] border border-border bg-secondary p-7 sm:grid-cols-[auto_1fr] sm:items-start sm:p-10 lg:grid-cols-1">

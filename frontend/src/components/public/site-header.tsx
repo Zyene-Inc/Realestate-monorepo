@@ -14,7 +14,7 @@ const navigation = [
   { href: "/properties", label: "Properties" },
   { href: "/rentals", label: "Rentals" },
   { href: "/#services", label: "Services" },
-  { href: "/about", label: "Our approach" },
+  { href: "/about", label: "About Coach Johnson" },
   { href: "/contact", label: "Contact" },
 ];
 

@@ -6,6 +6,7 @@ import {
   Building2,
   Handshake,
   Home,
+  KeyRound,
 } from "lucide-react";
 import { DirectionalPage } from "@/components/page-transition";
 import { SiteFooter } from "@/components/public/site-footer";
@@ -30,6 +31,27 @@ const principles = [
   },
 ];
 
+const portalWorkspaces = [
+  {
+    icon: KeyRound,
+    title: "Resident portal",
+    copy: "Review your lease, make payments, and request service from one secure place.",
+    href: "/tenant/login",
+  },
+  {
+    icon: Handshake,
+    title: "Agent workspace",
+    copy: "Keep listings and buyer inquiries moving with a focused work area for agents.",
+    href: "/agent/login",
+  },
+  {
+    icon: Building2,
+    title: "Staff access",
+    copy: "Support property operations with the private tools our team uses every day.",
+    href: "/admin/login",
+  },
+];
+
 export default function AboutPage() {
   return (
     <div className="min-h-[100dvh] bg-background">
@@ -38,14 +60,17 @@ export default function AboutPage() {
         <main id="main-content">
           <section className="public-container grid gap-10 py-16 sm:py-24 lg:grid-cols-[1.15fr_.85fr] lg:items-end lg:py-32">
             <div>
-              <p className="text-sm font-semibold text-primary">Our approach</p>
+              <p className="text-sm font-semibold text-primary">
+                About Coach Johnson Realty
+              </p>
               <h1 className="mt-4 max-w-4xl text-[clamp(3rem,7vw,6.8rem)] font-semibold leading-[.96] tracking-[-0.055em]">
                 Real estate work rooted in Kansas City.
               </h1>
             </div>
             <p className="max-w-lg text-base leading-7 text-muted-foreground lg:pb-2 lg:text-lg">
               Harold and Diane Johnson bring local judgment, clear systems,
-              and long-term care to every property relationship.
+              and long-term care to every property relationship—from a first
+              showing to the work that keeps a home well cared for years later.
             </p>
           </section>
 
@@ -62,7 +87,10 @@ export default function AboutPage() {
             </div>
           </section>
 
-          <section className="border-y border-border bg-secondary py-16 sm:py-24">
+          <section
+            id="neyans-place"
+            className="scroll-mt-24 border-y border-border bg-secondary py-16 sm:py-24"
+          >
             <div className="public-container grid gap-10 lg:grid-cols-[.8fr_1.2fr] lg:gap-16">
               <div>
                 <p className="text-sm font-semibold text-primary">
@@ -98,6 +126,12 @@ export default function AboutPage() {
                   family-centered approach to ownership—building homes people
                   can be proud to live in and a legacy the next generation can
                   help carry forward.
+                </p>
+                <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
+                  That same standard guides Coach Johnson Realty more broadly:
+                  see the condition of a property clearly, communicate what
+                  comes next, and make decisions that respect both the people
+                  who live there and the neighborhood around it.
                 </p>
 
                 <dl className="mt-8 grid gap-4 border-y border-border py-6 sm:grid-cols-3">
@@ -142,6 +176,52 @@ export default function AboutPage() {
             </div>
           </section>
 
+          <section className="border-b border-border bg-card py-16 sm:py-24">
+            <div className="public-container grid gap-10 lg:grid-cols-[.8fr_1.2fr] lg:gap-16">
+              <div>
+                <p className="text-sm font-semibold text-primary">
+                  Connected workspaces
+                </p>
+                <h2 className="mt-4 max-w-lg text-3xl font-semibold leading-tight tracking-[-0.04em] sm:text-5xl">
+                  A portal for the work after the keys.
+                </h2>
+                <p className="mt-5 max-w-md text-base leading-7 text-muted-foreground">
+                  A property relationship does not stop at a showing or a
+                  signed lease. Coach Johnson Realty&apos;s secure portals give
+                  residents, agents, and staff a clear place to handle the
+                  next step.
+                </p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                {portalWorkspaces.map((workspace) => (
+                  <Link
+                    key={workspace.title}
+                    href={workspace.href}
+                    transitionTypes={["nav-forward"]}
+                    className="focus-ring group rounded-[1.5rem] border border-border bg-secondary p-6 transition-[border-color,transform] duration-200 hover:-translate-y-1 hover:border-primary/35"
+                  >
+                    <workspace.icon
+                      className="size-5 text-primary"
+                      strokeWidth={1.7}
+                      aria-hidden="true"
+                    />
+                    <h3 className="mt-8 text-lg font-semibold group-hover:text-primary">
+                      {workspace.title}
+                    </h3>
+                    <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                      {workspace.copy}
+                    </p>
+                    <ArrowRight
+                      className="mt-6 size-4 text-primary"
+                      aria-hidden="true"
+                    />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </section>
+
           <section className="border-y border-border bg-card py-16 sm:py-24">
             <div className="public-container grid gap-12 lg:grid-cols-[.75fr_1.25fr]">
               <div>
@@ -183,22 +263,32 @@ export default function AboutPage() {
 
           <section className="public-container grid gap-8 py-16 sm:py-24 lg:grid-cols-[1fr_auto] lg:items-end">
             <div>
-              <p className="text-sm font-semibold text-primary">
-                Looking for a home?
-              </p>
+              <p className="text-sm font-semibold text-primary">Let&apos;s talk</p>
               <h2 className="mt-3 max-w-2xl text-3xl font-semibold leading-tight tracking-[-0.04em] sm:text-5xl">
-                Start with the properties we are proud to manage.
+                Start with the local team behind the property.
               </h2>
             </div>
-            <Button
-              nativeButton={false}
-              size="lg"
-              render={
-                <Link href="/properties" transitionTypes={["nav-forward"]} />
-              }
-            >
-              Browse properties <ArrowRight aria-hidden="true" />
-            </Button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                nativeButton={false}
+                size="lg"
+                render={
+                  <Link href="/properties" transitionTypes={["nav-forward"]} />
+                }
+              >
+                Browse properties <ArrowRight aria-hidden="true" />
+              </Button>
+              <Button
+                nativeButton={false}
+                size="lg"
+                variant="outline"
+                render={
+                  <Link href="/contact" transitionTypes={["nav-forward"]} />
+                }
+              >
+                Contact Coach Johnson
+              </Button>
+            </div>
           </section>
         </main>
       </DirectionalPage>
