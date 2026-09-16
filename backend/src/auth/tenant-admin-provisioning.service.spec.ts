@@ -52,7 +52,10 @@ describe('TenantAdminProvisioningService', () => {
     mockGenerateLink.mockResolvedValue({
       data: {
         user: { id: '11111111-1111-4111-8111-111111111111' },
-        properties: { action_link: 'https://supabase.example.com/invite' },
+        properties: {
+          hashed_token: 'one-time-token',
+          verification_type: 'invite',
+        },
       },
       error: null,
     });
@@ -104,7 +107,7 @@ describe('TenantAdminProvisioningService', () => {
       'rental_admin.invited',
       {
         name: 'Taylor Manager',
-        url: 'https://supabase.example.com/invite',
+        url: 'https://rentals.example.com/auth/reset-password?token_hash=one-time-token&type=invite',
       },
       'rental-admin-1',
     );

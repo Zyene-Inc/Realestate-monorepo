@@ -42,6 +42,12 @@ interface LoginResponse {
   expiresAt: number | null;
 }
 
+function isEmailActionType(
+  type: string | null,
+): type is "email" | "recovery" | "invite" | "email_change" {
+  return ["email", "recovery", "invite", "email_change"].includes(type ?? "");
+}
+
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
@@ -65,6 +71,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const restoreAuth = async () => {
       try {
+        const params = new URLSearchParams(window.location.search);
+        const tokenHash = params.get("token_hash");
+        const type = params.get("type");
+        if (tokenHash && isEmailActionType(type)) {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type,
+          });
+          if (error) throw error;
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname,
+          );
+        }
         const {
           data: { session },
         } = await supabase.auth.getSession();

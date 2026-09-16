@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
+import { useAuth } from "@/context/auth-context";
 import { supabase } from "@/lib/supabase";
 import { api, setAccessToken } from "@/lib/api";
 import { PORTAL_ORIGINS } from "@/lib/portal-domains";
@@ -14,6 +15,7 @@ import { strongPasswordError } from "@/lib/password";
 import { toast } from "sonner";
 
 export default function ResetPassword() {
+  const { token, isLoading: isAuthLoading } = useAuth();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -68,6 +70,27 @@ export default function ResetPassword() {
             className={buttonVariants({ className: "mt-6 w-full" })}
           >
             Continue to sign in
+          </a>
+        </div>
+      ) : isAuthLoading ? (
+        <div
+          className="flex items-center justify-center gap-2 border-y border-border py-8 text-sm text-muted-foreground"
+          aria-live="polite"
+        >
+          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          Validating your secure link…
+        </div>
+      ) : !token ? (
+        <div className="border-y border-border py-8 text-center" aria-live="polite">
+          <p className="text-sm leading-6 text-muted-foreground">
+            This recovery link is invalid or expired. Request a new secure link
+            from the sign-in page.
+          </p>
+          <a
+            href={`${PORTAL_ORIGINS.public}/#portal-access`}
+            className={buttonVariants({ className: "mt-6 w-full" })}
+          >
+            Return to sign in
           </a>
         </div>
       ) : (

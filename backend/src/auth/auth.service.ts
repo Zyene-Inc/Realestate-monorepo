@@ -13,6 +13,7 @@ import { EmailsService } from '../emails/emails.service';
 import { AgentSignupDto } from './dto/agent-signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { PasswordSecurityService } from './password-security.service';
+import { createAuthActionUrl } from './auth-action-url';
 import {
   getPortalUrlForRole,
   getPortalUrls,
@@ -224,7 +225,8 @@ export class AuthService {
           },
         },
       });
-    if (error || !generated.user || !generated.properties?.action_link) {
+    const actionUrl = createAuthActionUrl(redirectTo, generated.properties);
+    if (error || !generated.user || !actionUrl) {
       if (error?.message?.toLowerCase().includes('already')) {
         return this.agentSignupResponse();
       }
@@ -271,7 +273,7 @@ export class AuthService {
     await this.emails.sendAgentVerification(
       email,
       contactName,
-      generated.properties.action_link,
+      actionUrl,
       applicationId,
     );
 
@@ -330,8 +332,9 @@ export class AuthService {
       options: { redirectTo },
     });
 
-    if (!error && data.properties?.action_link) {
-      await this.emails.sendPasswordReset(email, data.properties.action_link);
+    const actionUrl = createAuthActionUrl(redirectTo, data.properties);
+    if (!error && actionUrl) {
+      await this.emails.sendPasswordReset(email, actionUrl);
     }
 
     return {
@@ -424,7 +427,8 @@ export class AuthService {
           data: { firstName, lastName },
         },
       });
-    if (error || !invited.user || !invited.properties?.action_link)
+    const actionUrl = createAuthActionUrl(redirectTo, invited.properties);
+    if (error || !invited.user || !actionUrl)
       throw new BadRequestException(
         error?.message || 'Unable to invite tenant',
       );
@@ -482,7 +486,7 @@ export class AuthService {
       });
       await this.emails.sendInvite(
         email,
-        invited.properties.action_link,
+        actionUrl,
         `${firstName} ${lastName}`,
         tenant.id,
       );

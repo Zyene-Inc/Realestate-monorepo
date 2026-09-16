@@ -9,6 +9,7 @@ import { Role, UserStatus } from '@prisma/client';
 import { getPortalUrls } from '../common/config/portal-urls';
 import { EmailsService } from '../emails/emails.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { createAuthActionUrl } from './auth-action-url';
 import { TenantAdminInviteDto } from './dto/tenant-admin-invite.dto';
 
 @Injectable()
@@ -53,7 +54,8 @@ export class TenantAdminProvisioningService {
           data: { firstName, lastName },
         },
       });
-    if (error || !invited.user || !invited.properties?.action_link) {
+    const actionUrl = createAuthActionUrl(redirectTo, invited.properties);
+    if (error || !invited.user || !actionUrl) {
       throw new BadRequestException(
         error?.message || 'Unable to invite tenant administrator',
       );
@@ -85,7 +87,7 @@ export class TenantAdminProvisioningService {
         'rental_admin.invited',
         {
           name: `${firstName} ${lastName}`,
-          url: invited.properties.action_link,
+          url: actionUrl,
         },
         user.id,
       );
