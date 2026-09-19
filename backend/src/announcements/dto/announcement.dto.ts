@@ -1,11 +1,14 @@
 import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
+  IsEnum,
   IsOptional,
   IsString,
   Length,
   Matches,
   MaxLength,
 } from 'class-validator';
+import { AnnouncementAudience } from '@prisma/client';
 import {
   trimOptionalText,
   trimText,
@@ -24,6 +27,13 @@ export class CreateAnnouncementDto {
   @IsString()
   @Length(3, 5000)
   content!: string;
+
+  @IsEnum(AnnouncementAudience)
+  audience!: AnnouncementAudience;
+
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  requiresAcknowledgement!: boolean;
 
   @Transform(trimOptionalText)
   @IsOptional()

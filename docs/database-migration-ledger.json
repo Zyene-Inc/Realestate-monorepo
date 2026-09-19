@@ -1,6 +1,6 @@
 {
   "projectRef": "xwrlpqakdndpnqqpfepz",
-  "verifiedAt": "2026-08-24",
+  "verifiedAt": "2026-09-19",
   "authority": "supabase_migrations.schema_migrations",
   "applied": [
     {
@@ -237,16 +237,26 @@
   ],
   "pending": [
     {
-      "version": "20260823164507",
-      "name": "add_public_chatbot",
+      "version": "20260916172000",
+      "name": "complete_tenant_documents_and_notifications",
       "sources": [
-        "supabase/migrations/20260823164507_add_public_chatbot.sql",
-        "backend/prisma/migrations/20260823164507_add_public_chatbot/migration.sql"
+        "supabase/migrations/20260916172000_complete_tenant_documents_and_notifications.sql",
+        "backend/prisma/migrations/20260916172000_complete_tenant_documents_and_notifications/migration.sql"
       ],
-      "reason": "Phase 12 implementation is validated locally; production application awaits an explicit migration approval."
+      "reason": "The tenant-document and notification implementation is locally validated and requires a reviewed Supabase production migration before these portal features can be enabled."
     }
   ],
   "legacyExceptions": [
+    {
+      "source": "supabase/migrations/20260823164507_add_public_chatbot.sql",
+      "status": "schema_present_history_unreconciled",
+      "reason": "ChatConversation, ChatMessage, the ChatMessageRole enum, and the daily expired-conversation cleanup cron are present in the connected database, but this local timestamp is absent from the authoritative Supabase migration ledger. Do not replay the DDL solely to repair history."
+    },
+    {
+      "source": "backend/prisma/migrations/20260823164507_add_public_chatbot/migration.sql",
+      "status": "schema_present_history_unreconciled",
+      "reason": "ChatConversation, ChatMessage, the ChatMessageRole enum, and the daily expired-conversation cleanup cron are present in the connected database, but this local timestamp is absent from the authoritative Supabase migration ledger. Do not replay the DDL solely to repair history."
+    },
     {
       "source": "supabase/migrations/20260822132441_add_auth_login_lockout_fields.sql",
       "status": "schema_present_history_unreconciled",

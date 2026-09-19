@@ -2,6 +2,7 @@
 
 import {
   ClipboardCheck,
+  Bell,
   CreditCard,
   FileText,
   Files,
@@ -35,6 +36,7 @@ const items: PortalNavItem[] = [
   { title: "Documents", icon: Files, href: "/tenant/documents" },
   { title: "Messages", icon: MessageSquare, href: "/tenant/messages" },
   { title: "Announcements", icon: Megaphone, href: "/tenant/announcements" },
+  { title: "Notifications", icon: Bell, href: "/tenant/notifications" },
   { title: "Profile", icon: User, href: "/tenant/profile" },
 ];
 

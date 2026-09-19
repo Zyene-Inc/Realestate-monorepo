@@ -25,6 +25,11 @@ enum AgentAccountStatus {
   SUSPENDED
 }
 
+enum AnnouncementAudience {
+  TENANT
+  AGENT
+}
+
 enum PropertyOwnerPayoutStatus {
   PENDING_ONBOARDING
   ACTIVE
@@ -361,46 +366,48 @@ enum ESignatureStoredDocumentType {
 }
 
 model User {
-  id                         String                            @id @default(cuid())
-  authUserId                 String                            @unique @db.Uuid
-  email                      String                            @unique
-  role                       Role                              @default(TENANT)
-  status                     UserStatus                        @default(INVITED)
-  failedLoginAttempts        Int                               @default(0)
-  lastFailedLoginAt          DateTime?
-  lockedUntil                DateTime?
-  createdAt                  DateTime                          @default(now())
-  updatedAt                  DateTime                          @updatedAt
-  tenantProfile              Tenant?
-  agentProfile               Agent?                            @relation("AgentUser")
-  approvedAgents             Agent[]                           @relation("AgentApprovedBy")
-  reviewedProperties         Property[]                        @relation("PropertyReviewedBy")
-  sentMessages               Message[]                         @relation("SentMessages")
-  receivedMessages           Message[]                         @relation("ReceivedMessages")
-  auditLogs                  AuditLog[]
-  notifications              Notification[]
-  recordedCommissions        SaleCommission[]                  @relation("SaleCommissionRecordedBy")
-  voidedCommissions          SaleCommission[]                  @relation("SaleCommissionVoidedBy")
-  commissionEvents           SaleCommissionEvent[]             @relation("SaleCommissionEventActor")
-  createdESignatures         ESignatureEnvelope[]              @relation("ESignatureCreatedBy")
-  assignedWebsiteLeads       WebsiteLead[]                     @relation("WebsiteLeadAssignedTo")
-  websiteLeadNotes           WebsiteLeadNote[]                 @relation("WebsiteLeadNoteAuthor")
-  assignedRentalApplications RentalApplication[]               @relation("RentalApplicationAssignedTo")
-  rentalApplicationNotes     RentalApplicationNote[]           @relation("RentalApplicationNoteAuthor")
-  reviewedRentalDocuments    RentalApplicationDocument[]       @relation("RentalApplicationDocumentReviewedBy")
-  initiatedRentalHandoffs    RentalApplicationHandoff[]        @relation("RentalApplicationHandoffInitiatedBy")
-  postedMoveInCharges        MoveInCharge[]                    @relation("MoveInChargePostedBy")
-  adjustedMoveInCharges      MoveInCharge[]                    @relation("MoveInChargeAdjustedBy")
-  preparedMoveInInspections  MoveInInspection[]                @relation("MoveInInspectionPreparedBy")
-  moveInInspectionPhotos     MoveInInspectionPhoto[]           @relation("MoveInInspectionPhotoUploadedBy")
-  moveInAcknowledgements     MoveInInspectionAcknowledgement[] @relation("MoveInInspectionAcknowledgedBy")
-  postedOwnerExpenses        OwnerExpenseLedgerEntry[]         @relation("OwnerExpensePostedBy")
-  createdLeaseRenewals       LeaseRenewal[]                    @relation("LeaseRenewalCreatedBy")
-  createdVacateNotices       NoticeToVacate[]                  @relation("VacateNoticeCreatedBy")
-  acknowledgedVacateNotices  NoticeToVacate[]                  @relation("VacateNoticeAcknowledgedBy")
-  preparedMoveOutInspections MoveOutInspection[]               @relation("MoveOutInspectionPreparedBy")
-  createdDepositDispositions SecurityDepositDisposition[]      @relation("DepositDispositionCreatedBy")
-  postedDepositLedgerEntries SecurityDepositLedgerEntry[]      @relation("DepositLedgerPostedBy")
+  id                           String                            @id @default(cuid())
+  authUserId                   String                            @unique @db.Uuid
+  email                        String                            @unique
+  role                         Role                              @default(TENANT)
+  status                       UserStatus                        @default(INVITED)
+  failedLoginAttempts          Int                               @default(0)
+  lastFailedLoginAt            DateTime?
+  lockedUntil                  DateTime?
+  createdAt                    DateTime                          @default(now())
+  updatedAt                    DateTime                          @updatedAt
+  tenantProfile                Tenant?
+  agentProfile                 Agent?                            @relation("AgentUser")
+  approvedAgents               Agent[]                           @relation("AgentApprovedBy")
+  reviewedProperties           Property[]                        @relation("PropertyReviewedBy")
+  sentMessages                 Message[]                         @relation("SentMessages")
+  receivedMessages             Message[]                         @relation("ReceivedMessages")
+  auditLogs                    AuditLog[]
+  notifications                Notification[]
+  uploadedTenantDocuments      Document[]                        @relation("TenantDocumentUploadedBy")
+  announcementAcknowledgements AnnouncementAcknowledgement[]
+  recordedCommissions          SaleCommission[]                  @relation("SaleCommissionRecordedBy")
+  voidedCommissions            SaleCommission[]                  @relation("SaleCommissionVoidedBy")
+  commissionEvents             SaleCommissionEvent[]             @relation("SaleCommissionEventActor")
+  createdESignatures           ESignatureEnvelope[]              @relation("ESignatureCreatedBy")
+  assignedWebsiteLeads         WebsiteLead[]                     @relation("WebsiteLeadAssignedTo")
+  websiteLeadNotes             WebsiteLeadNote[]                 @relation("WebsiteLeadNoteAuthor")
+  assignedRentalApplications   RentalApplication[]               @relation("RentalApplicationAssignedTo")
+  rentalApplicationNotes       RentalApplicationNote[]           @relation("RentalApplicationNoteAuthor")
+  reviewedRentalDocuments      RentalApplicationDocument[]       @relation("RentalApplicationDocumentReviewedBy")
+  initiatedRentalHandoffs      RentalApplicationHandoff[]        @relation("RentalApplicationHandoffInitiatedBy")
+  postedMoveInCharges          MoveInCharge[]                    @relation("MoveInChargePostedBy")
+  adjustedMoveInCharges        MoveInCharge[]                    @relation("MoveInChargeAdjustedBy")
+  preparedMoveInInspections    MoveInInspection[]                @relation("MoveInInspectionPreparedBy")
+  moveInInspectionPhotos       MoveInInspectionPhoto[]           @relation("MoveInInspectionPhotoUploadedBy")
+  moveInAcknowledgements       MoveInInspectionAcknowledgement[] @relation("MoveInInspectionAcknowledgedBy")
+  postedOwnerExpenses          OwnerExpenseLedgerEntry[]         @relation("OwnerExpensePostedBy")
+  createdLeaseRenewals         LeaseRenewal[]                    @relation("LeaseRenewalCreatedBy")
+  createdVacateNotices         NoticeToVacate[]                  @relation("VacateNoticeCreatedBy")
+  acknowledgedVacateNotices    NoticeToVacate[]                  @relation("VacateNoticeAcknowledgedBy")
+  preparedMoveOutInspections   MoveOutInspection[]               @relation("MoveOutInspectionPreparedBy")
+  createdDepositDispositions   SecurityDepositDisposition[]      @relation("DepositDispositionCreatedBy")
+  postedDepositLedgerEntries   SecurityDepositLedgerEntry[]      @relation("DepositLedgerPostedBy")
 }
 
 model Agent {
@@ -1521,41 +1528,62 @@ model Message {
 }
 
 model Announcement {
-  id         String    @id @default(cuid())
-  propertyId String?
-  property   Property? @relation(fields: [propertyId], references: [id])
-  unitId     String?
-  unit       Unit?     @relation(fields: [unitId], references: [id])
-  title      String
-  content    String
-  createdAt  DateTime  @default(now())
+  id                      String                        @id @default(cuid())
+  audience                AnnouncementAudience          @default(TENANT)
+  propertyId              String?
+  property                Property?                     @relation(fields: [propertyId], references: [id])
+  unitId                  String?
+  unit                    Unit?                         @relation(fields: [unitId], references: [id])
+  title                   String
+  content                 String
+  requiresAcknowledgement Boolean                       @default(false)
+  createdAt               DateTime                      @default(now())
+  acknowledgements        AnnouncementAcknowledgement[]
 
   @@index([propertyId])
   @@index([unitId])
+  @@index([audience, createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model Document {
-  id        String   @id @default(cuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  name      String
-  url       String
-  type      String // Lease, ID, Income, Notice, etc.
-  createdAt DateTime @default(now())
+  id               String   @id @default(cuid())
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  name             String
+  storagePath      String   @map("url")
+  type             String // Lease, ID, Income, Notice, etc.
+  uploadedByUserId String?
+  uploadedBy       User?    @relation("TenantDocumentUploadedBy", fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  createdAt        DateTime @default(now())
 
   @@index([tenantId])
+  @@index([uploadedByUserId])
 }
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
   title     String
   message   String
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  href      String?
+  isRead    Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([userId])
+  @@index([userId, isRead, createdAt(sort: Desc), id(sort: Desc)])
+}
+
+model AnnouncementAcknowledgement {
+  announcementId String
+  userId         String
+  acknowledgedAt DateTime     @default(now())
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, userId])
+  @@index([userId, acknowledgedAt(sort: Desc)])
 }
 
 model SaleCommission {

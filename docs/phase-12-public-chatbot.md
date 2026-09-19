@@ -2,7 +2,7 @@
 
 ## Scope and status
 
-The implementation is code-complete. Production activation remains intentionally gated on two external operations: apply the pending Supabase migration and add a server-only Groq API key to the API Vercel project. Until then, `CHATBOT_ENABLED=false` keeps the widget hidden and the generation endpoint unavailable.
+The implementation is code-complete and the production availability endpoint reports it enabled. The connected production database already contains the chat tables, enum, and daily expiry cron. Local migration version `20260823164507` is absent from Supabase migration history, so it is documented as a schema-present history exception and must not be replayed solely to repair the ledger. A controlled browser/security verification remains to be recorded.
 
 ## Implemented behavior
 
@@ -34,8 +34,8 @@ The implementation is code-complete. Production activation remains intentionally
 - Chatbot and production-environment unit tests: 16 pass.
 - Backend lint and Nest production build: pass.
 - Frontend TypeScript, lint, and 49-route Next.js production build: pass.
-- No live migration or production key mutation was performed during implementation.
+- Production preflight confirmed the chat tables, `ChatMessageRole` enum, and daily expiry cron are present; the availability endpoint reported the feature enabled. The migration-history divergence is documented in `docs/database-migration-ledger.json` and is not repaired by replaying DDL.
 
 ## Activation gate
 
-Follow the ordered checklist in `docs/vercel-deployment.md`. Do not mark Phase 12 production-active until the live migration, Vercel environment, streamed browser flow, persistence refresh, domain exclusion, and Supabase security/advisor checks all pass.
+Follow the ordered checklist in `docs/vercel-deployment.md`. Record a controlled streamed browser reply, persistence refresh, domain exclusion, and Supabase security/advisor check before calling Phase 12 fully verified.

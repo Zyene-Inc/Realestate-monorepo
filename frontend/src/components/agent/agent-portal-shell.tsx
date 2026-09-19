@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
+  Bell,
   FileSignature,
   MessageSquare,
   Settings,
@@ -20,6 +21,8 @@ import { navigateToUserPortal } from "@/lib/auth-routing";
 const items: PortalNavItem[] = [
   { title: "Listings", icon: Building2, href: "/agent/listings" },
   { title: "Buyer inquiries", icon: MessageSquare, href: "/agent/inquiries" },
+  { title: "Announcements", icon: Bell, href: "/agent/announcements" },
+  { title: "Notifications", icon: Bell, href: "/agent/notifications" },
   { title: "Documents", icon: FileSignature, href: "/agent/documents" },
   { title: "Company settings", icon: Settings, href: "/agent/settings" },
   { title: "Approval status", icon: ShieldCheck, href: "/agent/status" },

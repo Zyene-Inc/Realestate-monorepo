@@ -22,13 +22,13 @@ import { AnnouncementsService } from './announcements.service';
 
 @Controller('admin/announcements')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN)
+@Roles(Role.SUPER_ADMIN, Role.TENANT_ADMIN, Role.SALES_ADMIN)
 export class AnnouncementsController {
   constructor(private readonly announcements: AnnouncementsService) {}
 
   @Get()
-  list() {
-    return this.announcements.listForAdmin();
+  list(@Request() request: RequiredAuthenticatedRequest) {
+    return this.announcements.listForAdmin(request.user.role);
   }
 
   @Post()
@@ -36,7 +36,7 @@ export class AnnouncementsController {
     @Request() request: RequiredAuthenticatedRequest,
     @Body() body: CreateAnnouncementDto,
   ) {
-    return this.announcements.create(request.user.sub, body);
+    return this.announcements.create(request.user, body);
   }
 
   @Patch(':id')
@@ -45,7 +45,7 @@ export class AnnouncementsController {
     @Param('id') id: string,
     @Body() body: UpdateAnnouncementDto,
   ) {
-    return this.announcements.update(request.user.sub, id, body);
+    return this.announcements.update(request.user, id, body);
   }
 
   @Delete(':id')
@@ -53,7 +53,7 @@ export class AnnouncementsController {
     @Request() request: RequiredAuthenticatedRequest,
     @Param('id') id: string,
   ) {
-    return this.announcements.remove(request.user.sub, id);
+    return this.announcements.remove(request.user, id);
   }
 }
 
@@ -66,5 +66,33 @@ export class TenantAnnouncementsController {
   @Get()
   list(@Request() request: RequiredAuthenticatedRequest) {
     return this.announcements.listForTenant(request.user.sub);
+  }
+
+  @Post(':id/acknowledge')
+  acknowledge(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.announcements.acknowledgeTenant(request.user.sub, id);
+  }
+}
+
+@Controller('agent/announcements')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(Role.AGENT)
+export class AgentAnnouncementsController {
+  constructor(private readonly announcements: AnnouncementsService) {}
+
+  @Get()
+  list(@Request() request: RequiredAuthenticatedRequest) {
+    return this.announcements.listForAgent(request.user.sub);
+  }
+
+  @Post(':id/acknowledge')
+  acknowledge(
+    @Request() request: RequiredAuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.announcements.acknowledgeAgent(request.user.sub, id);
   }
 }

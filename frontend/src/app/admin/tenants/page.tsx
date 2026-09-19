@@ -28,6 +28,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/errors";
+import { TenantDocumentsDialog } from "@/components/portal/tenant-document-manager";
 
 type TenantUnit = {
   id: string;
@@ -314,13 +315,16 @@ export default function AdminTenants() {
               <TableHead className="text-right font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">
                 Account
               </TableHead>
+              <TableHead className="text-right font-heading font-bold text-[10px] uppercase tracking-widest text-muted-foreground py-5">
+                Records
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredTenants.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="h-32 text-center text-muted-foreground font-medium uppercase tracking-widest text-[10px] font-heading"
                 >
                   No residents found.
@@ -376,6 +380,12 @@ export default function AdminTenants() {
                         ? "Invitation pending"
                         : "Portal enabled"}
                     </span>
+                  </TableCell>
+                  <TableCell className="py-4 text-right">
+                    <TenantDocumentsDialog
+                      tenantId={tenant.id}
+                      tenantName={`${tenant.firstName} ${tenant.lastName}`}
+                    />
                   </TableCell>
                 </TableRow>
               ))

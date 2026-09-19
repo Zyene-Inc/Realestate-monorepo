@@ -28,6 +28,6 @@
 - [x] Vercel production database connectivity uses the bounded Supabase pool configuration.
 - [ ] Johnson Realty confirms its operational reviewer mailbox exists and is not suppressed before staff alerts rely on it.
 - [ ] Johnson Realty supplies/approves legal Verdocs PDFs; keep production e-signatures disabled until the separate Phase 9 activation gate passes.
-- [ ] Keep online rent collection and owner payouts disabled until the separate Phase 6.5 work is complete.
+- [ ] Before enabling online rent collection or owner payouts, record a controlled Stripe payment/refund/dispute verification against a payout-ready connected owner and confirm the live Stripe/Vercel configuration.
 
 The unchecked business/provider activation items do not reopen Phase 11 code hardening. They define which optional workflows must remain disabled at launch.

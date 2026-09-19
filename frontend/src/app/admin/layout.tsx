@@ -1,10 +1,64 @@
 "use client";
 
 import { AdminSidebar } from "@/components/admin/sidebar";
-import { useAuth } from "@/context/auth-context";
+import { AuthUser, useAuth } from "@/context/auth-context";
 import { navigateToUserPortal } from "@/lib/auth-routing";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
+
+const adminRoles: AuthUser["role"][] = [
+  "SUPER_ADMIN",
+  "SALES_ADMIN",
+  "TENANT_ADMIN",
+];
+const salesRoutePrefixes = [
+  "/admin/sales",
+  "/admin/agents",
+  "/admin/listings",
+  "/admin/inquiries",
+];
+const rentalRoutePrefixes = [
+  "/admin/dashboard",
+  "/admin/properties",
+  "/admin/units",
+  "/admin/tenants",
+  "/admin/leases",
+  "/admin/move-in-inspections",
+  "/admin/payments",
+  "/admin/owners",
+  "/admin/maintenance",
+  "/admin/vendors",
+  "/admin/messages",
+  "/admin/announcements",
+];
+const superRoutePrefixes = [
+  "/admin/emails",
+  "/admin/reports",
+  "/admin/tenant-administrators",
+];
+
+function matchesRoute(pathname: string, prefixes: string[]) {
+  return prefixes.some((prefix) => pathname.startsWith(prefix));
+}
+
+function shouldRedirectToPortal(user: AuthUser, pathname: string) {
+  if (!adminRoles.includes(user.role)) return true;
+  if (
+    user.role === "SALES_ADMIN" &&
+    matchesRoute(pathname, rentalRoutePrefixes)
+  ) {
+    return true;
+  }
+  if (
+    user.role === "TENANT_ADMIN" &&
+    matchesRoute(pathname, salesRoutePrefixes)
+  ) {
+    return true;
+  }
+  return (
+    user.role !== "SUPER_ADMIN" && matchesRoute(pathname, superRoutePrefixes)
+  );
+}
 
 export default function AdminLayout({
   children,
@@ -15,63 +69,19 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const isLogin = pathname === "/admin/login";
-  const isAdmin = Boolean(
-    user && ["SUPER_ADMIN", "SALES_ADMIN", "TENANT_ADMIN"].includes(user.role),
-  );
-  const salesRoute =
-    pathname.startsWith("/admin/sales") ||
-    pathname.startsWith("/admin/agents") ||
-    pathname.startsWith("/admin/listings") ||
-    pathname.startsWith("/admin/inquiries");
-  const rentalRoute = [
-    "/admin/dashboard",
-    "/admin/properties",
-    "/admin/units",
-    "/admin/tenants",
-    "/admin/leases",
-    "/admin/move-in-inspections",
-    "/admin/payments",
-    "/admin/owners",
-    "/admin/maintenance",
-    "/admin/vendors",
-    "/admin/messages",
-    "/admin/announcements",
-  ].some((route) => pathname.startsWith(route));
-  const superRoute =
-    pathname.startsWith("/admin/emails") ||
-    pathname.startsWith("/admin/reports") ||
-    pathname.startsWith("/admin/tenant-administrators");
+  const shouldRedirect = user ? shouldRedirectToPortal(user, pathname) : false;
+  const isAdmin = Boolean(user && adminRoles.includes(user.role));
 
   useEffect(() => {
     if (isLoading) return;
     if (isLogin) return;
     if (!user) router.replace("/admin/login");
-    else if (!isAdmin) navigateToUserPortal(router, user, "replace");
-    else if (user.role === "SALES_ADMIN" && rentalRoute)
-      navigateToUserPortal(router, user, "replace");
-    else if (user.role === "TENANT_ADMIN" && salesRoute)
-      navigateToUserPortal(router, user, "replace");
-    else if (user.role !== "SUPER_ADMIN" && superRoute)
-      navigateToUserPortal(router, user, "replace");
-  }, [
-    isAdmin,
-    isLoading,
-    isLogin,
-    rentalRoute,
-    router,
-    salesRoute,
-    superRoute,
-    user,
-  ]);
+    else if (shouldRedirect) navigateToUserPortal(router, user, "replace");
+  }, [isLoading, isLogin, router, shouldRedirect, user]);
 
   if (isLogin) return children;
 
-  const wrongVertical =
-    (user?.role === "SALES_ADMIN" && rentalRoute) ||
-    (user?.role === "TENANT_ADMIN" && salesRoute) ||
-    (user?.role !== "SUPER_ADMIN" && superRoute);
-
-  if (isLoading || !user || !isAdmin || wrongVertical) {
+  if (isLoading || !user || !isAdmin || shouldRedirect) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
         Checking access…

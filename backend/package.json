@@ -33,6 +33,7 @@
     "verify:phase9": "ts-node scripts/verify-verdocs-activation.ts",
     "verify:phase10": "ts-node scripts/verify-phase-10-reporting.ts",
     "verify:phase11": "ts-node scripts/verify-phase-11-launch-readiness.ts",
+    "verify:tenant-documents": "ts-node scripts/verify-tenant-documents-and-notifications.ts",
     "verdocs:bootstrap": "ts-node scripts/bootstrap-verdocs.ts",
     "verdocs:sync-env": "ts-node scripts/sync-verdocs-env.ts",
     "verify:workflows": "ts-node scripts/verify-listing-workflow.ts"

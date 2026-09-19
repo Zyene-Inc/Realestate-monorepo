@@ -21,14 +21,14 @@ The apex domain and all five explicit portal subdomains are assigned to the web 
 
 The web project serves one public site and five role-specific portals from the same production deployment:
 
-| Domain | Surface | Required role |
-|---|---|---|
-| `coachjohnsonrealty.com` | Public corporate site, sale listings, and rentals | Public |
-| `agents.coachjohnsonrealty.com` | Agent/sub-company workspace | `AGENT` |
-| `properties-admin.coachjohnsonrealty.com` | Buy/Sell administration | `SALES_ADMIN` |
-| `rental-admin.coachjohnsonrealty.com` | Rental and lease administration | `TENANT_ADMIN` |
-| `tenant.coachjohnsonrealty.com` | Tenant portal | `TENANT` |
-| `admin.coachjohnsonrealty.com` | Cross-vertical main administration | `SUPER_ADMIN` |
+| Domain                                    | Surface                                           | Required role  |
+| ----------------------------------------- | ------------------------------------------------- | -------------- |
+| `coachjohnsonrealty.com`                  | Public corporate site, sale listings, and rentals | Public         |
+| `agents.coachjohnsonrealty.com`           | Agent/sub-company workspace                       | `AGENT`        |
+| `properties-admin.coachjohnsonrealty.com` | Buy/Sell administration                           | `SALES_ADMIN`  |
+| `rental-admin.coachjohnsonrealty.com`     | Rental and lease administration                   | `TENANT_ADMIN` |
+| `tenant.coachjohnsonrealty.com`           | Tenant portal                                     | `TENANT`       |
+| `admin.coachjohnsonrealty.com`            | Cross-vertical main administration                | `SUPER_ADMIN`  |
 
 Next.js Proxy isolates each hostname and sends portal routes to their canonical domain. This is navigation isolation only; NestJS JWT and role guards remain the authorization boundary.
 
@@ -72,7 +72,7 @@ Configure these production environment variables in Vercel:
 - `VERDOCS_AGREEMENT_TEMPLATE_ID`: UUID of the legal-approved agent/company agreement template.
 - `VERDOCS_SENDER_NAME`: `Coach Johnson Realty`.
 - `VERDOCS_SENDER_EMAIL`: `noreply@coachjohnsonrealty.com` (used in the envelope UI/certificate; Verdocs still sends notifications from its own delivery domain).
-- `CHATBOT_ENABLED`: keep `false` until the chatbot migration and key are present; then set `true`.
+- `CHATBOT_ENABLED`: production is currently enabled. Keep this server-only flag aligned with the availability endpoint; disable it immediately if the provider key is removed or incident response requires the widget to be hidden.
 - `GROQ_API_KEY`: server-only Groq key. Never add this to the web project or use a `NEXT_PUBLIC_` prefix.
 - `CHATBOT_FINGERPRINT_SECRET`: server-only random value of at least 32 characters, generated independently from every other secret (for example, `openssl rand -hex 32`).
 - `STRIPE_RENT_PAYMENTS_ENABLED`: set to `true` only after the reviewed rental-payment migration and Stripe webhook are live; otherwise keep `false`.
@@ -94,13 +94,12 @@ A Rental Admin or Super Admin can use **Rental payments → Run billing check** 
 
 ### Public chatbot activation
 
-The chatbot implementation is disabled safely when its feature flag or Groq key is absent. To activate it:
+The chatbot degrades safely when its feature flag or Groq key is absent. The connected production database already contains the chatbot tables, enum, and expiry cron, while local migration version `20260823164507` is absent from Supabase migration history. Treat this as a documented history exception: do not replay its DDL solely to repair the ledger.
 
-1. Review and apply `20260823164507_add_public_chatbot.sql` to Supabase through the migration integration.
-2. Confirm RLS is enabled and `anon`/`authenticated` have no direct privileges on `ChatConversation` or `ChatMessage`; confirm the daily expired-conversation cron exists.
-3. Add `GROQ_API_KEY` and a unique `CHATBOT_FINGERPRINT_SECRET` to the API project's encrypted Production environment, then set `CHATBOT_ENABLED=true`.
-4. Redeploy the API first and the web project second. The web project requires no AI secret and continues using the same-origin `/api` rewrite.
-5. Verify `/api/public/chatbot/status`, one streamed reply, browser refresh history, a public property link, the `/contact` fallback, and absence of the widget on every role portal.
+1. Confirm RLS is enabled and `anon`/`authenticated` have no direct privileges on `ChatConversation` or `ChatMessage`; confirm the daily expired-conversation cron still exists.
+2. Confirm `GROQ_API_KEY` and a unique `CHATBOT_FINGERPRINT_SECRET` are present only in the API project's encrypted Production environment, and that `CHATBOT_ENABLED=true` matches the availability endpoint.
+3. Redeploy the API first and the web project second only when code or configuration changes. The web project requires no AI secret and continues using the same-origin `/api` rewrite.
+4. Record a controlled verification of `/api/public/chatbot/status`, one streamed reply, browser refresh history, a public property link, the `/contact` fallback, and absence of the widget on every role portal.
 
 The implementation pins replies to `openai/gpt-oss-20b` and input screening to `meta-llama/llama-prompt-guard-2-86m`; neither can be changed through environment configuration. Database-backed limits allow 12 visitor messages and 45 total messages per UTC day, preserving headroom under the Groq free-plan quota. NestJS also permits at most five message starts per minute per caller.
 

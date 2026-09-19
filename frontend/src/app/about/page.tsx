@@ -68,9 +68,9 @@ export default function AboutPage() {
               </h1>
             </div>
             <p className="max-w-lg text-base leading-7 text-muted-foreground lg:pb-2 lg:text-lg">
-              Harold and Diane Johnson bring local judgment, clear systems,
-              and long-term care to every property relationship—from a first
-              showing to the work that keeps a home well cared for years later.
+              Harold and Diane Johnson bring local judgment, clear systems, and
+              long-term care to every property relationship—from a first showing
+              to the work that keeps a home well cared for years later.
             </p>
           </section>
 
@@ -102,8 +102,8 @@ export default function AboutPage() {
                 <p className="mt-5 max-w-md text-base leading-7 text-muted-foreground">
                   The Johnsons&apos; Midtown Kansas City project shows what
                   community-rooted ownership can look like: restoring a home,
-                  raising the standard, and keeping quality housing connected
-                  to the neighborhood.
+                  raising the standard, and keeping quality housing connected to
+                  the neighborhood.
                 </p>
               </div>
 
@@ -118,8 +118,8 @@ export default function AboutPage() {
                   In April 2026, <em>The Community Voice</em> profiled Harold
                   and Diane Johnson&apos;s transformation of a fire-damaged
                   six-unit building on East 30th Street into Neyan&apos;s Place:
-                  fully leased, thoughtfully renovated housing in Midtown
-                  Kansas City.
+                  fully leased, thoughtfully renovated housing in Midtown Kansas
+                  City.
                 </p>
                 <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
                   Named for their oldest granddaughter, the project reflects a
@@ -166,12 +166,12 @@ export default function AboutPage() {
                       href="https://www.communityvoiceks.com/2026/04/06/neyans-place-kansas-city-community-redevelopment/"
                       target="_blank"
                       rel="noreferrer"
-                    />
+                    >
+                      Read the Community Voice story
+                      <ArrowUpRight aria-hidden="true" />
+                    </a>
                   }
-                >
-                  Read the Community Voice story
-                  <ArrowUpRight aria-hidden="true" />
-                </Button>
+                />
               </article>
             </div>
           </section>
@@ -186,10 +186,10 @@ export default function AboutPage() {
                   A portal for the work after the keys.
                 </h2>
                 <p className="mt-5 max-w-md text-base leading-7 text-muted-foreground">
-                  A property relationship does not stop at a showing or a
-                  signed lease. Coach Johnson Realty&apos;s secure portals give
-                  residents, agents, and staff a clear place to handle the
-                  next step.
+                  A property relationship does not stop at a showing or a signed
+                  lease. Coach Johnson Realty&apos;s secure portals give
+                  residents, agents, and staff a clear place to handle the next
+                  step.
                 </p>
               </div>
 
@@ -263,7 +263,9 @@ export default function AboutPage() {
 
           <section className="public-container grid gap-8 py-16 sm:py-24 lg:grid-cols-[1fr_auto] lg:items-end">
             <div>
-              <p className="text-sm font-semibold text-primary">Let&apos;s talk</p>
+              <p className="text-sm font-semibold text-primary">
+                Let&apos;s talk
+              </p>
               <h2 className="mt-3 max-w-2xl text-3xl font-semibold leading-tight tracking-[-0.04em] sm:text-5xl">
                 Start with the local team behind the property.
               </h2>
